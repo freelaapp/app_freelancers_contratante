@@ -18,7 +18,7 @@ import { useAuth } from "@/context/auth-context";
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
   const router = useRouter();
-  const { top } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -51,7 +51,7 @@ export default function LoginScreen() {
 
       <ScrollView
         style={styles.card}
-        contentContainerStyle={styles.cardContent}
+        contentContainerStyle={[styles.cardContent, { paddingBottom: Math.max(bottom, 24) + 16 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5A623",
   },
   header: {
-    flex: 0.38,
+    flex: 0.28,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
@@ -256,7 +256,6 @@ const styles = StyleSheet.create({
   cardContent: {
     paddingHorizontal: 24,
     paddingTop: 28,
-    paddingBottom: 40,
   },
   welcomeTitle: {
     fontSize: 22,
