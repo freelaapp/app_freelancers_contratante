@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
-import { AuthProvider, useAuth } from "../context/auth-context";
+import { AuthProvider, useAuth } from "@/context/auth-context";
 
 function RootNavigator() {
   const { user, isInitializing } = useAuth();

@@ -8,21 +8,31 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useAuth } from "../../context/auth-context";
+import { useAuth } from "@/context/auth-context";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const { signIn, isLoading } = useAuth();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  async function handleSignIn() {
-    if (!email || !password) return;
+  async function handleRegister() {
+    if (!name || !email || !password) return;
     await signIn(email, password);
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Entrar</Text>
+      <Text style={styles.title}>Criar conta</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Nome"
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        editable={!isLoading}
+      />
 
       <TextInput
         style={styles.input}
@@ -45,18 +55,18 @@ export default function LoginScreen() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={handleSignIn}
+        onPress={handleRegister}
         disabled={isLoading}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Entrar</Text>
+          <Text style={styles.buttonText}>Criar conta</Text>
         )}
       </TouchableOpacity>
 
-      <Link href="/register" style={styles.link}>
-        Criar conta
+      <Link href="/login" style={styles.link}>
+        Já tenho conta
       </Link>
     </View>
   );
