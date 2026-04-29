@@ -260,25 +260,23 @@ export default function ForgotPasswordScreen() {
 
 function StepIndicator({ currentStep }: { currentStep: Step }) {
   return (
-    <View style={stepStyles.wrapper}>
-      {/* Row 1: circles + connector lines perfectly aligned */}
-      <View style={stepStyles.circlesRow}>
-        {STEPS.map((label, i) => {
-          const stepNum = (i + 1) as Step;
-          const isCompleted = currentStep > stepNum;
-          const isActive = currentStep === stepNum;
-          const connectorDone = currentStep > stepNum;
+    <View style={stepStyles.row}>
+      {STEPS.map((label, i) => {
+        const stepNum = (i + 1) as Step;
+        const isCompleted = currentStep > stepNum;
+        const isActive = currentStep === stepNum;
 
-          return (
-            <View key={label} style={stepStyles.circleCell}>
-              {i > 0 && (
-                <View
-                  style={[
-                    stepStyles.connector,
-                    connectorDone && stepStyles.connectorDone,
-                  ]}
-                />
-              )}
+        return (
+          <View key={label} style={stepStyles.itemWrapper}>
+            {i > 0 && (
+              <View
+                style={[
+                  stepStyles.connector,
+                  isCompleted && stepStyles.connectorDone,
+                ]}
+              />
+            )}
+            <View style={stepStyles.item}>
               <View
                 style={[
                   stepStyles.circle,
@@ -299,32 +297,19 @@ function StepIndicator({ currentStep }: { currentStep: Step }) {
                   </Text>
                 )}
               </View>
+              <Text
+                style={[
+                  stepStyles.label,
+                  isCompleted && stepStyles.labelCompleted,
+                  isActive && stepStyles.labelActive,
+                ]}
+              >
+                {label}
+              </Text>
             </View>
-          );
-        })}
-      </View>
-
-      {/* Row 2: labels aligned below each circle */}
-      <View style={stepStyles.labelsRow}>
-        {STEPS.map((label, i) => {
-          const stepNum = (i + 1) as Step;
-          const isCompleted = currentStep > stepNum;
-          const isActive = currentStep === stepNum;
-
-          return (
-            <Text
-              key={label}
-              style={[
-                stepStyles.label,
-                isCompleted && stepStyles.labelCompleted,
-                isActive && stepStyles.labelActive,
-              ]}
-            >
-              {label}
-            </Text>
-          );
-        })}
-      </View>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -503,22 +488,20 @@ const styles = StyleSheet.create({
 });
 
 const stepStyles = StyleSheet.create({
-  wrapper: {
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 16,
     marginBottom: 4,
   },
-  circlesRow: {
+  itemWrapper: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  circleCell: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
+    flexShrink: 1,
   },
   connector: {
     flex: 1,
+    minWidth: 12,
     height: 1.5,
     backgroundColor: "#E5E7EB",
     marginHorizontal: 6,
@@ -526,10 +509,10 @@ const stepStyles = StyleSheet.create({
   connectorDone: {
     backgroundColor: "#22C55E",
   },
-  labelsRow: {
+  item: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
+    alignItems: "center",
+    gap: 6,
   },
   circle: {
     width: 24,
@@ -557,7 +540,7 @@ const stepStyles = StyleSheet.create({
     color: "#fff",
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
     color: "#9CA3AF",
   },
