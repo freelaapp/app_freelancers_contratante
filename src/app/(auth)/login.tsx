@@ -12,11 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/auth-context";
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
   const router = useRouter();
+  const { top } = useSafeAreaInsets();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +34,7 @@ export default function LoginScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 16 }]}>
         <View style={styles.circleL} />
         <View style={styles.circleM} />
         <View style={styles.circleS} />
