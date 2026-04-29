@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "freela-contrantate",
-    "slug": "freela-contrantate",
+    "slug": "freela-contratante",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.freela.freela-contrantate"
     },
     "android": {
       "adaptiveIcon": {
@@ -43,6 +44,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3d87648a-7768-4f20-8a01-a2b1cb8caa03"
+      }
+    },
+    "owner": "freelaapp"
   }
 }
