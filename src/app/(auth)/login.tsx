@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+    paddingBottom: 32,
     overflow: "hidden",
   },
   circleL: {
