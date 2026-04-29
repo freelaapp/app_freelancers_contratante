@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,6 +19,8 @@ export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+
+  const passwordRef = useRef<TextInput>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,6 +77,9 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
               editable={!isLoading}
             />
           </View>
@@ -90,12 +95,15 @@ export default function LoginScreen() {
               style={styles.inputIcon}
             />
             <TextInput
+              ref={passwordRef}
               style={styles.input}
               placeholder="Digite sua senha"
               placeholderTextColor="#9CA3AF"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              returnKeyType="done"
+              onSubmitEditing={handleSignIn}
               editable={!isLoading}
             />
             <TouchableOpacity
