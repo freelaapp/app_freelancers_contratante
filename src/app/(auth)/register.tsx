@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/auth-context";
 import { CompactHeader } from "@/components/compact-header";
+import { Input } from "@/components/input";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -26,8 +27,6 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,7 +44,7 @@ export default function RegisterScreen() {
     acceptedTerms;
 
   async function handleRegister() {
-    if (!name || !email || !phone || password.length < 8 || password !== confirmPassword || !acceptedTerms) return;
+    if (!canSubmit) return;
     setIsLoading(true);
     await new Promise<void>((r) => setTimeout(r, 1000));
     setIsLoading(false);
@@ -70,125 +69,79 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View>
-          <Text style={styles.label}>Nome completo</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Seu nome completo"
-              placeholderTextColor="#9CA3AF"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              returnKeyType="next"
-              onSubmitEditing={() => emailRef.current?.focus()}
-              blurOnSubmit={false}
-              editable={!isLoading}
-            />
-          </View>
-        </View>
+        <Input
+          label="Nome completo"
+          icon="person-outline"
+          placeholder="Seu nome completo"
+          autoCapitalize="words"
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+          blurOnSubmit={false}
+          editable={!isLoading}
+          value={name}
+          onChangeText={setName}
+          containerStyle={styles.inputWhite}
+        />
 
-        <View style={styles.fieldWrapper}>
-          <Text style={styles.label}>E-mail</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              ref={emailRef}
-              style={styles.textInput}
-              placeholder="seu@email.com"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-              onSubmitEditing={() => phoneRef.current?.focus()}
-              blurOnSubmit={false}
-              editable={!isLoading}
-            />
-          </View>
-        </View>
+        <Input
+          ref={emailRef}
+          label="E-mail"
+          icon="mail-outline"
+          placeholder="seu@email.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          returnKeyType="next"
+          onSubmitEditing={() => phoneRef.current?.focus()}
+          blurOnSubmit={false}
+          editable={!isLoading}
+          value={email}
+          onChangeText={setEmail}
+          containerStyle={styles.inputWhite}
+        />
 
-        <View style={styles.fieldWrapper}>
-          <Text style={styles.label}>Celular</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="call-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              ref={phoneRef}
-              style={styles.textInput}
-              placeholder="(11) 99999-9999"
-              placeholderTextColor="#9CA3AF"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              blurOnSubmit={false}
-              editable={!isLoading}
-            />
-          </View>
-        </View>
+        <Input
+          ref={phoneRef}
+          label="Celular"
+          icon="call-outline"
+          placeholder="(11) 99999-9999"
+          keyboardType="phone-pad"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
+          editable={!isLoading}
+          value={phone}
+          onChangeText={setPhone}
+          containerStyle={styles.inputWhite}
+        />
 
-        <View style={styles.fieldWrapper}>
-          <Text style={styles.label}>Senha</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              ref={passwordRef}
-              style={styles.textInput}
-              placeholder="Mínimo 8 caracteres"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              returnKeyType="next"
-              onSubmitEditing={() => confirmPasswordRef.current?.focus()}
-              blurOnSubmit={false}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((prev) => !prev)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#9CA3AF"
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Input
+          ref={passwordRef}
+          label="Senha"
+          icon="lock-closed-outline"
+          placeholder="Mínimo 8 caracteres"
+          secureTextEntry
+          returnKeyType="next"
+          onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+          blurOnSubmit={false}
+          editable={!isLoading}
+          value={password}
+          onChangeText={setPassword}
+          containerStyle={styles.inputWhite}
+        />
 
-        <View style={styles.fieldWrapper}>
-          <Text style={styles.label}>Confirmar senha</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              ref={confirmPasswordRef}
-              style={styles.textInput}
-              placeholder="Repita a senha"
-              placeholderTextColor="#9CA3AF"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirm}
-              returnKeyType="done"
-              onSubmitEditing={handleRegister}
-              blurOnSubmit={false}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirm((prev) => !prev)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={showConfirm ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#9CA3AF"
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Input
+          ref={confirmPasswordRef}
+          label="Confirmar senha"
+          icon="lock-closed-outline"
+          placeholder="Repita a senha"
+          secureTextEntry
+          returnKeyType="done"
+          onSubmitEditing={handleRegister}
+          editable={!isLoading}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          containerStyle={styles.inputWhite}
+        />
 
         <View style={styles.termsRow}>
           <TouchableOpacity
@@ -257,38 +210,15 @@ const styles = StyleSheet.create({
   cardContent: {
     paddingHorizontal: 24,
     paddingTop: 28,
+    gap: 16,
   },
-  fieldWrapper: {
-    marginTop: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#11181C",
-    marginBottom: 6,
-  },
-  inputContainer: {
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#11181C",
+  inputWhite: {
+    backgroundColor: "#fff",
+    borderWidth: 0,
   },
   termsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
     paddingVertical: 4,
   },
   checkbox: {
@@ -322,7 +252,6 @@ const styles = StyleSheet.create({
     color: "#F5A623",
   },
   submitButton: {
-    marginTop: 20,
     height: 52,
     borderRadius: 12,
     backgroundColor: "#F5A623",
@@ -338,7 +267,6 @@ const styles = StyleSheet.create({
     color: "#1A1A2E",
   },
   footer: {
-    marginTop: 16,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",

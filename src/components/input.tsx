@@ -7,16 +7,18 @@ import {
   TextInputProps,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 
 type Props = TextInputProps & {
   label?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   error?: string;
+  containerStyle?: ViewStyle;
 };
 
 export const Input = forwardRef<TextInput, Props>(
-  ({ label, icon, error, secureTextEntry, style, ...rest }, ref) => {
+  ({ label, icon, error, secureTextEntry, style, containerStyle, ...rest }, ref) => {
     const [hidden, setHidden] = useState(secureTextEntry ?? false);
 
     return (
@@ -27,6 +29,7 @@ export const Input = forwardRef<TextInput, Props>(
           style={[
             styles.container,
             error ? styles.containerError : styles.containerDefault,
+            containerStyle,
           ]}
         >
           {icon && (
