@@ -1,3 +1,4 @@
+export { AvaliacaoCard } from "./avaliacao-card";
 export { BookingCard } from "./booking-card";
 export { CompactHeader } from "./compact-header";
 export { CustomTabBar } from "./custom-tab-bar";
