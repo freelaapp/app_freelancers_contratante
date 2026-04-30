@@ -1,3 +1,4 @@
+import { colors, fontSizes, fontWeights, gradients, radii, spacing } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -24,15 +25,13 @@ export function HomeHeader({
 
   return (
     <LinearGradient
-      colors={["#ECA826", "#F2C94C"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-      style={[styles.card, { paddingTop: top + 16 }]}
+      colors={gradients.primary.colors}
+      start={gradients.primary.start}
+      end={gradients.primary.end}
+      style={[styles.card, { paddingTop: top + spacing["8"] }]}
     >
-      {/* Top row */}
       <View style={styles.topRow}>
         <View style={styles.topLeft}>
-          {/* Mascot logo */}
           <View style={styles.logoBox}>
             <View style={styles.eyes}>
               <View style={styles.eye} />
@@ -49,31 +48,30 @@ export function HomeHeader({
 
         <View style={styles.topRight}>
           <TouchableOpacity style={styles.iconButton} onPress={onChat} activeOpacity={0.8}>
-            <Ionicons name="chatbubble-outline" size={20} color="#1A1A2E" />
+            <Ionicons name="chatbubble-outline" size={20} color={colors.dark} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={onNotifications} activeOpacity={0.8}>
-            <Ionicons name="notifications-outline" size={20} color="#1A1A2E" />
+            <Ionicons name="notifications-outline" size={20} color={colors.dark} />
             <View style={styles.badge} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Stats sub-cards */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Ionicons name="trending-up-outline" size={16} color="#1A1A2E" />
+          <Ionicons name="trending-up-outline" size={16} color={colors.dark} />
           <Text style={styles.statValue}>{saldo}</Text>
           <Text style={styles.statLabel}>Gastos do mês</Text>
         </View>
 
         <View style={styles.statCard}>
-          <Ionicons name="calendar-outline" size={16} color="#1A1A2E" />
+          <Ionicons name="calendar-outline" size={16} color={colors.dark} />
           <Text style={styles.statValue}>{vagas}</Text>
           <Text style={styles.statLabel}>Vagas</Text>
         </View>
 
         <View style={styles.statCard}>
-          <Ionicons name="star" size={16} color="#1A1A2E" />
+          <Ionicons name="star" size={16} color={colors.dark} />
           <Text style={styles.statValue}>{avaliacao}</Text>
           <Text style={styles.statLabel}>Avaliação</Text>
         </View>
@@ -84,12 +82,11 @@ export function HomeHeader({
 
 const styles = StyleSheet.create({
   card: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-
-    gap: 16,
+    paddingHorizontal: spacing["10"],
+    paddingBottom: spacing["10"],
+    borderBottomLeftRadius: radii["3xl"],
+    borderBottomRightRadius: radii["3xl"],
+    gap: spacing["8"],
   },
   topRow: {
     flexDirection: "row",
@@ -99,26 +96,26 @@ const styles = StyleSheet.create({
   topLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: spacing["6"],
   },
   logoBox: {
     width: 48,
     height: 48,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+    borderRadius: radii.lg,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: spacing["2"],
   },
   eyes: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing["4"],
   },
   eye: {
     width: 10,
     height: 10,
-    borderRadius: 5,
-    backgroundColor: "#1A1A2E",
+    borderRadius: radii.full,
+    backgroundColor: colors.dark,
   },
   smile: {
     width: 18,
@@ -127,64 +124,64 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 9,
     borderWidth: 2,
     borderTopWidth: 0,
-    borderColor: "#1A1A2E",
+    borderColor: colors.dark,
   },
   greetingColumn: {
-    gap: 2,
+    gap: spacing["1"],
   },
   greetingLabel: {
-    fontSize: 13,
-    fontWeight: "400",
-    color: "rgba(26, 26, 46, 0.70)",
+    fontSize: fontSizes.base,
+    fontWeight: fontWeights.regular,
+    color: colors.darkMuted,
   },
   greetingName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A1A2E",
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.bold,
+    color: colors.dark,
   },
   topRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing["4"],
   },
   iconButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    borderRadius: radii.full,
+    backgroundColor: colors.overlayWhite,
     alignItems: "center",
     justifyContent: "center",
   },
   badge: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: spacing["4"],
+    right: spacing["4"],
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: "#EF4444",
+    borderRadius: radii.full,
+    backgroundColor: colors.error,
   },
   statsRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing["4"],
   },
   statCard: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.12)",
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: colors.overlayDarkCard,
+    borderRadius: radii.lg,
+    padding: spacing["6"],
     alignItems: "center",
-    gap: 4,
+    gap: spacing["2"],
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1A1A2E",
+    fontSize: fontSizes.xl,
+    fontWeight: fontWeights.bold,
+    color: colors.dark,
   },
   statLabel: {
-    fontSize: 10,
-    fontWeight: "400",
-    color: "rgba(26, 26, 46, 0.70)",
+    fontSize: fontSizes.xs,
+    fontWeight: fontWeights.regular,
+    color: colors.darkMuted,
     textAlign: "center",
   },
 });

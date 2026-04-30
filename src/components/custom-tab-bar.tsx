@@ -1,3 +1,4 @@
+import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -12,41 +13,12 @@ type TabItem = {
 };
 
 const TABS: TabItem[] = [
-  {
-    name: "index",
-    label: "Home",
-    icon: "home-outline",
-    iconFocused: "home",
-  },
-  {
-    name: "vagas",
-    label: "Vagas",
-    icon: "search-outline",
-    iconFocused: "search",
-  },
-  {
-    name: "criar-vaga",
-    label: "Criar Vaga",
-    icon: "add",
-    iconFocused: "add",
-    isCenter: true,
-  },
-  {
-    name: "avaliacoes",
-    label: "Avaliações",
-    icon: "star-outline",
-    iconFocused: "star",
-  },
-  {
-    name: "profile",
-    label: "Perfil",
-    icon: "person-outline",
-    iconFocused: "person",
-  },
+  { name: "index", label: "Home", icon: "home-outline", iconFocused: "home" },
+  { name: "vagas", label: "Vagas", icon: "search-outline", iconFocused: "search" },
+  { name: "criar-vaga", label: "Criar Vaga", icon: "add", iconFocused: "add", isCenter: true },
+  { name: "avaliacoes", label: "Avaliações", icon: "star-outline", iconFocused: "star" },
+  { name: "profile", label: "Perfil", icon: "person-outline", iconFocused: "person" },
 ];
-
-const ACTIVE = "#F5A623";
-const INACTIVE = "#9CA3AF";
 
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { bottom } = useSafeAreaInsets();
@@ -56,7 +28,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(bottom, 12) }]}>
+    <View style={[styles.container, { paddingBottom: Math.max(bottom, spacing["6"]) }]}>
       {TABS.map((tab) => {
         const routeIndex = state.routes.findIndex((r) => r.name === tab.name);
         const focused = state.index === routeIndex;
@@ -70,7 +42,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               activeOpacity={0.85}
             >
               <View style={styles.centerButton}>
-                <Ionicons name="add" size={32} color="#1A1A2E" />
+                <Ionicons name="add" size={32} color={colors.dark} />
               </View>
               <Text style={styles.centerLabel}>{tab.label}</Text>
             </TouchableOpacity>
@@ -88,7 +60,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             <Ionicons
               name={focused ? tab.iconFocused : tab.icon}
               size={24}
-              color={focused ? ACTIVE : INACTIVE}
+              color={focused ? colors.primary : colors.muted}
             />
             <Text style={[styles.label, focused && styles.labelActive]}>
               {tab.label}
@@ -103,12 +75,12 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    paddingTop: 10,
-    paddingHorizontal: 8,
+    backgroundColor: colors.white,
+    paddingTop: spacing["5"],
+    paddingHorizontal: spacing["4"],
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-    shadowColor: "#000",
+    borderTopColor: colors.borderLight,
+    shadowColor: colors.dark,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -117,49 +89,49 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: "center",
-    gap: 3,
+    gap: spacing["2"],
   },
   activeIndicator: {
     position: "absolute",
-    top: -10,
+    top: -spacing["5"],
     width: "60%",
     height: 3,
-    borderRadius: 2,
-    backgroundColor: ACTIVE,
+    borderRadius: radii.xs,
+    backgroundColor: colors.primary,
   },
   label: {
-    fontSize: 11,
-    color: INACTIVE,
-    fontWeight: "500",
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    fontWeight: fontWeights.medium,
   },
   labelActive: {
-    color: ACTIVE,
-    fontWeight: "600",
+    color: colors.primary,
+    fontWeight: fontWeights.semibold,
   },
   centerWrapper: {
     flex: 1,
     alignItems: "center",
-    marginTop: -28,
-    gap: 3,
+    marginTop: -spacing["14"],
+    gap: spacing["2"],
   },
   centerButton: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: ACTIVE,
+    borderRadius: radii["3xl"],
+    backgroundColor: colors.primary,
     borderWidth: 4,
-    borderColor: "#FFFFFF",
+    borderColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: ACTIVE,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
   },
   centerLabel: {
-    fontSize: 11,
-    color: INACTIVE,
-    fontWeight: "500",
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    fontWeight: fontWeights.medium,
   },
 });
