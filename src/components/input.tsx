@@ -1,6 +1,6 @@
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { forwardRef, useState } from "react";
+import { forwardRef, ReactNode, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -16,10 +16,11 @@ type Props = TextInputProps & {
   icon?: keyof typeof Ionicons.glyphMap;
   error?: string;
   containerStyle?: ViewStyle;
+  rightElement?: ReactNode;
 };
 
 export const Input = forwardRef<TextInput, Props>(
-  ({ label, icon, error, secureTextEntry, style, containerStyle, ...rest }, ref) => {
+  ({ label, icon, error, secureTextEntry, style, containerStyle, rightElement, ...rest }, ref) => {
     const [hidden, setHidden] = useState(secureTextEntry ?? false);
 
     return (
@@ -57,6 +58,8 @@ export const Input = forwardRef<TextInput, Props>(
               />
             </TouchableOpacity>
           )}
+
+          {!secureTextEntry && rightElement}
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}

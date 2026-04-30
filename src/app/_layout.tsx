@@ -15,7 +15,13 @@ function RootNavigator() {
     if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
     } else if (user && inAuthGroup) {
-      router.replace("/(home)/");
+      if (!user.profileCompleted) {
+        router.replace("/(auth)/completar-cadastro");
+      } else {
+        router.replace("/(home)");
+      }
+    } else if (user && !user.profileCompleted && !inAuthGroup) {
+      router.replace("/(auth)/completar-cadastro");
     }
   }, [user, isInitializing, segments]);
 

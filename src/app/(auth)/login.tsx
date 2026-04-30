@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/auth-context";
+import { Input } from "@/components/input";
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
@@ -24,7 +25,6 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSignIn() {
     if (!email || !password) return;
@@ -51,7 +51,10 @@ export default function LoginScreen() {
 
       <ScrollView
         style={styles.card}
-        contentContainerStyle={[styles.cardContent, { paddingBottom: Math.max(bottom, 24) + 16 }]}
+        contentContainerStyle={[
+          styles.cardContent,
+          { paddingBottom: Math.max(bottom, 24) + 16 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -60,64 +63,33 @@ export default function LoginScreen() {
           Faça login para contratar profissionais
         </Text>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>E-mail</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="mail-outline"
-              size={20}
-              color="#9CA3AF"
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Digite seu e-mail"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              blurOnSubmit={false}
-              editable={!isLoading}
-            />
-          </View>
-        </View>
+        <Input
+          label="E-mail"
+          icon="mail-outline"
+          placeholder="Digite seu e-mail"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
+          editable={!isLoading}
+          value={email}
+          onChangeText={setEmail}
+          containerStyle={styles.inputSpacing}
+        />
 
-        <View style={[styles.fieldGroup, styles.fieldGroupSpacing]}>
-          <Text style={styles.label}>Senha</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={20}
-              color="#9CA3AF"
-              style={styles.inputIcon}
-            />
-            <TextInput
-              ref={passwordRef}
-              style={styles.input}
-              placeholder="Digite sua senha"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              returnKeyType="done"
-              onSubmitEditing={handleSignIn}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((prev) => !prev)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#9CA3AF"
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Input
+          ref={passwordRef}
+          label="Senha"
+          icon="lock-closed-outline"
+          placeholder="Digite sua senha"
+          secureTextEntry
+          returnKeyType="done"
+          onSubmitEditing={handleSignIn}
+          editable={!isLoading}
+          value={password}
+          onChangeText={setPassword}
+        />
 
         <TouchableOpacity
           style={styles.forgotPassword}
@@ -150,10 +122,7 @@ export default function LoginScreen() {
           <Text style={styles.googleButtonText}>Entrar com Google</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.appleButton}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={styles.appleButton} activeOpacity={0.85}>
           <Ionicons
             name="logo-apple"
             size={22}
@@ -165,9 +134,7 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Ainda não tem cadastro? </Text>
-          <TouchableOpacity
-            onPress={() => router.replace("/(auth)/register")}
-          >
+          <TouchableOpacity onPress={() => router.replace("/(auth)/register")}>
             <Text style={styles.footerLink}>Criar minha conta</Text>
           </TouchableOpacity>
         </View>
@@ -266,36 +233,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#687076",
     marginTop: 4,
+    marginBottom: 4,
   },
-  fieldGroup: {
-    marginTop: 20,
-  },
-  fieldGroupSpacing: {
+  inputSpacing: {
     marginTop: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#11181C",
-    marginBottom: 6,
-  },
-  inputContainer: {
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: "#11181C",
+    marginBottom: 16,
   },
   forgotPassword: {
     alignSelf: "flex-end",
