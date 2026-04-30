@@ -56,9 +56,9 @@ export default function RegisterScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={[styles.header, { paddingTop: top + 12 }]}>
-        <View style={styles.circleL} />
-        <View style={styles.circleM} />
-        <View style={styles.circleS} />
+        <View style={[styles.decorCircle, styles.decorCircle1]} />
+        <View style={[styles.decorCircle, styles.decorCircle2]} />
+        <View style={[styles.decorCircle, styles.decorCircle3]} />
 
         <TouchableOpacity
           style={styles.backRow}
@@ -71,7 +71,7 @@ export default function RegisterScreen() {
 
         <View style={styles.subtitleRow}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>freela</Text>
+            <Text style={styles.logoText}>f</Text>
           </View>
           <Text style={styles.subtitleText}>
             Cadastre-se e comece a contratar
@@ -267,36 +267,31 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5A623",
   },
   header: {
-    flex: 0.26,
+    flex: 0.22,
     overflow: "hidden",
     paddingHorizontal: 20,
-    paddingBottom: 24,
-    justifyContent: "flex-end",
+    paddingBottom: 20,
   },
-  circleL: {
+  decorCircle: {
     position: "absolute",
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    borderRadius: 9999,
     backgroundColor: "rgba(0,0,0,0.08)",
-    top: -40,
+  },
+  decorCircle1: {
+    width: 180,
+    height: 180,
+    top: -60,
     right: -40,
   },
-  circleM: {
-    position: "absolute",
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "rgba(0,0,0,0.08)",
-    top: 10,
+  decorCircle2: {
+    width: 120,
+    height: 120,
+    top: 20,
     right: 80,
   },
-  circleS: {
-    position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(0,0,0,0.08)",
+  decorCircle3: {
+    width: 80,
+    height: 80,
     bottom: -10,
     left: -20,
   },
@@ -317,15 +312,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
   logoText: {
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: "700",
     fontStyle: "italic",
     color: "#F5A623",
