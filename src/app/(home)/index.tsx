@@ -1,9 +1,18 @@
-import { View, Text, StyleSheet } from "react-native";
+import { HomeHeader } from "@/components/home-header";
+import { useAuth } from "@/context/auth-context";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 export default function HomeScreen() {
+  const { user } = useAuth();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Início</Text>
+      <HomeHeader userName={user?.name ?? "Usuário"} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
@@ -11,12 +20,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#fff",
   },
-  text: {
-    fontSize: 24,
-    fontWeight: "600",
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
 });
