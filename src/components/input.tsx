@@ -1,3 +1,4 @@
+import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { forwardRef, useState } from "react";
 import {
@@ -33,18 +34,13 @@ export const Input = forwardRef<TextInput, Props>(
           ]}
         >
           {icon && (
-            <Ionicons
-              name={icon}
-              size={20}
-              color="#9CA3AF"
-              style={styles.icon}
-            />
+            <Ionicons name={icon} size={20} color={colors.muted} style={styles.icon} />
           )}
 
           <TextInput
             ref={ref}
             style={[styles.input, style]}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.muted}
             secureTextEntry={hidden}
             {...rest}
           />
@@ -57,7 +53,7 @@ export const Input = forwardRef<TextInput, Props>(
               <Ionicons
                 name={hidden ? "eye-outline" : "eye-off-outline"}
                 size={20}
-                color="#9CA3AF"
+                color={colors.muted}
               />
             </TouchableOpacity>
           )}
@@ -73,38 +69,38 @@ Input.displayName = "Input";
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 6,
+    gap: spacing["3"],
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#11181C",
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
   },
   container: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     borderWidth: 1.5,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing["7"],
   },
   containerDefault: {
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   containerError: {
-    borderColor: "#EF4444",
+    borderColor: colors.error,
   },
   icon: {
-    marginRight: 10,
+    marginRight: spacing["5"],
   },
   input: {
     flex: 1,
-    fontSize: 14,
-    color: "#11181C",
+    fontSize: fontSizes.md,
+    color: colors.ink,
   },
   error: {
-    fontSize: 12,
-    color: "#EF4444",
+    fontSize: fontSizes.xs,
+    color: colors.error,
   },
 });
