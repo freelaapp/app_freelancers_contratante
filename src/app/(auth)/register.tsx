@@ -14,10 +14,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/auth-context";
+import { CompactHeader } from "@/components/compact-header";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { top, bottom } = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
   const { signIn } = useAuth();
 
   const [name, setName] = useState("");
@@ -55,29 +56,10 @@ export default function RegisterScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={[styles.header, { paddingTop: top + 12 }]}>
-        <View style={[styles.decorCircle, styles.decorCircle1]} />
-        <View style={[styles.decorCircle, styles.decorCircle2]} />
-        <View style={[styles.decorCircle, styles.decorCircle3]} />
-
-        <TouchableOpacity
-          style={styles.backRow}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1A1A2E" />
-          <Text style={styles.headerTitle}>Criar conta</Text>
-        </TouchableOpacity>
-
-        <View style={styles.subtitleRow}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>f</Text>
-          </View>
-          <Text style={styles.subtitleText}>
-            Cadastre-se e comece a contratar
-          </Text>
-        </View>
-      </View>
+      <CompactHeader
+        title="Criar conta"
+        subtitle="Cadastre-se e comece a contratar"
+      />
 
       <ScrollView
         style={styles.card}
@@ -265,71 +247,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#F5A623",
-  },
-  header: {
-    flex: 0.22,
-    overflow: "hidden",
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  decorCircle: {
-    position: "absolute",
-    borderRadius: 9999,
-    backgroundColor: "rgba(0,0,0,0.08)",
-  },
-  decorCircle1: {
-    width: 180,
-    height: 180,
-    top: -60,
-    right: -40,
-  },
-  decorCircle2: {
-    width: 120,
-    height: 120,
-    top: 20,
-    right: 80,
-  },
-  decorCircle3: {
-    width: 80,
-    height: 80,
-    bottom: -10,
-    left: -20,
-  },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1A1A2E",
-    marginLeft: 8,
-  },
-  subtitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    gap: 8,
-  },
-  logoContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoText: {
-    fontSize: 18,
-    fontWeight: "700",
-    fontStyle: "italic",
-    color: "#F5A623",
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: "#1A1A2E",
-    opacity: 0.8,
-    flex: 1,
   },
   card: {
     flex: 1,
