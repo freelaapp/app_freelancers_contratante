@@ -1,3 +1,6 @@
+import { BottomActionBar } from "@/components/bottom-action-bar";
+import { CardContainer } from "@/components/card-container";
+import { CardHeader } from "@/components/card-header";
 import { InfoBox } from "@/components/info-box";
 import { Input } from "@/components/input";
 import { PageHeader } from "@/components/page-header";
@@ -5,7 +8,6 @@ import { PrimaryButton } from "@/components/primary-button";
 import { ServiceChip } from "@/components/service-chip";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { SERVICES } from "@/utils/services";
-import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -57,7 +59,7 @@ export default function CriarVagaScreen() {
         keyboardShouldPersistTaps="handled"
       >
 
-        <View style={styles.card}>
+        <CardContainer>
           <Text style={styles.sectionTitle}>Serviços necessários</Text>
           <Text style={styles.sectionSubtitle}>
             Selecione os profissionais
@@ -81,13 +83,10 @@ export default function CriarVagaScreen() {
               );
             })}
           </View>
-        </View>
+        </CardContainer>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Data do evento</Text>
-          </View>
+        <CardContainer>
+          <CardHeader icon="calendar-outline" title="Data do evento" />
           <Input
             placeholder="dd/mm/aaaa"
             keyboardType="numeric"
@@ -96,13 +95,10 @@ export default function CriarVagaScreen() {
             onChangeText={setDataEvento}
             maxLength={10}
           />
-        </View>
+        </CardContainer>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="location-outline" size={18} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Local do evento</Text>
-          </View>
+        <CardContainer>
+          <CardHeader icon="location-outline" title="Local do evento" />
           <View style={styles.toggleRow}>
             <Text style={styles.toggleLabel}>No seu estabelecimento?</Text>
             <Switch
@@ -112,13 +108,10 @@ export default function CriarVagaScreen() {
               thumbColor={colors.white}
             />
           </View>
-        </View>
+        </CardContainer>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Descrição da vaga</Text>
-          </View>
+        <CardContainer>
+          <CardHeader icon="document-text-outline" title="Descrição da vaga" />
           <Text style={styles.descSubtitle}>
             Descreva detalhes importantes para os freelancers
           </Text>
@@ -131,7 +124,7 @@ export default function CriarVagaScreen() {
             value={descricao}
             onChangeText={setDescricao}
           />
-        </View>
+        </CardContainer>
 
         <InfoBox
           icon="information-circle-outline"
@@ -140,25 +133,12 @@ export default function CriarVagaScreen() {
         />
       </ScrollView>
 
-      <View
-        style={[
-          styles.bottomBar,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
+      <BottomActionBar backgroundColor={colors.white} showTopBorder>
         <PrimaryButton label="Publicar contratação →" onPress={handlePublish} />
-      </View>
+      </BottomActionBar>
     </View>
   );
 }
-
-const CARD_SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.06,
-  shadowRadius: 4,
-  elevation: 2,
-} as const;
 
 const styles = StyleSheet.create({
   screen: {
@@ -173,13 +153,6 @@ const styles = StyleSheet.create({
     gap: spacing["6"],
     paddingHorizontal: spacing["8"],
     paddingTop: spacing["8"],
-  },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radii["2xl"],
-    padding: spacing["8"],
-    gap: spacing["6"],
-    ...CARD_SHADOW,
   },
   sectionTitle: {
     fontSize: 15,
@@ -200,11 +173,6 @@ const styles = StyleSheet.create({
   },
   chipPlaceholder: {
     flex: 1,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing["4"],
   },
   toggleRow: {
     flexDirection: "row",
@@ -231,16 +199,5 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     fontSize: fontSizes.base,
     color: colors.ink,
-  },
-  bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingHorizontal: spacing["8"],
-    paddingTop: spacing["6"],
   },
 });

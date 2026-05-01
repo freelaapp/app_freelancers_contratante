@@ -1,3 +1,5 @@
+import { Divider } from "@/components/divider";
+import { StarRating } from "@/components/star-rating";
 import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
@@ -10,30 +12,15 @@ type Props = {
   showDivider?: boolean;
 };
 
-function StarRating({ count }: { count: number }) {
-  return (
-    <View style={styles.stars}>
-      {Array.from({ length: 5 }, (_, i) => (
-        <Ionicons
-          key={i}
-          name={i < count ? "star" : "star-outline"}
-          size={14}
-          color={colors.primary}
-        />
-      ))}
-    </View>
-  );
-}
-
 export function AvaliacaoCard({ nome, data, estrelas, comentario, showDivider = true }: Props) {
   return (
     <>
-      {showDivider && <View style={styles.divider} />}
+      {showDivider && <Divider marginHorizontal={-spacing["8"]} />}
       <View style={styles.container}>
         <View style={styles.topRow}>
           <Text style={styles.nome}>{nome}</Text>
           <View style={styles.ratingRow}>
-            <StarRating count={estrelas} />
+            <StarRating count={estrelas} size={14} />
             <Ionicons name="chevron-down" size={16} color={colors.muted} />
           </View>
         </View>
@@ -45,11 +32,6 @@ export function AvaliacaoCard({ nome, data, estrelas, comentario, showDivider = 
 }
 
 const styles = StyleSheet.create({
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: -spacing["8"],
-  },
   container: {
     gap: spacing["3"],
   },
@@ -67,10 +49,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing["3"],
-  },
-  stars: {
-    flexDirection: "row",
-    gap: 2,
   },
   data: {
     fontSize: fontSizes.base,

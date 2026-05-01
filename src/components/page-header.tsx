@@ -10,15 +10,27 @@ type Props = {
   subtitle?: string;
   onBack?: () => void;
   rounded?: boolean;
+  inline?: boolean;
 };
 
-export function PageHeader({ title, badge, subtitle, onBack, rounded = false }: Props) {
+export function PageHeader({ title, badge, subtitle, onBack, rounded = false, inline = false }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   function handleBack() {
     if (onBack) onBack();
     else router.back();
+  }
+
+  if (inline) {
+    return (
+      <View style={[styles.inlineContainer, { paddingTop: insets.top + spacing["10"] }]}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={20} color={colors.ink} />
+        </TouchableOpacity>
+        <Text style={styles.inlineTitle}>{title}</Text>
+      </View>
+    );
   }
 
   return (
@@ -82,5 +94,19 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.muted,
     lineHeight: 20,
+  },
+  inlineContainer: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing["16"],
+    paddingBottom: spacing["12"],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["10"],
+  },
+  inlineTitle: {
+    fontSize: fontSizes["2xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.ink,
+    lineHeight: 28,
   },
 });

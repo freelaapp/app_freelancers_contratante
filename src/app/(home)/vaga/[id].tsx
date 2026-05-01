@@ -1,10 +1,16 @@
+import { AvatarInitials } from "@/components/avatar-initials";
+import { BottomActionBar } from "@/components/bottom-action-bar";
+import { CenteredModal } from "@/components/centered-modal";
+import { Divider } from "@/components/divider";
 import { FreelancerProfileSheet } from "@/components/freelancer-profile-sheet";
-import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { StarRating } from "@/components/star-rating";
+import { StatusBadge } from "@/components/status-badge";
+import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { VAGAS_DETALHE_MOCK, type Candidato, type VagaDetalhe } from "@/utils/vagas-mock";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const STEPS = [
@@ -16,6 +22,42 @@ const STEPS = [
   "Repasse ao freelancer",
   "Feedback",
 ];
+
+type CodeModalProps = {
+  visible: boolean;
+  code: string | null;
+  title: string;
+  confirmLabel: string;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+function CodeModal({ visible, code, title, confirmLabel, onClose, onConfirm }: CodeModalProps) {
+  return (
+    <CenteredModal visible={visible} onClose={onClose} contentStyle={styles.checkinModal}>
+      <TouchableOpacity style={styles.checkinClose} onPress={onClose} hitSlop={8}>
+        <Ionicons name="close" size={22} color={colors.ink} />
+      </TouchableOpacity>
+      <Text style={styles.checkinModalText}>
+        {title === "Código de Check-in"
+          ? "Mande o código de check-in para o freelancer"
+          : "Mande o código de check-out para o freelancer"}
+      </Text>
+      <View style={styles.checkinCodeBox}>
+        <Text style={styles.checkinCode}>
+          {code?.split("").join("  ")}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.checkinConfirmBtn}
+        activeOpacity={0.85}
+        onPress={onConfirm}
+      >
+        <Text style={styles.checkinConfirmBtnText}>{confirmLabel}</Text>
+      </TouchableOpacity>
+    </CenteredModal>
+  );
+}
 
 function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
   return (
@@ -31,7 +73,7 @@ function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
             <Text style={styles.infoValueMuted}>{vaga.horario}</Text>
           </View>
         </View>
-        <View style={styles.infoVerticalDivider} />
+        <Divider orientation="vertical" />
         <View style={styles.infoCol}>
           <View style={styles.infoIconCircle}>
             <Ionicons name="location-outline" size={18} color={colors.primary} />
@@ -44,7 +86,7 @@ function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
         </View>
       </View>
 
-      <View style={styles.infoHDivider} />
+      <Divider />
 
       <View style={styles.infoBottomRow}>
         <View style={styles.infoBottomLeft}>
@@ -69,11 +111,9 @@ function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: 
 
   return (
     <>
-      {showDivider && <View style={styles.rowDivider} />}
+      {showDivider && <Divider />}
       <View style={styles.candidatoRow}>
-        <View style={styles.candidatoAvatar}>
-          <Text style={styles.candidatoIniciais}>{item.iniciais}</Text>
-        </View>
+        <AvatarInitials initials={item.iniciais} size={40} backgroundColor={colors.primary} />
         <View style={styles.candidatoInfo}>
           <Text style={styles.candidatoNome}>{item.nome}</Text>
           <Text style={styles.candidatoCargo}>{item.cargo}</Text>
@@ -86,14 +126,10 @@ function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: 
         </View>
         <View style={styles.candidatoActions}>
           {isAceito && (
-            <View style={styles.badgeAceito}>
-              <Text style={styles.badgeAceitoText}>aceito</Text>
-            </View>
+            <StatusBadge status="aceito" label="Aceito" />
           )}
           {isRecusado && (
-            <View style={styles.badgeRecusado}>
-              <Text style={styles.badgeRecusadoText}>recusado</Text>
-            </View>
+            <StatusBadge status="recusado" label="Recusado" />
           )}
           {!isAceito && !isRecusado && (
             <>
@@ -220,16 +256,6 @@ export default function VagaDetailScreen() {
     router.back();
   }
 
-  function handleConfirmarCheckin() {
-    setCheckinCode(null);
-    setStepAtual(4);
-  }
-
-  function handleConfirmarCheckout() {
-    setCheckoutCode(null);
-    setStepAtual(5);
-  }
-
   function handleAceitarCandidato(candidatoId: string) {
     setCandidatos((prev) =>
       prev.map((c) =>
@@ -255,6 +281,7 @@ export default function VagaDetailScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
+        {/* overlay badge — unique to header */}
         <View style={styles.statusBadge}>
           <Text style={styles.statusBadgeText}>{vaga.statusLabel}</Text>
         </View>
@@ -307,142 +334,81 @@ export default function VagaDetailScreen() {
       </ScrollView>
 
       {/* Botões fixos */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing["8"] }]}>
+      <BottomActionBar backgroundColor="#F0F0F0" style={styles.bottomBarGap}>
         <TouchableOpacity style={styles.checkinBtn} activeOpacity={0.85} onPress={handleCta}>
           <Text style={styles.checkinBtnText}>{cta.label}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={() => router.back()}>
           <Text style={styles.cancelBtnText}>Cancelar</Text>
         </TouchableOpacity>
-      </View>
+      </BottomActionBar>
 
-      {/* Modal Check-in */}
-      <Modal
+      <CodeModal
         visible={checkinCode !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCheckinCode(null)}
-        statusBarTranslucent
-      >
-        <Pressable style={styles.checkinBackdrop} onPress={() => setCheckinCode(null)}>
-          <Pressable style={styles.checkinModal}>
-            <TouchableOpacity style={styles.checkinClose} onPress={() => setCheckinCode(null)} hitSlop={8}>
-              <Ionicons name="close" size={22} color={colors.ink} />
-            </TouchableOpacity>
-            <Text style={styles.checkinModalText}>
-              Mande o código de check-in para o freelancer
-            </Text>
-            <View style={styles.checkinCodeBox}>
-              <Text style={styles.checkinCode}>
-                {checkinCode?.split("").join("  ")}
-              </Text>
-            </View>
+        code={checkinCode}
+        title="Código de Check-in"
+        confirmLabel="Freelancer confirmou o código"
+        onClose={() => setCheckinCode(null)}
+        onConfirm={() => { setCheckinCode(null); setStepAtual(4); }}
+      />
 
-            <TouchableOpacity
-              style={styles.checkinConfirmBtn}
-              activeOpacity={0.85}
-              onPress={handleConfirmarCheckin}
-            >
-              <Text style={styles.checkinConfirmBtnText}>Freelancer confirmou o código</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <CodeModal
+        visible={checkoutCode !== null}
+        code={checkoutCode}
+        title="Código de Check-out"
+        confirmLabel="Freelancer confirmou o código"
+        onClose={() => setCheckoutCode(null)}
+        onConfirm={() => { setCheckoutCode(null); setStepAtual(5); }}
+      />
 
       {/* Modal Avaliar */}
-      <Modal
+      <CenteredModal
         visible={avaliarVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAvaliarVisible(false)}
-        statusBarTranslucent
+        onClose={() => setAvaliarVisible(false)}
+        contentStyle={styles.avaliarModal}
       >
-        <Pressable style={styles.checkinBackdrop} onPress={() => setAvaliarVisible(false)}>
-          <Pressable style={styles.avaliarModal}>
-            <Text style={styles.avaliarTitle}>Faça uma avaliação</Text>
+        <Text style={styles.avaliarTitle}>Faça uma avaliação</Text>
 
-            {/* Estrelas */}
-            <View style={styles.avaliarStars}>
-              {Array.from({ length: 5 }, (_, i) => (
-                <TouchableOpacity key={i} onPress={() => setEstrelas(i + 1)} hitSlop={6} activeOpacity={0.7}>
-                  <Ionicons
-                    name="star"
-                    size={36}
-                    color={i < estrelas ? colors.primary : "#D1D5DB"}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
+        {/* Estrelas */}
+        <View style={styles.avaliarStars}>
+          <StarRating count={estrelas} size={36} interactive onPress={setEstrelas} />
+        </View>
 
-            {/* Comentário */}
-            <TextInput
-              style={styles.avaliarInput}
-              placeholder="Escreva um comentário..."
-              placeholderTextColor={colors.muted}
-              value={comentario}
-              onChangeText={setComentario}
-              multiline
-              textAlignVertical="top"
-            />
+        {/* Comentário */}
+        <TextInput
+          style={styles.avaliarInput}
+          placeholder="Escreva um comentário..."
+          placeholderTextColor={colors.muted}
+          value={comentario}
+          onChangeText={setComentario}
+          multiline
+          textAlignVertical="top"
+        />
 
-            {/* Compareceu */}
-            <Text style={styles.avaliarPergunta}>O freelancer compareceu ao serviço?</Text>
-            <View style={styles.avaliarRespostas}>
-              <TouchableOpacity
-                style={[styles.avaliarBtn, { backgroundColor: compareceu === true ? "#16A34A" : "#DCFCE7" }]}
-                onPress={() => setCompareceu(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.avaliarBtnText, { color: compareceu === true ? colors.white : "#16A34A" }]}>Sim</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.avaliarBtn, { backgroundColor: compareceu === false ? "#DC2626" : "#FEE2E2" }]}
-                onPress={() => setCompareceu(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.avaliarBtnText, { color: compareceu === false ? colors.white : "#DC2626" }]}>Não</Text>
-              </TouchableOpacity>
-            </View>
+        {/* Compareceu */}
+        <Text style={styles.avaliarPergunta}>O freelancer compareceu ao serviço?</Text>
+        <View style={styles.avaliarRespostas}>
+          <TouchableOpacity
+            style={[styles.avaliarBtn, { backgroundColor: compareceu === true ? "#16A34A" : "#DCFCE7" }]}
+            onPress={() => setCompareceu(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.avaliarBtnText, { color: compareceu === true ? colors.white : "#16A34A" }]}>Sim</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.avaliarBtn, { backgroundColor: compareceu === false ? "#DC2626" : "#FEE2E2" }]}
+            onPress={() => setCompareceu(false)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.avaliarBtnText, { color: compareceu === false ? colors.white : "#DC2626" }]}>Não</Text>
+          </TouchableOpacity>
+        </View>
 
-            {/* Confirmar */}
-            <TouchableOpacity style={styles.avaliarConfirmarBtn} onPress={handleConfirmarAvaliacao} activeOpacity={0.85}>
-              <Text style={styles.avaliarConfirmarBtnText}>Confirmar</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Modal Check-out */}
-      <Modal
-        visible={checkoutCode !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCheckoutCode(null)}
-        statusBarTranslucent
-      >
-        <Pressable style={styles.checkinBackdrop} onPress={() => setCheckoutCode(null)}>
-          <Pressable style={styles.checkinModal}>
-            <TouchableOpacity style={styles.checkinClose} onPress={() => setCheckoutCode(null)} hitSlop={8}>
-              <Ionicons name="close" size={22} color={colors.ink} />
-            </TouchableOpacity>
-            <Text style={styles.checkinModalText}>
-              Mande o código de check-out para o freelancer
-            </Text>
-            <View style={styles.checkinCodeBox}>
-              <Text style={styles.checkinCode}>
-                {checkoutCode?.split("").join("  ")}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.checkinConfirmBtn}
-              activeOpacity={0.85}
-              onPress={handleConfirmarCheckout}
-            >
-              <Text style={styles.checkinConfirmBtnText}>Freelancer confirmou o código</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        {/* Confirmar */}
+        <TouchableOpacity style={styles.avaliarConfirmarBtn} onPress={handleConfirmarAvaliacao} activeOpacity={0.85}>
+          <Text style={styles.avaliarConfirmarBtnText}>Confirmar</Text>
+        </TouchableOpacity>
+      </CenteredModal>
 
       <FreelancerProfileSheet
         visible={selectedCandidato !== null}
@@ -454,14 +420,6 @@ export default function VagaDetailScreen() {
     </View>
   );
 }
-
-const CARD_SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 8,
-  elevation: 3,
-} as const;
 
 const styles = StyleSheet.create({
   screen: {
@@ -526,7 +484,7 @@ const styles = StyleSheet.create({
     borderRadius: radii["2xl"],
     padding: spacing["8"],
     gap: spacing["6"],
-    ...CARD_SHADOW,
+    ...cardShadowStrong,
   },
   cardLabel: {
     fontSize: fontSizes.md,
@@ -573,16 +531,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: spacing["1"],
   },
-  infoVerticalDivider: {
-    width: 1,
-    backgroundColor: colors.border,
-    alignSelf: "stretch",
-    marginHorizontal: spacing["4"],
-  },
-  infoHDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
   infoBottomRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -614,29 +562,11 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.base,
     color: colors.muted,
   },
-  rowDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
   candidatoRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: spacing["5"],
     gap: spacing["6"],
-  },
-  candidatoAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    flexShrink: 0,
-  },
-  candidatoIniciais: {
-    fontSize: fontSizes.md,
-    fontWeight: fontWeights.bold,
-    color: colors.white,
   },
   candidatoInfo: {
     flex: 1,
@@ -690,28 +620,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  badgeAceito: {
-    backgroundColor: "#DCFCE7",
-    borderRadius: radii.full,
-    paddingHorizontal: spacing["6"],
-    paddingVertical: spacing["2"],
-  },
-  badgeAceitoText: {
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.semibold,
-    color: "#16A34A",
-  },
-  badgeRecusado: {
-    backgroundColor: "#FEE2E2",
-    borderRadius: radii.full,
-    paddingHorizontal: spacing["6"],
-    paddingVertical: spacing["2"],
-  },
-  badgeRecusadoText: {
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.semibold,
-    color: "#DC2626",
-  },
 
   // Status steps
   stepsRow: {
@@ -764,16 +672,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.medium,
   },
 
-  // Bottom
-  bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: spacing["8"],
-    paddingTop: spacing["8"],
-    backgroundColor: "#F0F0F0",
-    zIndex: 2,
+  // Bottom bar gap (applied as style prop to BottomActionBar)
+  bottomBarGap: {
     gap: spacing["4"],
   },
   checkinBtn: {
@@ -801,19 +701,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Modal check-in
-  checkinBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: spacing["8"],
-  },
+  // Modal check-in / check-out
   checkinModal: {
-    backgroundColor: colors.white,
-    borderRadius: radii["2xl"],
-    padding: spacing["12"],
-    width: "100%",
     gap: spacing["10"],
   },
   checkinClose: {
@@ -853,10 +742,6 @@ const styles = StyleSheet.create({
 
   // Modal avaliar
   avaliarModal: {
-    backgroundColor: colors.white,
-    borderRadius: radii["2xl"],
-    padding: spacing["12"],
-    width: "100%",
     gap: spacing["8"],
   },
   avaliarTitle: {

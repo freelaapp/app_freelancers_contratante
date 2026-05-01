@@ -1,15 +1,14 @@
+import { FilterChipBar } from "@/components/filter-chip-bar";
 import { PageHeader } from "@/components/page-header";
 import { VagaCard } from "@/components/vaga-card";
-import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { colors, spacing } from "@/constants/theme";
 import { VAGA_FILTERS } from "@/utils/vaga-filters";
-import { VAGAS_MOCK, type Vaga, type VagaStatus } from "@/utils/vagas-mock";
+import { VAGAS_MOCK, type VagaStatus } from "@/utils/vagas-mock";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
@@ -38,29 +37,7 @@ export default function VagasScreen() {
         stickyHeaderIndices={[0]}
       >
         {/* Filtros sticky */}
-        <View style={styles.filterWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            {VAGA_FILTERS.map((f) => {
-              const active = activeFilter === f.id;
-              return (
-                <TouchableOpacity
-                  key={f.id}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => setActiveFilter(f.id)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>
-                    {f.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <FilterChipBar options={VAGA_FILTERS} activeId={activeFilter} onSelect={setActiveFilter} />
 
         {/* Lista */}
         <View style={styles.list}>
@@ -92,41 +69,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: spacing["16"],
-  },
-  filterWrapper: {
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing["8"],
-    paddingVertical: spacing["6"],
-  },
-  filterRow: {
-    flexDirection: "row",
-    gap: spacing["4"],
-  },
-  filterChip: {
-    borderRadius: radii.full,
-    paddingHorizontal: spacing["10"],
-    height: 36,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterLabel: {
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.medium,
-    color: colors.ink,
-    lineHeight: fontSizes.base,
-    includeFontPadding: false,
-    textAlignVertical: "center",
-  },
-  filterLabelActive: {
-    color: colors.white,
-    fontWeight: fontWeights.semibold,
   },
   list: {
     gap: spacing["6"],

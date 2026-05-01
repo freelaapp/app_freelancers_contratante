@@ -1,6 +1,6 @@
-import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { PageHeader } from "@/components/page-header";
+import { colors, fontSizes, fontWeights, radii, spacing, tabShadow } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ScrollView,
@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Tab = "notificacoes" | "mensagens";
 
@@ -110,8 +109,6 @@ function NotificacaoItem({ item }: { item: Notificacao }) {
 }
 
 export default function NotificacoesScreen() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("notificacoes");
 
   const naoLidasNotif = NOTIFICACOES.filter((n) => !n.lida).length;
@@ -119,14 +116,8 @@ export default function NotificacoesScreen() {
   const lista = activeTab === "notificacoes" ? NOTIFICACOES : MENSAGENS;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notificações</Text>
-      </View>
+    <View style={styles.screen}>
+      <PageHeader title="Notificações" inline />
 
       {/* Tabs */}
       <View style={styles.tabsWrapper}>
@@ -193,20 +184,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing["8"],
-    paddingHorizontal: spacing["8"],
-    paddingVertical: spacing["10"],
-  },
-  headerTitle: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
-    color: colors.ink,
-  },
-
   // Tabs
   tabsWrapper: {
     paddingHorizontal: spacing["8"],
@@ -229,11 +206,7 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: colors.white,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    ...tabShadow,
   },
   tabText: {
     fontSize: fontSizes.base,

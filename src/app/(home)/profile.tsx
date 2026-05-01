@@ -1,16 +1,11 @@
-import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { AvatarInitials } from "@/components/avatar-initials";
+import { CardHeader } from "@/components/card-header";
+import { Divider } from "@/components/divider";
+import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const CARD_SHADOW = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.06,
-  shadowRadius: 4,
-  elevation: 2,
-} as const;
 
 type MenuItemProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -23,7 +18,7 @@ type MenuItemProps = {
 function MenuItem({ icon, title, subtitle, onPress, showDivider = true }: MenuItemProps) {
   return (
     <>
-      {showDivider && <View style={styles.divider} />}
+      {showDivider && <Divider />}
       <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
         <Ionicons name={icon} size={22} color={colors.ink} style={styles.menuIcon} />
         <View style={styles.menuText}>
@@ -53,9 +48,7 @@ export default function ProfileScreen() {
     >
       {/* Avatar + nome */}
       <View style={styles.profileHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
-        </View>
+        <AvatarInitials initials={initials} size={56} />
         <View style={styles.profileInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.profileName}>{user?.name ?? "Contratante"}</Text>
@@ -70,10 +63,7 @@ export default function ProfileScreen() {
 
       {/* Fotos do estabelecimento */}
       <View style={[styles.card, styles.photosCard]}>
-        <View style={styles.photosHeader}>
-          <Ionicons name="image-outline" size={18} color={colors.ink} />
-          <Text style={styles.photosTitle}>Fotos do Estabelecimento</Text>
-        </View>
+        <CardHeader icon="image-outline" title="Fotos do Estabelecimento" iconColor={colors.ink} />
         <View style={styles.photosRow}>
           <TouchableOpacity style={styles.photoSlot} activeOpacity={0.7}>
             <Ionicons name="image-outline" size={28} color={colors.primary} />
@@ -141,19 +131,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing["2"],
     marginBottom: spacing["4"],
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
-    color: colors.white,
-  },
   profileInfo: {
     gap: spacing["2"],
   },
@@ -182,23 +159,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: radii["2xl"],
-    ...CARD_SHADOW,
+    ...cardShadow,
   },
 
   // Photos
   photosCard: {
     padding: spacing["8"],
     gap: spacing["8"],
-  },
-  photosHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing["4"],
-  },
-  photosTitle: {
-    fontSize: fontSizes.md,
-    fontWeight: fontWeights.semibold,
-    color: colors.ink,
   },
   photosRow: {
     flexDirection: "row",
@@ -249,10 +216,6 @@ const styles = StyleSheet.create({
   menuSubtitle: {
     fontSize: fontSizes.base,
     color: colors.muted,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
   },
 
   // Logout

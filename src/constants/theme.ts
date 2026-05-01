@@ -88,3 +88,36 @@ export const gradients = {
     end: { x: 1, y: 0 },
   },
 } as const;
+
+export const cardShadow = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.06,
+  shadowRadius: 4,
+  elevation: 2,
+} as const;
+
+export const cardShadowStrong = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 8,
+  elevation: 3,
+} as const;
+
+export const tabShadow = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+} as const;
+
+export const statusColors = {
+  confirmado: { bg: "#D1FAE5", text: "#065F46" },
+  aguardando: { bg: "#FEF3C7", text: "#92400E" },
+  cancelado:  { bg: "#FEE2E2", text: "#991B1B" },
+  finalizado: { bg: "#F3F4F6", text: "#6B7280" },
+  aceito:     { bg: "#DCFCE7", text: "#16A34A" },
+  recusado:   { bg: "#FEE2E2", text: "#DC2626" },
+} as const;

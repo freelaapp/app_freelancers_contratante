@@ -1,5 +1,8 @@
+import { Divider } from "@/components/divider";
+import { StatusBadge } from "@/components/status-badge";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { type VagaStatus } from "@/utils/vagas-mock";
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Props = {
@@ -12,15 +15,13 @@ type Props = {
   onPress?: () => void;
 };
 
-const BADGE: Record<VagaStatus, { bg: string; text: string; label: string }> = {
-  confirmado: { bg: "#D1FAE5", text: "#065F46", label: "Confirmado" },
-  aguardando: { bg: "#FEF3C7", text: "#92400E", label: "Aguardando" },
-  finalizado: { bg: "#F3F4F6", text: "#6B7280", label: "Finalizado" },
+const BADGE_LABEL: Record<VagaStatus, string> = {
+  confirmado: "Confirmado",
+  aguardando: "Aguardando",
+  finalizado: "Finalizado",
 };
 
 export function VagaCard({ title, location, date, time, value, status, onPress }: Props) {
-  const badge = BADGE[status];
-
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
@@ -28,18 +29,22 @@ export function VagaCard({ title, location, date, time, value, status, onPress }
     >
       <View style={styles.topRow}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
-        </View>
+        <StatusBadge status={status} label={BADGE_LABEL[status]} />
       </View>
 
       <Text style={styles.location}>{location}</Text>
 
-      <View style={styles.divider} />
+      <Divider />
 
       <View style={styles.footer}>
-        <Text style={styles.meta}>📅 {date}</Text>
-        <Text style={styles.meta}>🕐 {time}</Text>
+        <View style={styles.metaItem}>
+          <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
+          <Text style={styles.meta}>{date}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+          <Text style={styles.meta}>{time}</Text>
+        </View>
         <Text style={styles.value}>{value}</Text>
       </View>
     </Pressable>
@@ -70,33 +75,25 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.bold,
     color: colors.ink,
   },
-  badge: {
-    borderRadius: radii.full,
-    paddingHorizontal: spacing["5"],
-    paddingVertical: spacing["2"],
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: fontWeights.semibold,
-  },
   location: {
     fontSize: fontSizes.base,
     color: colors.textSecondary,
     marginTop: -spacing["2"],
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
   },
   footer: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing["5"],
   },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["2"],
+    flex: 1,
+  },
   meta: {
     fontSize: fontSizes.base,
     color: colors.textSecondary,
-    flex: 1,
   },
   value: {
     fontSize: fontSizes.lg,
