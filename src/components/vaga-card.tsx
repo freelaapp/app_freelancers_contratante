@@ -1,7 +1,7 @@
 import { Divider } from "@/components/divider";
 import { StatusBadge } from "@/components/status-badge";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
-import { type VagaStatus } from "@/utils/vagas-mock";
+import { type VagaStatus } from "@/types/api";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 

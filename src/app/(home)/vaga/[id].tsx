@@ -6,7 +6,7 @@ import { FreelancerProfileSheet } from "@/components/freelancer-profile-sheet";
 import { StarRating } from "@/components/star-rating";
 import { StatusBadge } from "@/components/status-badge";
 import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
-import { VAGAS_DETALHE_MOCK, type Candidato, type VagaDetalhe } from "@/utils/vagas-mock";
+import { type Candidato, type VagaDetalhe } from "@/types/api";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -192,13 +192,6 @@ function StatusCard({ stepAtual }: { stepAtual: number }) {
   );
 }
 
-const AVALIACOES_MOCK = [
-  { estrelas: 5, data: "03/04", comentario: "Trabalho incrível!" },
-  { estrelas: 4, data: "01/04", comentario: "Muito eficaz e comprometido" },
-];
-
-const VAGA_FALLBACK = VAGAS_DETALHE_MOCK["1"];
-
 type CtaConfig = { label: string; nextStep: number | null };
 
 function getCtaConfig(step: number, temCandidatoAceito: boolean): CtaConfig {
@@ -218,9 +211,9 @@ export default function VagaDetailScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCandidato, setSelectedCandidato] = useState<Candidato | null>(null);
 
-  const vagaBase: VagaDetalhe = VAGAS_DETALHE_MOCK[id ?? "1"] ?? VAGA_FALLBACK;
-  const [stepAtual, setStepAtual] = useState(vagaBase.stepAtual);
-  const [candidatos, setCandidatos] = useState<Candidato[]>(vagaBase.candidatos);
+  const vagaBase: VagaDetalhe | null = null;
+  const [stepAtual, setStepAtual] = useState(0);
+  const [candidatos, setCandidatos] = useState<Candidato[]>([]);
 
   const temCandidatoAceito = candidatos.some((c) => c.status === "aceito");
   const totalAceitos = candidatos.filter((c) => c.status === "aceito").length;
@@ -233,8 +226,20 @@ export default function VagaDetailScreen() {
   const [comentario, setComentario] = useState("");
   const [compareceu, setCompareceu] = useState<boolean | null>(null);
 
-  const vaga = { ...vagaBase, stepAtual };
   const cta = getCtaConfig(stepAtual, temCandidatoAceito);
+
+  if (!vagaBase) {
+    return (
+      <View style={[styles.screen, { justifyContent: "center", alignItems: "center" }]}>
+        <TouchableOpacity style={[styles.backBtn, { position: "absolute", top: insets.top + 16, left: 16 }]} onPress={() => router.back()} activeOpacity={0.8}>
+          <Ionicons name="arrow-back" size={20} color={colors.ink} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 16, color: colors.muted }}>Vaga não encontrada</Text>
+      </View>
+    );
+  }
+
+  const vaga = { ...(vagaBase as VagaDetalhe), stepAtual };
 
   function gerarCodigo() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -415,7 +420,7 @@ export default function VagaDetailScreen() {
         onClose={() => setSelectedCandidato(null)}
         nome={selectedCandidato?.nome ?? ""}
         iniciais={selectedCandidato?.iniciais ?? ""}
-        avaliacoes={AVALIACOES_MOCK}
+        avaliacoes={[]}
       />
     </View>
   );

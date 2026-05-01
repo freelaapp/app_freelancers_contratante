@@ -1,16 +1,11 @@
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { PageHeader } from "@/components/page-header";
-import { VagaCard } from "@/components/vaga-card";
-import { colors, spacing } from "@/constants/theme";
+import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
+import { type VagaStatus } from "@/types/api";
 import { VAGA_FILTERS } from "@/utils/vaga-filters";
-import { VAGAS_MOCK, type VagaStatus } from "@/utils/vagas-mock";
-import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+
 const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
   todos: ["confirmado", "aguardando", "finalizado"],
   confirmados: ["confirmado"],
@@ -19,12 +14,7 @@ const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
 };
 
 export default function VagasScreen() {
-  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("todos");
-
-  const filtered = VAGAS_MOCK.filter((v) =>
-    STATUS_BY_FILTER[activeFilter].includes(v.status)
-  );
 
   return (
     <View style={styles.screen}>
@@ -36,23 +26,10 @@ export default function VagasScreen() {
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[0]}
       >
-        {/* Filtros sticky */}
         <FilterChipBar options={VAGA_FILTERS} activeId={activeFilter} onSelect={setActiveFilter} />
 
-        {/* Lista */}
         <View style={styles.list}>
-          {filtered.map((item) => (
-            <VagaCard
-              key={item.id}
-              title={item.title}
-              location={item.location}
-              date={item.date}
-              time={item.time}
-              value={item.value}
-              status={item.status}
-              onPress={() => router.push(`/(home)/vaga/${item.id}`)}
-            />
-          ))}
+          <Text style={styles.emptyText}>Nenhuma contratação encontrada</Text>
         </View>
       </ScrollView>
     </View>
@@ -71,7 +48,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing["16"],
   },
   list: {
-    gap: spacing["6"],
     paddingHorizontal: spacing["8"],
+    paddingTop: spacing["8"],
+  },
+  emptyText: {
+    fontSize: fontSizes.base,
+    color: colors.muted,
+    fontWeight: fontWeights.medium,
+    textAlign: "center",
+    paddingVertical: spacing["8"],
   },
 });

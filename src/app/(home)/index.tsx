@@ -1,8 +1,8 @@
-import { BookingCard, HomeHeader, PrimaryButton, SectionHeader } from "@/components";
-import { colors, spacing } from "@/constants/theme";
+import { HomeHeader, PrimaryButton, SectionHeader } from "@/components";
+import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -24,91 +24,14 @@ export default function HomeScreen() {
           onPress={() => router.push("/(home)/criar-vaga")}
         />
 
-        {/* Vaga de teste — fluxo completo */}
-        <BookingCard
-          title="Garçom - Fluxo Completo ★"
-          location="Restaurante Central"
-          date="01 Mai 2026"
-          time="19:00 - 23:00"
-          value="R$200"
-          status="aguardando"
-          onPress={() => router.push("/(home)/vaga/5")}
-        />
-
         <View style={styles.section}>
           <SectionHeader title="Próximas Contratações" icon="time-outline" />
-          <ScrollView
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
-            style={styles.sectionScroll}
-            contentContainerStyle={styles.cardList}
-          >
-            <BookingCard
-              title="Bartender - Festa Premium"
-              location="Espaço Nobre"
-              date="22 Fev 2026"
-              time="20:00 - 03:00"
-              value="R$300"
-              status="confirmado"
-              onPress={() => router.push("/(home)/vaga/2")}
-            />
-            <BookingCard
-              title="Garçom - Casamento"
-              location="Villa Real"
-              date="24 Fev 2026"
-              time="16:00 - 23:00"
-              value="R$280"
-              status="aguardando"
-              onPress={() => router.push("/(home)/vaga/3")}
-            />
-            <BookingCard
-              title="Bartender - Formatura"
-              location="Clube Central"
-              date="05 Mar 2026"
-              time="19:00 - 01:00"
-              value="R$350"
-              status="aguardando"
-              onPress={() => router.push("/(home)/vaga/4")}
-            />
-          </ScrollView>
+          <Text style={styles.emptyText}>Nenhuma contratação agendada</Text>
         </View>
 
         <View style={styles.section}>
           <SectionHeader title="Minhas Vagas" icon="flash" />
-          <ScrollView
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
-            style={styles.sectionScroll}
-            contentContainerStyle={styles.cardList}
-          >
-            <BookingCard
-              title="Churrasqueiro - Aniversário 30 anos"
-              location="Evento Privado"
-              date="22 Fev 2026"
-              time="14:00 - 22:00"
-              value="R$650"
-              status="confirmado"
-              onPress={() => router.push("/(home)/vaga/1")}
-            />
-            <BookingCard
-              title="Garçom - Evento Corporativo"
-              location="Buffet Elegance"
-              date="28 Fev 2026"
-              time="18:00 - 23:00"
-              value="R$320"
-              status="aguardando"
-              onPress={() => router.push("/(home)/vaga/5")}
-            />
-            <BookingCard
-              title="Cozinheiro - Evento VIP"
-              location="Hotel Grand"
-              date="10 Mar 2026"
-              time="12:00 - 20:00"
-              value="R$480"
-              status="confirmado"
-              onPress={() => router.push("/(home)/vaga/6")}
-            />
-          </ScrollView>
+          <Text style={styles.emptyText}>Você ainda não criou nenhuma vaga</Text>
         </View>
       </ScrollView>
     </View>
@@ -132,10 +55,11 @@ const styles = StyleSheet.create({
     marginTop: spacing["12"],
     gap: spacing["6"],
   },
-  sectionScroll: {
-    maxHeight: 177,
-  },
-  cardList: {
-    gap: spacing["6"],
+  emptyText: {
+    fontSize: fontSizes.base,
+    color: colors.muted,
+    fontWeight: fontWeights.medium,
+    textAlign: "center",
+    paddingVertical: spacing["8"],
   },
 });

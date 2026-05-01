@@ -6,7 +6,8 @@ import { PrimaryButton } from "@/components/primary-button";
 import { SelectField } from "@/components/select-field";
 import { TabSelector } from "@/components/tab-selector";
 import { useAuth } from "@/context/auth-context";
-import { CepNotFoundError, fetchAddressByCep } from "@/services/viacep";
+import { contractorService } from "@/services/contractor.service";
+import { CepNotFoundError, fetchAddressByCep, fetchCoordinatesByCep } from "@/services/viacep";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -61,18 +62,30 @@ export default function CompletarCadastroScreen() {
   const [telefoneResponsavel, setTelefoneResponsavel] = useState("");
   const [foto1, setFoto1] = useState("");
   const [foto2, setFoto2] = useState("");
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function fetchCep(raw: string) {
     setCepLoading(true);
     setCepError("");
+    setLatitude(undefined);
+    setLongitude(undefined);
     try {
-      const data = await fetchAddressByCep(raw);
-      setRua(data.logradouro ?? "");
-      setBairro(data.bairro ?? "");
-      setCidade(data.localidade ?? "");
-      setEstado(data.uf ?? "");
+      const [address, coords] = await Promise.all([
+        fetchAddressByCep(raw),
+        fetchCoordinatesByCep(raw),
+      ]);
+      setRua(address.logradouro ?? "");
+      setBairro(address.bairro ?? "");
+      setCidade(address.localidade ?? "");
+      setEstado(address.uf ?? "");
+      if (coords) {
+        setLatitude(coords.latitude);
+        setLongitude(coords.longitude);
+      }
     } catch (err) {
       setCepError(err instanceof CepNotFoundError ? "CEP não encontrado" : "Erro ao buscar CEP");
     } finally {
@@ -87,9 +100,40 @@ export default function CompletarCadastroScreen() {
     if (digits.length === 8) fetchCep(value);
   }
 
-  function handleSubmit() {
-    completeProfile();
-    router.replace("/(home)");
+  async function handleSubmit() {
+    setIsSubmitting(true);
+    try {
+      const addressParts = [rua, numero, complemento, bairro, cidade, estado]
+        .filter(Boolean)
+        .join(", ");
+
+      if (tabPrincipal === "casa") {
+        await contractorService.createCasa({
+          document: documento ? documento.replace(/\D/g, "") : undefined,
+          cep: cep ? cep.replace(/\D/g, "") : undefined,
+          street: rua || undefined,
+          neighborhood: bairro || undefined,
+          city: cidade || undefined,
+          uf: estado || undefined,
+          number: numero || undefined,
+          complement: complemento || undefined,
+          address: addressParts || undefined,
+          latitude,
+          longitude,
+        });
+      } else {
+        await contractorService.createBars({
+          companyName: nomeEstabelecimento || undefined,
+          document: cnpjEmpresa ? cnpjEmpresa.replace(/\D/g, "") : undefined,
+          segment: ramoEstabelecimento || undefined,
+        });
+      }
+
+      completeProfile();
+      router.replace("/(home)");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -222,11 +266,12 @@ export default function CompletarCadastroScreen() {
             </View>
 
             <View style={styles.fieldSpacing}>
-              <SelectField
+              <Input
                 label="Cidade"
-                placeholder="Selecione a cidade"
-                value={cidade || undefined}
-                onPress={() => {}}
+                icon="location-outline"
+                placeholder="Cidade"
+                value={cidade}
+                onChangeText={setCidade}
               />
             </View>
           </>
@@ -355,11 +400,12 @@ export default function CompletarCadastroScreen() {
             </View>
 
             <View style={styles.fieldSpacing}>
-              <SelectField
+              <Input
                 label="Cidade"
-                placeholder="Selecione a cidade"
-                value={cidade || undefined}
-                onPress={() => {}}
+                icon="location-outline"
+                placeholder="Cidade"
+                value={cidade}
+                onChangeText={setCidade}
               />
             </View>
 
@@ -389,7 +435,11 @@ export default function CompletarCadastroScreen() {
         )}
 
         <View style={styles.buttonSpacing}>
-          <PrimaryButton label="Finalizar cadastro" onPress={handleSubmit} />
+          <PrimaryButton
+            label={isSubmitting ? "Enviando..." : "Finalizar cadastro"}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

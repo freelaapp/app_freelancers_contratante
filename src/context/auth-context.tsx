@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authService } from "@/services/auth.service";
+import { tokenStore } from "@/services/token-store";
 
 type User = {
   id: string;
@@ -24,25 +26,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitializing(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    async function restoreSession() {
+      try {
+        const [token, storedUser] = await Promise.all([
+          tokenStore.get(),
+          tokenStore.getUser<User>(),
+        ]);
+        if (token && storedUser) {
+          setUser(storedUser);
+        }
+      } finally {
+        setIsInitializing(false);
+      }
+    }
+    restoreSession();
   }, []);
 
-  async function signIn(email: string, _password: string): Promise<void> {
+  async function signIn(email: string, password: string): Promise<void> {
     setIsLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-    setUser({ id: "1", name: "Usuário Teste", email, profileCompleted: false });
-    setIsLoading(false);
+    try {
+      const loginRes = await authService.login(email, password);
+      const { accessToken, refreshToken, user: apiUser, onboarding } = loginRes.data;
+
+      await tokenStore.set(accessToken, refreshToken);
+
+      let name = email;
+      if (!onboarding.isPending) {
+        try {
+          const profileRes = await authService.getProfile();
+          name = profileRes.data.name ?? email;
+        } catch {
+          // best-effort — fallback to email
+        }
+      }
+
+      const newUser: User = {
+        id: apiUser.id,
+        name,
+        email: apiUser.email,
+        profileCompleted: !onboarding.isPending,
+      };
+
+      await tokenStore.setUser(newUser);
+      setUser(newUser);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function signOut(): void {
+  async function signOut(): Promise<void> {
+    await tokenStore.clear();
     setUser(null);
   }
 
   function completeProfile(): void {
-    if (user) setUser({ ...user, profileCompleted: true });
+    if (!user) return;
+    const updated = { ...user, profileCompleted: true };
+    tokenStore.setUser(updated);
+    setUser(updated);
   }
 
   return (
