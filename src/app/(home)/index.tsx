@@ -24,6 +24,17 @@ export default function HomeScreen() {
           onPress={() => router.push("/(home)/criar-vaga")}
         />
 
+        {/* Vaga de teste — fluxo completo */}
+        <BookingCard
+          title="Garçom - Fluxo Completo ★"
+          location="Restaurante Central"
+          date="01 Mai 2026"
+          time="19:00 - 23:00"
+          value="R$200"
+          status="aguardando"
+          onPress={() => router.push("/(home)/vaga/5")}
+        />
+
         <View style={styles.section}>
           <SectionHeader title="Próximas Contratações" icon="time-outline" />
           <ScrollView

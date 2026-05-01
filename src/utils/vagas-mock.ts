@@ -40,6 +40,15 @@ export type Vaga = {
 
 export const VAGAS_MOCK: Vaga[] = [
   {
+    id: "5",
+    title: "Garçom - Fluxo Completo",
+    location: "Restaurante Central",
+    date: "01 Mai 2026",
+    time: "19:00 - 23:00",
+    value: "R$200",
+    status: "aguardando",
+  },
+  {
     id: "1",
     title: "Churrasqueiro - Aniversário",
     location: "Evento Privado",
@@ -156,5 +165,24 @@ export const VAGAS_DETALHE_MOCK: Record<string, VagaDetalhe> = {
       { id: "c1", iniciais: "TS", nome: "Thiago Santos", cargo: "Garçom", avaliacao: 4.6, reviews: 134, jobs: 267, status: "aceito" },
     ],
     stepAtual: 6, // Feedback
+  },
+  "5": {
+    id: "5",
+    titulo: "Garçom",
+    subtitulo: "Restaurante Central",
+    statusLabel: "Aguardando",
+    data: "01 Mai 2026",
+    horario: "19:00 - 23:00",
+    local: "Centro, SP",
+    distancia: "1 km",
+    duracao: "4h",
+    valor: "R$200",
+    endereco: "Rua Direita, 50 - Centro, São Paulo",
+    descricao: "Garçom para jantar especial com 30 convidados. Serviço à francesa, traje social obrigatório.",
+    candidatos: [
+      { id: "c1", iniciais: "RB", nome: "Roberto Braga", cargo: "Garçom", avaliacao: 4.8, reviews: 92, jobs: 185, status: "pendente" },
+      { id: "c2", iniciais: "CM", nome: "Camila Mendes", cargo: "Garçom", avaliacao: 4.6, reviews: 61, jobs: 120, status: "pendente" },
+    ],
+    stepAtual: 1, // Aceite da vaga — candidatos aguardando aprovação
   },
 };

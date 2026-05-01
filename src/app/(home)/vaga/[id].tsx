@@ -4,7 +4,7 @@ import { VAGAS_DETALHE_MOCK, type Candidato, type VagaDetalhe } from "@/utils/va
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const STEPS = [
@@ -57,7 +57,13 @@ function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
   );
 }
 
-function CandidatoRow({ item, showDivider, onVerPerfil }: { item: Candidato; showDivider: boolean; onVerPerfil: () => void }) {
+function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: {
+  item: Candidato;
+  showDivider: boolean;
+  onVerPerfil: () => void;
+  onAceitar?: () => void;
+  onRecusar?: () => void;
+}) {
   const isAceito = item.status === "aceito";
   const isRecusado = item.status === "recusado";
 
@@ -91,10 +97,10 @@ function CandidatoRow({ item, showDivider, onVerPerfil }: { item: Candidato; sho
           )}
           {!isAceito && !isRecusado && (
             <>
-              <TouchableOpacity style={styles.actionBtnGreen} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
                 <Ionicons name="person-add-outline" size={16} color="#16A34A" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7} onPress={onRecusar}>
                 <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
               </TouchableOpacity>
             </>
@@ -159,9 +165,13 @@ const VAGA_FALLBACK = VAGAS_DETALHE_MOCK["1"];
 
 type CtaConfig = { label: string; nextStep: number | null };
 
-function getCtaConfig(step: number): CtaConfig {
+function getCtaConfig(step: number, temCandidatoAceito: boolean): CtaConfig {
+  if (step === 1 && !temCandidatoAceito) return { label: "Aceitar Candidato", nextStep: null };
+  if (step === 1 && temCandidatoAceito)  return { label: "Confirmar Seleção", nextStep: 2 };
+  if (step === 2) return { label: "Confirmar Pagamento", nextStep: 3 };
   if (step === 3) return { label: "Check-in", nextStep: 4 };
-  if (step === 4) return { label: "Check-out", nextStep: 6 };
+  if (step === 4) return { label: "Check-out", nextStep: 5 };
+  if (step === 5) return { label: "Confirmar Repasse", nextStep: 6 };
   if (step === 6) return { label: "Avaliar", nextStep: null };
   return { label: "Avançar", nextStep: step + 1 };
 }
@@ -174,12 +184,68 @@ export default function VagaDetailScreen() {
 
   const vagaBase: VagaDetalhe = VAGAS_DETALHE_MOCK[id ?? "1"] ?? VAGA_FALLBACK;
   const [stepAtual, setStepAtual] = useState(vagaBase.stepAtual);
+  const [candidatos, setCandidatos] = useState<Candidato[]>(vagaBase.candidatos);
+
+  const temCandidatoAceito = candidatos.some((c) => c.status === "aceito");
+  const totalAceitos = candidatos.filter((c) => c.status === "aceito").length;
+  const mostrarCandidatos = stepAtual <= 1;
+
+  const [checkinCode, setCheckinCode] = useState<string | null>(null);
+  const [checkoutCode, setCheckoutCode] = useState<string | null>(null);
+  const [avaliarVisible, setAvaliarVisible] = useState(false);
+  const [estrelas, setEstrelas] = useState(0);
+  const [comentario, setComentario] = useState("");
+  const [compareceu, setCompareceu] = useState<boolean | null>(null);
 
   const vaga = { ...vagaBase, stepAtual };
-  const cta = getCtaConfig(stepAtual);
+  const cta = getCtaConfig(stepAtual, temCandidatoAceito);
+
+  function gerarCodigo() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
 
   function handleCta() {
+    if (stepAtual === 3) { setCheckinCode(gerarCodigo()); return; }
+    if (stepAtual === 4) { setCheckoutCode(gerarCodigo()); return; }
+    if (stepAtual === 6) { setAvaliarVisible(true); return; }
     if (cta.nextStep !== null) setStepAtual(cta.nextStep);
+  }
+
+  function handleConfirmarAvaliacao() {
+    setAvaliarVisible(false);
+    setEstrelas(0);
+    setComentario("");
+    setCompareceu(null);
+    router.back();
+  }
+
+  function handleConfirmarCheckin() {
+    setCheckinCode(null);
+    setStepAtual(4);
+  }
+
+  function handleConfirmarCheckout() {
+    setCheckoutCode(null);
+    setStepAtual(5);
+  }
+
+  function handleAceitarCandidato(candidatoId: string) {
+    setCandidatos((prev) =>
+      prev.map((c) =>
+        c.id === candidatoId
+          ? { ...c, status: "aceito" }
+          : c.status === "aceito"
+          ? { ...c, status: "pendente" }
+          : c
+      )
+    );
+  }
+
+  function handleRecusarCandidato(candidatoId: string) {
+    setCandidatos((prev) =>
+      prev.map((c) => (c.id === candidatoId ? { ...c, status: "recusado" } : c))
+    );
   }
 
   return (
@@ -215,6 +281,28 @@ export default function VagaDetailScreen() {
           <Text style={styles.cardBody}>{vaga.descricao}</Text>
         </View>
 
+        {/* Candidatos — visível apenas nos steps iniciais */}
+        {mostrarCandidatos && (
+          <View style={styles.card}>
+            <View style={styles.candidatosHeader}>
+              <Text style={styles.cardLabel}>Candidatos ({candidatos.length})</Text>
+              {totalAceitos > 0 && (
+                <Text style={styles.aceitosLabel}>{totalAceitos} aceito</Text>
+              )}
+            </View>
+            {candidatos.map((c, i) => (
+              <CandidatoRow
+                key={c.id}
+                item={c}
+                showDivider={i > 0}
+                onVerPerfil={() => setSelectedCandidato(c)}
+                onAceitar={() => handleAceitarCandidato(c.id)}
+                onRecusar={() => handleRecusarCandidato(c.id)}
+              />
+            ))}
+          </View>
+        )}
+
         <StatusCard stepAtual={stepAtual} />
       </ScrollView>
 
@@ -227,6 +315,134 @@ export default function VagaDetailScreen() {
           <Text style={styles.cancelBtnText}>Cancelar</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modal Check-in */}
+      <Modal
+        visible={checkinCode !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCheckinCode(null)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.checkinBackdrop} onPress={() => setCheckinCode(null)}>
+          <Pressable style={styles.checkinModal}>
+            <TouchableOpacity style={styles.checkinClose} onPress={() => setCheckinCode(null)} hitSlop={8}>
+              <Ionicons name="close" size={22} color={colors.ink} />
+            </TouchableOpacity>
+            <Text style={styles.checkinModalText}>
+              Mande o código de check-in para o freelancer
+            </Text>
+            <View style={styles.checkinCodeBox}>
+              <Text style={styles.checkinCode}>
+                {checkinCode?.split("").join("  ")}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.checkinConfirmBtn}
+              activeOpacity={0.85}
+              onPress={handleConfirmarCheckin}
+            >
+              <Text style={styles.checkinConfirmBtnText}>Freelancer confirmou o código</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal Avaliar */}
+      <Modal
+        visible={avaliarVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAvaliarVisible(false)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.checkinBackdrop} onPress={() => setAvaliarVisible(false)}>
+          <Pressable style={styles.avaliarModal}>
+            <Text style={styles.avaliarTitle}>Faça uma avaliação</Text>
+
+            {/* Estrelas */}
+            <View style={styles.avaliarStars}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <TouchableOpacity key={i} onPress={() => setEstrelas(i + 1)} hitSlop={6} activeOpacity={0.7}>
+                  <Ionicons
+                    name="star"
+                    size={36}
+                    color={i < estrelas ? colors.primary : "#D1D5DB"}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Comentário */}
+            <TextInput
+              style={styles.avaliarInput}
+              placeholder="Escreva um comentário..."
+              placeholderTextColor={colors.muted}
+              value={comentario}
+              onChangeText={setComentario}
+              multiline
+              textAlignVertical="top"
+            />
+
+            {/* Compareceu */}
+            <Text style={styles.avaliarPergunta}>O freelancer compareceu ao serviço?</Text>
+            <View style={styles.avaliarRespostas}>
+              <TouchableOpacity
+                style={[styles.avaliarBtn, { backgroundColor: compareceu === true ? "#16A34A" : "#DCFCE7" }]}
+                onPress={() => setCompareceu(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.avaliarBtnText, { color: compareceu === true ? colors.white : "#16A34A" }]}>Sim</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.avaliarBtn, { backgroundColor: compareceu === false ? "#DC2626" : "#FEE2E2" }]}
+                onPress={() => setCompareceu(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.avaliarBtnText, { color: compareceu === false ? colors.white : "#DC2626" }]}>Não</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Confirmar */}
+            <TouchableOpacity style={styles.avaliarConfirmarBtn} onPress={handleConfirmarAvaliacao} activeOpacity={0.85}>
+              <Text style={styles.avaliarConfirmarBtnText}>Confirmar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal Check-out */}
+      <Modal
+        visible={checkoutCode !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCheckoutCode(null)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.checkinBackdrop} onPress={() => setCheckoutCode(null)}>
+          <Pressable style={styles.checkinModal}>
+            <TouchableOpacity style={styles.checkinClose} onPress={() => setCheckoutCode(null)} hitSlop={8}>
+              <Ionicons name="close" size={22} color={colors.ink} />
+            </TouchableOpacity>
+            <Text style={styles.checkinModalText}>
+              Mande o código de check-out para o freelancer
+            </Text>
+            <View style={styles.checkinCodeBox}>
+              <Text style={styles.checkinCode}>
+                {checkoutCode?.split("").join("  ")}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.checkinConfirmBtn}
+              activeOpacity={0.85}
+              onPress={handleConfirmarCheckout}
+            >
+              <Text style={styles.checkinConfirmBtnText}>Freelancer confirmou o código</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <FreelancerProfileSheet
         visible={selectedCandidato !== null}
@@ -583,5 +799,113 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.bold,
     color: colors.white,
+  },
+
+  // Modal check-in
+  checkinBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacing["8"],
+  },
+  checkinModal: {
+    backgroundColor: colors.white,
+    borderRadius: radii["2xl"],
+    padding: spacing["12"],
+    width: "100%",
+    gap: spacing["10"],
+  },
+  checkinClose: {
+    alignSelf: "flex-end",
+  },
+  checkinModalText: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.medium,
+    color: colors.ink,
+    lineHeight: 26,
+  },
+  checkinCodeBox: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.lg,
+    paddingVertical: spacing["10"],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkinCode: {
+    fontSize: 28,
+    fontWeight: fontWeights.bold,
+    color: colors.dark,
+    letterSpacing: 4,
+  },
+  checkinConfirmBtn: {
+    backgroundColor: colors.dark,
+    borderRadius: radii.lg,
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkinConfirmBtnText: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.bold,
+    color: colors.white,
+  },
+
+  // Modal avaliar
+  avaliarModal: {
+    backgroundColor: colors.white,
+    borderRadius: radii["2xl"],
+    padding: spacing["12"],
+    width: "100%",
+    gap: spacing["8"],
+  },
+  avaliarTitle: {
+    fontSize: fontSizes["2xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.ink,
+  },
+  avaliarStars: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing["6"],
+  },
+  avaliarInput: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: radii.lg,
+    padding: spacing["8"],
+    height: 120,
+    fontSize: fontSizes.md,
+    color: colors.ink,
+  },
+  avaliarPergunta: {
+    fontSize: fontSizes.md,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  avaliarRespostas: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing["8"],
+  },
+  avaliarBtn: {
+    borderRadius: radii.lg,
+    paddingVertical: spacing["6"],
+    paddingHorizontal: spacing["16"],
+  },
+  avaliarBtnText: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.bold,
+  },
+  avaliarConfirmarBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avaliarConfirmarBtnText: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.bold,
+    color: colors.dark,
   },
 });
