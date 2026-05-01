@@ -1,40 +1,236 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AvatarInitials } from "@/components/avatar-initials";
+import { CardHeader } from "@/components/card-header";
+import { Divider } from "@/components/divider";
+import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { Ionicons } from "@expo/vector-icons";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type MenuItemProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress?: () => void;
+  showDivider?: boolean;
+};
+
+function MenuItem({ icon, title, subtitle, onPress, showDivider = true }: MenuItemProps) {
+  return (
+    <>
+      {showDivider && <Divider />}
+      <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+        <Ionicons name={icon} size={22} color={colors.ink} style={styles.menuIcon} />
+        <View style={styles.menuText}>
+          <Text style={styles.menuTitle}>{title}</Text>
+          <Text style={styles.menuSubtitle}>{subtitle}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      </TouchableOpacity>
+    </>
+  );
+}
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
 
+  const insets = useSafeAreaInsets();
+
+  const initials = user?.name
+    ? user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "C";
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.name}>{user?.name}</Text>
-      <TouchableOpacity style={styles.button} onPress={signOut}>
-        <Text style={styles.buttonText}>Sair</Text>
-      </TouchableOpacity>
-    </View>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing["12"] }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Avatar + nome */}
+      <View style={styles.profileHeader}>
+        <AvatarInitials initials={initials} size={56} />
+        <View style={styles.profileInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.profileName}>{user?.name ?? "Contratante"}</Text>
+            <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
+          </View>
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color={colors.primary} />
+            <Text style={styles.ratingText}>0</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Fotos do estabelecimento */}
+      <View style={[styles.card, styles.photosCard]}>
+        <CardHeader icon="image-outline" title="Fotos do Estabelecimento" iconColor={colors.ink} />
+        <View style={styles.photosRow}>
+          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.7}>
+            <Ionicons name="image-outline" size={28} color={colors.primary} />
+            <Text style={styles.photoLabel}>Fachada</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.7}>
+            <Ionicons name="add-circle-outline" size={28} color={colors.primary} />
+            <Text style={styles.photoLabel}>Ambiente Interno</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Menu */}
+      <View style={[styles.card, styles.menuCard]}>
+        <MenuItem
+          icon="receipt-outline"
+          title="Meus Dados"
+          subtitle="Dados do estabelecimento"
+          showDivider={false}
+        />
+        <MenuItem
+          icon="card-outline"
+          title="Financeiro"
+          subtitle="Gastos e histórico de pagamentos"
+        />
+        <MenuItem
+          icon="settings-outline"
+          title="Configurações"
+          subtitle="Privacidade, notificações e conta"
+        />
+        <MenuItem
+          icon="help-circle-outline"
+          title="Ajuda"
+          subtitle="Dúvidas e suporte"
+        />
+      </View>
+
+      {/* Sair */}
+      <View style={[styles.card, styles.logoutCard]}>
+        <TouchableOpacity style={styles.logoutRow} onPress={signOut} activeOpacity={0.7}>
+          <Ionicons name="exit-outline" size={20} color={colors.error} />
+          <Text style={styles.logoutText}>Sair da conta</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    paddingHorizontal: spacing["8"],
+    paddingBottom: spacing["16"],
+    gap: spacing["8"],
+  },
+
+  // Header
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["8"],
+    paddingHorizontal: spacing["2"],
+    marginBottom: spacing["4"],
+  },
+  profileInfo: {
+    gap: spacing["2"],
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["3"],
+  },
+  profileName: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["2"],
+  },
+  ratingText: {
+    fontSize: fontSizes.md,
+    color: colors.ink,
+    fontWeight: fontWeights.medium,
+  },
+
+  // Card base
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radii["2xl"],
+    ...cardShadow,
+  },
+
+  // Photos
+  photosCard: {
+    padding: spacing["8"],
+    gap: spacing["8"],
+  },
+  photosRow: {
+    flexDirection: "row",
+    gap: spacing["8"],
+  },
+  photoSlot: {
+    flex: 1,
+    aspectRatio: 1.4,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: "dashed",
+    borderRadius: radii.lg,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
-    gap: 24,
+    gap: spacing["3"],
+    backgroundColor: "rgba(245, 166, 35, 0.05)",
   },
-  name: {
-    fontSize: 22,
-    fontWeight: "600",
+  photoLabel: {
+    fontSize: fontSizes.base,
+    color: colors.primary,
+    fontWeight: fontWeights.medium,
   },
-  button: {
-    backgroundColor: "#DC2626",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
+
+  // Menu
+  menuCard: {
+    paddingHorizontal: spacing["8"],
+    overflow: "hidden",
   },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing["10"],
+    gap: spacing["6"],
+  },
+  menuIcon: {
+    width: 24,
+    textAlign: "center",
+  },
+  menuText: {
+    flex: 1,
+    gap: spacing["1"],
+  },
+  menuTitle: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  menuSubtitle: {
+    fontSize: fontSizes.base,
+    color: colors.muted,
+  },
+
+  // Logout
+  logoutCard: {
+    paddingHorizontal: spacing["8"],
+  },
+  logoutRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["6"],
+    paddingVertical: spacing["10"],
+  },
+  logoutText: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.medium,
+    color: colors.error,
   },
 });

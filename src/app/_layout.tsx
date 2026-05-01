@@ -1,11 +1,13 @@
-import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { AppSplash } from "@/components/app-splash";
 import { AuthProvider, useAuth } from "@/context/auth-context";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { useEffect, useState } from "react";
 
 function RootNavigator() {
   const { user, isInitializing } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [splashVisible, setSplashVisible] = useState(true);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -15,16 +17,31 @@ function RootNavigator() {
     if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
     } else if (user && inAuthGroup) {
-      router.replace("/(home)/");
+      if (!user.profileCompleted) {
+        router.replace("/(auth)/completar-cadastro");
+      } else {
+        router.replace("/(home)");
+      }
+    } else if (user && !user.profileCompleted && !inAuthGroup) {
+      router.replace("/(auth)/completar-cadastro");
     }
   }, [user, isInitializing, segments]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(home)" />
-      <Stack.Screen name="index" />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(home)" />
+        <Stack.Screen name="index" />
+      </Stack>
+
+      {splashVisible && (
+        <AppSplash
+          isReady={!isInitializing}
+          onFinish={() => setSplashVisible(false)}
+        />
+      )}
+    </>
   );
 }
 

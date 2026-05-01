@@ -1,16 +1,20 @@
 {
   "expo": {
-    "name": "freela-contrantate",
+    "name": "freela-contratante",
     "slug": "freela-contratante",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "freelacontrantate",
+    "scheme": "freelacontratante",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.freela.freela-contrantate"
+
+      "bundleIdentifier": "com.freela.freela-contrantate",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,6 +23,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "package": "com.freela.contratante",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -27,7 +32,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["expo-router", { "root": "src/app" }],
+      "expo-router",
+      "expo-image-picker",
       [
         "expo-splash-screen",
         {

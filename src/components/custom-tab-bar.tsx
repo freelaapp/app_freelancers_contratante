@@ -20,8 +20,13 @@ const TABS: TabItem[] = [
   { name: "profile", label: "Perfil", icon: "person-outline", iconFocused: "person" },
 ];
 
+const HIDDEN_ROUTES = ["vaga/[id]", "notificacoes"];
+
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { bottom } = useSafeAreaInsets();
+
+  const activeRoute = state.routes[state.index]?.name;
+  if (HIDDEN_ROUTES.includes(activeRoute)) return null;
 
   function handlePress(name: string) {
     navigation.navigate(name);

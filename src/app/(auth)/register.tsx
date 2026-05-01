@@ -48,6 +48,7 @@ export default function RegisterScreen() {
     setIsLoading(true);
     await new Promise<void>((r) => setTimeout(r, 1000));
     setIsLoading(false);
+    router.push({ pathname: "/(auth)/confirm-email", params: { email } });
   }
 
   return (

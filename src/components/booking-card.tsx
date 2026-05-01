@@ -1,6 +1,7 @@
+import { StatusBadge } from "@/components/status-badge";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 
 type BookingStatus = "confirmado" | "aguardando" | "cancelado";
 
@@ -14,13 +15,10 @@ type BookingCardProps = {
   onPress?: () => void;
 };
 
-const BADGE_CONFIG: Record<
-  BookingStatus,
-  { bg: string; text: string; label: string }
-> = {
-  confirmado: { bg: "#D1FAE5", text: "#065F46", label: "Confirmado" },
-  aguardando: { bg: "#FEF3C7", text: "#92400E", label: "Aguardando" },
-  cancelado: { bg: "#FEE2E2", text: "#991B1B", label: "Cancelado" },
+const BADGE_LABEL: Record<BookingStatus, string> = {
+  confirmado: "Confirmado",
+  aguardando: "Aguardando",
+  cancelado: "Cancelado",
 };
 
 export function BookingCard({
@@ -32,8 +30,6 @@ export function BookingCard({
   status,
   onPress,
 }: BookingCardProps) {
-  const badge = BADGE_CONFIG[status];
-
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -43,11 +39,7 @@ export function BookingCard({
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.text }]}>
-            {badge.label}
-          </Text>
-        </View>
+        <StatusBadge status={status} label={BADGE_LABEL[status]} />
       </View>
 
       <View style={styles.locationRow}>
@@ -77,11 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: radii["2xl"],
     padding: spacing["8"],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
+    ...cardShadowStrong,
   },
   cardPressed: {
     opacity: 0.95,
@@ -97,15 +85,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.bold,
     color: colors.ink,
-  },
-  badge: {
-    borderRadius: radii.full,
-    paddingHorizontal: spacing["5"],
-    paddingVertical: spacing["2"],
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: fontWeights.semibold,
   },
   locationRow: {
     flexDirection: "row",

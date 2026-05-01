@@ -12,6 +12,8 @@ export default function HomeLayout() {
       <Tabs.Screen name="criar-vaga" />
       <Tabs.Screen name="avaliacoes" />
       <Tabs.Screen name="profile" />
+      <Tabs.Screen name="notificacoes" options={{ href: null }} />
+      <Tabs.Screen name="vaga/[id]" options={{ href: null }} />
     </Tabs>
   );
 }
