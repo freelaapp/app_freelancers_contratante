@@ -1,6 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
+import { authService } from "@/services/auth.service";
+import { toast } from "@/utils/toast";
+import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,6 +17,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Input } from "@/components/input";
+import {
+  forgotEmailSchema,
+  forgotNewPasswordSchema,
+  ForgotEmailValues,
+  ForgotNewPasswordValues,
+} from "@/validation/forgot-password.schema";
 
 type Step = 1 | 2 | 3;
 
@@ -25,16 +36,20 @@ export default function ForgotPasswordScreen() {
 
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
-
-  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const otpRefs = useRef<(TextInput | null)[]>([]);
-  const confirmRef = useRef<TextInput>(null);
+  const emailRef = useRef<string>("");
+
+  const emailForm = useForm<ForgotEmailValues>({
+    resolver: yupResolver(forgotEmailSchema),
+    defaultValues: { email: "" },
+  });
+
+  const passwordForm = useForm<ForgotNewPasswordValues>({
+    resolver: yupResolver(forgotNewPasswordSchema),
+    defaultValues: { password: "", confirmPassword: "" },
+  });
 
   function handleOtpChange(value: string, index: number) {
     const next = [...otp];
@@ -51,21 +66,43 @@ export default function ForgotPasswordScreen() {
     }
   }
 
-  async function handleSubmit() {
-    if (isLoading) return;
+  async function handleEmailSubmit(data: ForgotEmailValues) {
     setIsLoading(true);
-    await new Promise<void>((r) => setTimeout(r, 1000));
-    setIsLoading(false);
-    if (step < 3) setStep((s) => (s + 1) as Step);
+    try {
+      await authService.forgotPassword({ email: data.email });
+      emailRef.current = data.email;
+      setStep(2);
+    } catch {
+      // erro tratado pelo interceptor
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  const canSubmit =
-    (step === 1 && email.length > 0) ||
-    (step === 2 && otp.every((d) => d.length === 1)) ||
-    (step === 3 && password.length >= 6 && password === confirmPassword);
+  async function handleOtpSubmit() {
+    if (!otp.every((d) => d.length === 1)) return;
+    setStep(3);
+  }
 
-  const buttonLabel =
-    step === 3 ? "→ Redefinir Senha" : "→ Enviar Código";
+  async function handlePasswordSubmit(data: ForgotNewPasswordValues) {
+    setIsLoading(true);
+    try {
+      await authService.resetPassword({
+        email: emailRef.current,
+        code: otp.join(""),
+        password: data.password,
+      });
+      toast.success("Senha redefinida! Faça login.");
+      router.replace("/(auth)/login");
+    } catch {
+      // erro tratado pelo interceptor
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const otpComplete = otp.every((d) => d.length === 1);
+  const buttonLabel = step === 3 ? "→ Redefinir Senha" : "→ Enviar Código";
 
   return (
     <KeyboardAvoidingView
@@ -103,29 +140,26 @@ export default function ForgotPasswordScreen() {
 
         {step === 1 && (
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>
-              E-mail <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.inputContainer}>
-              <Ionicons
-                name="mail-outline"
-                size={20}
-                color="#9CA3AF"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="seu@email.com"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-                editable={!isLoading}
-              />
-            </View>
+            <Controller
+              control={emailForm.control}
+              name="email"
+              render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                <Input
+                  label="E-mail"
+                  icon="mail-outline"
+                  placeholder="seu@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={emailForm.handleSubmit(handleEmailSubmit)}
+                  editable={!isLoading}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
           </View>
         )}
 
@@ -139,15 +173,10 @@ export default function ForgotPasswordScreen() {
                 <TextInput
                   key={i}
                   ref={(r) => { otpRefs.current[i] = r; }}
-                  style={[
-                    styles.otpBox,
-                    digit ? styles.otpBoxFilled : null,
-                  ]}
+                  style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
                   value={digit}
                   onChangeText={(v) => handleOtpChange(v, i)}
-                  onKeyPress={({ nativeEvent }) =>
-                    handleOtpKeyPress(nativeEvent.key, i)
-                  }
+                  onKeyPress={({ nativeEvent }) => handleOtpKeyPress(nativeEvent.key, i)}
                   keyboardType="number-pad"
                   maxLength={1}
                   textAlign="center"
@@ -159,85 +188,62 @@ export default function ForgotPasswordScreen() {
         )}
 
         {step === 3 && (
-          <>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                Nova senha <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#9CA3AF"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Mínimo 6 caracteres"
-                  placeholderTextColor="#9CA3AF"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
+          <View style={styles.fieldGroup}>
+            <Controller
+              control={passwordForm.control}
+              name="password"
+              render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                <Input
+                  label="Nova senha"
+                  icon="lock-closed-outline"
+                  placeholder="Mínimo 8 caracteres"
+                  secureTextEntry
                   returnKeyType="next"
-                  onSubmitEditing={() => confirmRef.current?.focus()}
-                  blurOnSubmit={false}
                   editable={!isLoading}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={fieldState.error?.message}
+                  containerStyle={styles.inputSpacing}
                 />
-                <TouchableOpacity
-                  onPress={() => setShowPassword((p) => !p)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color="#9CA3AF"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={[styles.fieldGroup, styles.fieldSpacing]}>
-              <Text style={styles.label}>
-                Confirmar senha <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#9CA3AF"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  ref={confirmRef}
-                  style={styles.input}
+              )}
+            />
+            <Controller
+              control={passwordForm.control}
+              name="confirmPassword"
+              render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                <Input
+                  label="Confirmar senha"
+                  icon="lock-closed-outline"
                   placeholder="Repita a senha"
-                  placeholderTextColor="#9CA3AF"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirm}
+                  secureTextEntry
                   returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
+                  onSubmitEditing={passwordForm.handleSubmit(handlePasswordSubmit)}
                   editable={!isLoading}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={fieldState.error?.message}
+                  containerStyle={styles.inputSpacing}
                 />
-                <TouchableOpacity
-                  onPress={() => setShowConfirm((p) => !p)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name={showConfirm ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color="#9CA3AF"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </>
+              )}
+            />
+          </View>
         )}
 
         <TouchableOpacity
-          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit || isLoading}
+          style={[
+            styles.submitButton,
+            (step === 2 && !otpComplete) && styles.submitButtonDisabled,
+          ]}
+          onPress={
+            step === 1
+              ? emailForm.handleSubmit(handleEmailSubmit)
+              : step === 2
+              ? handleOtpSubmit
+              : passwordForm.handleSubmit(handlePasswordSubmit)
+          }
+          disabled={isLoading || (step === 2 && !otpComplete)}
           activeOpacity={0.85}
         >
           {isLoading ? (
@@ -405,8 +411,8 @@ const styles = StyleSheet.create({
   fieldGroup: {
     marginTop: 20,
   },
-  fieldSpacing: {
-    marginTop: 8,
+  inputSpacing: {
+    marginTop: 16,
   },
   label: {
     fontSize: 13,
@@ -417,28 +423,11 @@ const styles = StyleSheet.create({
   required: {
     color: "#EF4444",
   },
-  inputContainer: {
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: "#11181C",
-  },
   otpRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
+    marginTop: 8,
   },
   otpBox: {
     flex: 1,
@@ -455,7 +444,7 @@ const styles = StyleSheet.create({
     borderColor: "#22C55E",
   },
   submitButton: {
-    marginTop: 20,
+    marginTop: 24,
     height: 52,
     borderRadius: 12,
     backgroundColor: "#F5A623",

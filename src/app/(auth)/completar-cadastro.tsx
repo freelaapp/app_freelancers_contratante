@@ -7,8 +7,13 @@ import { SelectField } from "@/components/select-field";
 import { TabSelector } from "@/components/tab-selector";
 import { useAuth } from "@/context/auth-context";
 import { CepNotFoundError, fetchAddressByCep } from "@/services/viacep";
+import { contractorService } from "@/services/contractor.service";
+import { toast } from "@/utils/toast";
+import { completarCadastroSchema, CompletarCadastroFormValues } from "@/validation/completar-cadastro.schema";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -38,58 +43,99 @@ export default function CompletarCadastroScreen() {
   const { completeProfile } = useAuth();
   const { bottom } = useSafeAreaInsets();
 
-  const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("casa");
   const [tabDocumento, setTabDocumento] = useState<TabDocumento>("cpf");
-
-  const [documento, setDocumento] = useState("");
-  const [celular, setCelular] = useState("");
-  const [dataNascimento, setDataNascimento] = useState("");
-  const [cep, setCep] = useState("");
-  const [estado, setEstado] = useState("");
-  const [rua, setRua] = useState("");
-  const [numero, setNumero] = useState("");
-  const [complemento, setComplemento] = useState("");
-  const [bairro, setBairro] = useState("");
-  const [cidade, setCidade] = useState("");
-
-  const [cnpjEmpresa, setCnpjEmpresa] = useState("");
-  const [razaoSocial, setRazaoSocial] = useState("");
-  const [ramoEstabelecimento, setRamoEstabelecimento] = useState("");
-  const [nomeEstabelecimento, setNomeEstabelecimento] = useState("");
-  const [celularEmpresa, setCelularEmpresa] = useState("");
-  const [nomeResponsavel, setNomeResponsavel] = useState("");
-  const [telefoneResponsavel, setTelefoneResponsavel] = useState("");
-  const [foto1, setFoto1] = useState("");
-  const [foto2, setFoto2] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
-  const [cepError, setCepError] = useState("");
+
+  const { control, handleSubmit, watch, setValue, setError, clearErrors } = useForm<CompletarCadastroFormValues>({
+    resolver: yupResolver(completarCadastroSchema) as Resolver<CompletarCadastroFormValues>,
+    defaultValues: {
+      tabPrincipal: "casa",
+      documento: "",
+      celular: "",
+      dataNascimento: "",
+      cep: "",
+      estado: "",
+      rua: "",
+      numero: "",
+      bairro: "",
+      cidade: "",
+      complemento: "",
+      cnpjEmpresa: "",
+      razaoSocial: "",
+      ramoEstabelecimento: "",
+      nomeEstabelecimento: "",
+      celularEmpresa: "",
+      nomeResponsavel: "",
+      telefoneResponsavel: "",
+      foto1: "",
+      foto2: "",
+    },
+  });
+
+  const tabPrincipal = watch("tabPrincipal");
 
   async function fetchCep(raw: string) {
     setCepLoading(true);
-    setCepError("");
+    clearErrors("cep");
     try {
       const data = await fetchAddressByCep(raw);
-      setRua(data.logradouro ?? "");
-      setBairro(data.bairro ?? "");
-      setCidade(data.localidade ?? "");
-      setEstado(data.uf ?? "");
+      setValue("rua", data.logradouro ?? "");
+      setValue("bairro", data.bairro ?? "");
+      setValue("cidade", data.localidade ?? "");
+      setValue("estado", data.uf ?? "");
     } catch (err) {
-      setCepError(err instanceof CepNotFoundError ? "CEP não encontrado" : "Erro ao buscar CEP");
+      setError("cep", {
+        message: err instanceof CepNotFoundError ? "CEP não encontrado" : "Erro ao buscar CEP",
+      });
     } finally {
       setCepLoading(false);
     }
   }
 
-  function handleCepChange(value: string) {
-    setCep(value);
-    setCepError("");
+  function handleCepChange(value: string, rhfOnChange: (v: string) => void) {
+    rhfOnChange(value);
+    clearErrors("cep");
     const digits = value.replace(/\D/g, "");
     if (digits.length === 8) fetchCep(value);
   }
 
-  function handleSubmit() {
-    completeProfile();
-    router.replace("/(home)");
+  function toDigits(v?: string) {
+    return v?.replace(/\D/g, "") ?? undefined;
+  }
+
+  function toBirthDate(v?: string) {
+    if (!v) return undefined;
+    const [day, month, year] = v.split("/");
+    return `${year}-${month}-${day}`;
+  }
+
+  async function handleSubmitForm(data: CompletarCadastroFormValues) {
+    try {
+      await contractorService.create({
+        document: toDigits(data.documento),
+        phone: toDigits(data.celular),
+        birthDate: toBirthDate(data.dataNascimento),
+        zipCode: toDigits(data.cep),
+        state: data.estado,
+        street: data.rua,
+        number: data.numero,
+        complement: data.complemento,
+        neighborhood: data.bairro,
+        city: data.cidade,
+        cnpj: toDigits(data.cnpjEmpresa),
+        companyName: data.razaoSocial,
+        businessType: data.ramoEstabelecimento,
+        establishmentName: data.nomeEstabelecimento,
+        companyPhone: toDigits(data.celularEmpresa),
+        responsibleName: data.nomeResponsavel,
+        responsiblePhone: toDigits(data.telefoneResponsavel),
+      });
+      toast.success("Cadastro completado!");
+      completeProfile();
+      router.replace("/(home)");
+    } catch {
+      // erro tratado pelo interceptor
+    }
   }
 
   return (
@@ -111,10 +157,16 @@ export default function CompletarCadastroScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TabSelector
-          options={TAB_PRINCIPAL_OPTIONS}
-          value={tabPrincipal}
-          onChange={(v) => setTabPrincipal(v as TabPrincipal)}
+        <Controller
+          control={control}
+          name="tabPrincipal"
+          render={({ field: { onChange, value } }) => (
+            <TabSelector
+              options={TAB_PRINCIPAL_OPTIONS}
+              value={value}
+              onChange={(v) => onChange(v as TabPrincipal)}
+            />
+          )}
         />
 
         {tabPrincipal === "casa" && (
@@ -128,35 +180,59 @@ export default function CompletarCadastroScreen() {
             />
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Número do documento"
-                icon="document-text-outline"
-                placeholder={tabDocumento === "cpf" ? "000.000.000-00" : "00.000.000/0001-00"}
-                keyboardType="numeric"
-                value={documento}
-                onChangeText={setDocumento}
+              <Controller
+                control={control}
+                name="documento"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Número do documento"
+                    icon="document-text-outline"
+                    placeholder={tabDocumento === "cpf" ? "000.000.000-00" : "00.000.000/0001-00"}
+                    keyboardType="numeric"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Celular"
-                icon="call-outline"
-                placeholder="(00) 00000-0000"
-                keyboardType="phone-pad"
-                value={celular}
-                onChangeText={setCelular}
+              <Controller
+                control={control}
+                name="celular"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Celular"
+                    icon="call-outline"
+                    placeholder="(00) 00000-0000"
+                    keyboardType="phone-pad"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Data de nascimento"
-                icon="calendar-outline"
-                placeholder="DD/MM/AAAA"
-                keyboardType="numeric"
-                value={dataNascimento}
-                onChangeText={setDataNascimento}
+              <Controller
+                control={control}
+                name="dataNascimento"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Data de nascimento"
+                    icon="calendar-outline"
+                    placeholder="DD/MM/AAAA"
+                    keyboardType="numeric"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
@@ -164,69 +240,125 @@ export default function CompletarCadastroScreen() {
 
             <View style={[styles.row, styles.fieldSpacing]}>
               <View style={styles.rowFlex}>
-                <Input
-                  label="CEP"
-                  placeholder="00000-000"
-                  keyboardType="numeric"
-                  value={cep}
-                  onChangeText={handleCepChange}
-                  error={cepError}
-                  rightElement={cepLoading ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}
+                <Controller
+                  control={control}
+                  name="cep"
+                  render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                    <Input
+                      label="CEP"
+                      placeholder="00000-000"
+                      keyboardType="numeric"
+                      value={value}
+                      onChangeText={(v) => handleCepChange(v, onChange)}
+                      onBlur={onBlur}
+                      error={fieldState.error?.message}
+                      rightElement={
+                        cepLoading
+                          ? <ActivityIndicator size="small" color={colors.primary} />
+                          : undefined
+                      }
+                    />
+                  )}
                 />
               </View>
-              <SelectField
-                label="Estado"
-                placeholder="UF"
-                value={estado || undefined}
-                onPress={() => {}}
-                style={styles.estadoField}
+              <Controller
+                control={control}
+                name="estado"
+                render={({ field: { value }, fieldState }) => (
+                  <SelectField
+                    label="Estado"
+                    placeholder="UF"
+                    value={value || undefined}
+                    onPress={() => {}}
+                    error={fieldState.error?.message}
+                    style={styles.estadoField}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Rua"
-                icon="location-outline"
-                placeholder="Nome da rua"
-                value={rua}
-                onChangeText={setRua}
+              <Controller
+                control={control}
+                name="rua"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Rua"
+                    icon="location-outline"
+                    placeholder="Nome da rua"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={[styles.row, styles.fieldSpacing]}>
-              <Input
-                label="Número"
-                placeholder="123"
-                keyboardType="numeric"
-                value={numero}
-                onChangeText={setNumero}
-                containerStyle={styles.numeroContainer}
+              <Controller
+                control={control}
+                name="numero"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Número"
+                    placeholder="123"
+                    keyboardType="numeric"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                    containerStyle={styles.numeroContainer}
+                  />
+                )}
               />
               <View style={styles.rowFlex}>
-                <Input
-                  label="Complemento"
-                  placeholder="Apto, sala..."
-                  value={complemento}
-                  onChangeText={setComplemento}
+                <Controller
+                  control={control}
+                  name="complemento"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Complemento"
+                      placeholder="Apto, sala..."
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                    />
+                  )}
                 />
               </View>
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Bairro"
-                placeholder="Bairro"
-                value={bairro}
-                onChangeText={setBairro}
+              <Controller
+                control={control}
+                name="bairro"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Bairro"
+                    placeholder="Bairro"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <SelectField
-                label="Cidade"
-                placeholder="Selecione a cidade"
-                value={cidade || undefined}
-                onPress={() => {}}
+              <Controller
+                control={control}
+                name="cidade"
+                render={({ field: { value }, fieldState }) => (
+                  <SelectField
+                    label="Cidade"
+                    placeholder="Selecione a cidade"
+                    value={value || undefined}
+                    onPress={() => {}}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
           </>
@@ -237,159 +369,282 @@ export default function CompletarCadastroScreen() {
             <Text style={styles.sectionLabel}>DADOS DA EMPRESA</Text>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="CNPJ"
-                icon="document-text-outline"
-                placeholder="00.000.000/0001-00"
-                keyboardType="numeric"
-                value={cnpjEmpresa}
-                onChangeText={setCnpjEmpresa}
+              <Controller
+                control={control}
+                name="cnpjEmpresa"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="CNPJ"
+                    icon="document-text-outline"
+                    placeholder="00.000.000/0001-00"
+                    keyboardType="numeric"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Razão Social"
-                placeholder="Nome da empresa"
-                value={razaoSocial}
-                onChangeText={setRazaoSocial}
+              <Controller
+                control={control}
+                name="razaoSocial"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Razão Social"
+                    placeholder="Nome da empresa"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <SelectField
-                label="Ramo do estabelecimento"
-                placeholder="Selecione o ramo"
-                value={ramoEstabelecimento || undefined}
-                onPress={() => {}}
+              <Controller
+                control={control}
+                name="ramoEstabelecimento"
+                render={({ field: { value }, fieldState }) => (
+                  <SelectField
+                    label="Ramo do estabelecimento"
+                    placeholder="Selecione o ramo"
+                    value={value || undefined}
+                    onPress={() => {}}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Nome do estabelecimento"
-                icon="storefront-outline"
-                placeholder="Nome fantasia"
-                value={nomeEstabelecimento}
-                onChangeText={setNomeEstabelecimento}
+              <Controller
+                control={control}
+                name="nomeEstabelecimento"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Nome do estabelecimento"
+                    icon="storefront-outline"
+                    placeholder="Nome fantasia"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Celular"
-                icon="call-outline"
-                placeholder="(00) 00000-0000"
-                keyboardType="phone-pad"
-                value={celularEmpresa}
-                onChangeText={setCelularEmpresa}
+              <Controller
+                control={control}
+                name="celularEmpresa"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Celular"
+                    icon="call-outline"
+                    placeholder="(00) 00000-0000"
+                    keyboardType="phone-pad"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <Text style={styles.sectionLabel}>Fotos do estabelecimento</Text>
 
             <View style={[styles.row, styles.fieldSpacing]}>
-              <PhotoUpload uri={foto1 || undefined} onChange={setFoto1} />
-              <PhotoUpload uri={foto2 || undefined} onChange={setFoto2} />
+              <Controller
+                control={control}
+                name="foto1"
+                render={({ field: { onChange, value } }) => (
+                  <PhotoUpload uri={value || undefined} onChange={onChange} />
+                )}
+              />
+              <Controller
+                control={control}
+                name="foto2"
+                render={({ field: { onChange, value } }) => (
+                  <PhotoUpload uri={value || undefined} onChange={onChange} />
+                )}
+              />
             </View>
 
             <Text style={styles.sectionLabel}>ENDEREÇO</Text>
 
             <View style={[styles.row, styles.fieldSpacing]}>
               <View style={styles.rowFlex}>
-                <Input
-                  label="CEP"
-                  placeholder="00000-000"
-                  keyboardType="numeric"
-                  value={cep}
-                  onChangeText={handleCepChange}
-                  error={cepError}
-                  rightElement={cepLoading ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}
+                <Controller
+                  control={control}
+                  name="cep"
+                  render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                    <Input
+                      label="CEP"
+                      placeholder="00000-000"
+                      keyboardType="numeric"
+                      value={value}
+                      onChangeText={(v) => handleCepChange(v, onChange)}
+                      onBlur={onBlur}
+                      error={fieldState.error?.message}
+                      rightElement={
+                        cepLoading
+                          ? <ActivityIndicator size="small" color={colors.primary} />
+                          : undefined
+                      }
+                    />
+                  )}
                 />
               </View>
-              <SelectField
-                label="Estado"
-                placeholder="UF"
-                value={estado || undefined}
-                onPress={() => {}}
-                style={styles.estadoField}
+              <Controller
+                control={control}
+                name="estado"
+                render={({ field: { value }, fieldState }) => (
+                  <SelectField
+                    label="Estado"
+                    placeholder="UF"
+                    value={value || undefined}
+                    onPress={() => {}}
+                    error={fieldState.error?.message}
+                    style={styles.estadoField}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Rua"
-                icon="location-outline"
-                placeholder="Nome da rua"
-                value={rua}
-                onChangeText={setRua}
+              <Controller
+                control={control}
+                name="rua"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Rua"
+                    icon="location-outline"
+                    placeholder="Nome da rua"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={[styles.row, styles.fieldSpacing]}>
-              <Input
-                label="Número"
-                placeholder="123"
-                keyboardType="numeric"
-                value={numero}
-                onChangeText={setNumero}
-                containerStyle={styles.numeroContainer}
+              <Controller
+                control={control}
+                name="numero"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Número"
+                    placeholder="123"
+                    keyboardType="numeric"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                    containerStyle={styles.numeroContainer}
+                  />
+                )}
               />
               <View style={styles.rowFlex}>
-                <Input
-                  label="Complemento"
-                  placeholder="Apto, sala..."
-                  value={complemento}
-                  onChangeText={setComplemento}
+                <Controller
+                  control={control}
+                  name="complemento"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Complemento"
+                      placeholder="Apto, sala..."
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                    />
+                  )}
                 />
               </View>
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Bairro"
-                placeholder="Bairro"
-                value={bairro}
-                onChangeText={setBairro}
+              <Controller
+                control={control}
+                name="bairro"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Bairro"
+                    placeholder="Bairro"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <SelectField
-                label="Cidade"
-                placeholder="Selecione a cidade"
-                value={cidade || undefined}
-                onPress={() => {}}
+              <Controller
+                control={control}
+                name="cidade"
+                render={({ field: { value }, fieldState }) => (
+                  <SelectField
+                    label="Cidade"
+                    placeholder="Selecione a cidade"
+                    value={value || undefined}
+                    onPress={() => {}}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <Text style={styles.sectionLabel}>RESPONSÁVEL PELA OPERAÇÃO</Text>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Nome e sobrenome"
-                icon="person-outline"
-                placeholder="Nome do responsável"
-                value={nomeResponsavel}
-                onChangeText={setNomeResponsavel}
+              <Controller
+                control={control}
+                name="nomeResponsavel"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Nome e sobrenome"
+                    icon="person-outline"
+                    placeholder="Nome do responsável"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
-                label="Telefone do responsável"
-                icon="call-outline"
-                placeholder="(00) 00000-0000"
-                keyboardType="phone-pad"
-                value={telefoneResponsavel}
-                onChangeText={setTelefoneResponsavel}
+              <Controller
+                control={control}
+                name="telefoneResponsavel"
+                render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                  <Input
+                    label="Telefone do responsável"
+                    icon="call-outline"
+                    placeholder="(00) 00000-0000"
+                    keyboardType="phone-pad"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </View>
           </>
         )}
 
         <View style={styles.buttonSpacing}>
-          <PrimaryButton label="Finalizar cadastro" onPress={handleSubmit} />
+          <PrimaryButton label="Finalizar cadastro" onPress={handleSubmit(handleSubmitForm)} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

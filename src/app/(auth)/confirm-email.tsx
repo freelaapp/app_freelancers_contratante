@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
+import { authService } from "@/services/auth.service";
+import { toast } from "@/utils/toast";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -17,7 +19,7 @@ const CODE_LENGTH = 6;
 export default function ConfirmEmailScreen() {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email: emailParam } = useLocalSearchParams<{ email: string }>();
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [isLoading, setIsLoading] = useState(false);
@@ -48,17 +50,29 @@ export default function ConfirmEmailScreen() {
   async function handleConfirm() {
     if (!canConfirm) return;
     setIsLoading(true);
-    await new Promise<void>((r) => setTimeout(r, 1000));
-    setIsLoading(false);
-    router.replace("/(auth)/login");
+    try {
+      await authService.confirmEmail({ email: emailParam ?? "", code: code.join("") });
+      toast.success("E-mail confirmado! Faça login.");
+      router.replace("/(auth)/login");
+    } catch {
+      // erro tratado pelo interceptor
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleResend() {
     setIsResending(true);
-    await new Promise<void>((r) => setTimeout(r, 1000));
-    setIsResending(false);
-    setCode(Array(CODE_LENGTH).fill(""));
-    inputRefs.current[0]?.focus();
+    try {
+      await authService.resendConfirmationCode(emailParam ?? "");
+      toast.success("Código reenviado!");
+      setCode(Array(CODE_LENGTH).fill(""));
+      inputRefs.current[0]?.focus();
+    } catch {
+      // erro tratado pelo interceptor
+    } finally {
+      setIsResending(false);
+    }
   }
 
   return (

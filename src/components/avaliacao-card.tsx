@@ -25,7 +25,7 @@ export function AvaliacaoCard({ nome, data, estrelas, comentario, showDivider = 
           </View>
         </View>
         <Text style={styles.data}>{data}</Text>
-        <Text style={styles.comentario}>"{comentario}"</Text>
+        <Text style={styles.comentario}>{'"'}{comentario}{'"'}</Text>
       </View>
     </>
   );

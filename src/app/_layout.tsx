@@ -2,6 +2,7 @@ import { AppSplash } from "@/components/app-splash";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
+import Toast from "react-native-toast-message";
 
 function RootNavigator() {
   const { user, isInitializing } = useAuth();
@@ -25,7 +26,7 @@ function RootNavigator() {
     } else if (user && !user.profileCompleted && !inAuthGroup) {
       router.replace("/(auth)/completar-cadastro");
     }
-  }, [user, isInitializing, segments]);
+  }, [user, isInitializing, segments, router]);
 
   return (
     <>
@@ -47,8 +48,11 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+      <Toast />
+    </>
   );
 }
