@@ -1,22 +1,23 @@
 import { api } from "@/services/api";
 import type {
   RegisterPayload,
+  RegisterResponse,
   LoginPayload,
   LoginResponse,
   ConfirmEmailPayload,
   ForgotPasswordPayload,
   ResetPasswordPayload,
-  UserMe,
+  UserProfile,
 } from "@/types/api";
 
 export const authService = {
-  register: (payload: RegisterPayload) =>
+  register: (payload: RegisterPayload): Promise<{ data: RegisterResponse }> =>
     api.post("/v1/users/register", payload),
 
   login: (payload: LoginPayload): Promise<{ data: LoginResponse }> =>
     api.post("/v1/users/login", payload),
 
-  me: (): Promise<{ data: UserMe }> =>
+  me: (): Promise<{ data: UserProfile }> =>
     api.get("/v1/users/me"),
 
   confirmEmail: (payload: ConfirmEmailPayload) =>

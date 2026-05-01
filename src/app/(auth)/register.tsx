@@ -3,6 +3,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
 import { useRef } from "react";
 import { authService } from "@/services/auth.service";
+import { tokenStore } from "@/services/token-store";
 import { toast } from "@/utils/toast";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -49,16 +50,20 @@ export default function RegisterScreen() {
   async function handleRegister(data: RegisterFormValues) {
     try {
       const digits = data.phone.replace(/\D/g, "");
-      const phoneNumber = digits.startsWith("55") ? `+${digits}` : `+55${digits}`;
-      await authService.register({
+      const phoneNumber = digits ? (digits.startsWith("55") ? `+${digits}` : `+55${digits}`) : undefined;
+
+      // v2: apenas name, email, password, phoneNumber (opcional)
+      // persona e module são definidos no onboarding, não no registro
+      const { data: tokens } = await authService.register({
         name: data.name,
         email: data.email,
-        phoneNumber,
         password: data.password,
-        persona: "contractor",
-        module: "bars-restaurants",
-        contractorProfile: {},
+        ...(phoneNumber ? { phoneNumber } : {}),
       });
+
+      // Salva o token retornado para usar na confirmação de email
+      await tokenStore.set(tokens.accessToken);
+
       toast.success("Cadastro realizado! Verifique seu e-mail.");
       router.push({ pathname: "/(auth)/confirm-email", params: { email: data.email } });
     } catch {

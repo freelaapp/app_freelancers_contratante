@@ -32,7 +32,12 @@ export default function LoginScreen() {
   });
 
   async function handleSignIn(data: LoginFormValues) {
-    await signIn(data.email, data.password);
+    console.log("[LOGIN] handleSignIn chamado:", data.email);
+    try {
+      await signIn(data.email, data.password);
+    } catch (err) {
+      console.log("[LOGIN] erro capturado no handleSignIn:", err);
+    }
   }
 
   return (
