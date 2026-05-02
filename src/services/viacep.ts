@@ -1,12 +1,12 @@
 import axios from "axios";
 
 const viaCepClient = axios.create({
-  baseURL: "https://viacep.com.br/ws",
+  baseURL: process.env.EXPO_PUBLIC_VIACEP_URL ?? "https://viacep.com.br/ws",
   timeout: 8000,
 });
 
 const nominatimClient = axios.create({
-  baseURL: "https://nominatim.openstreetmap.org",
+  baseURL: process.env.EXPO_PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org",
   timeout: 8000,
   headers: { "Accept-Language": "pt-BR" },
 });

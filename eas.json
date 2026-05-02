@@ -6,12 +6,31 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.freelaservicosapp.com.br",
+        "EXPO_PUBLIC_VIACEP_URL": "https://viacep.com.br/ws",
+        "EXPO_PUBLIC_NOMINATIM_URL": "https://nominatim.openstreetmap.org"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.freelaservicosapp.com.br",
+        "EXPO_PUBLIC_VIACEP_URL": "https://viacep.com.br/ws",
+        "EXPO_PUBLIC_NOMINATIM_URL": "https://nominatim.openstreetmap.org"
+      }
     },
-    "production": {}
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.freelaservicosapp.com.br",
+        "EXPO_PUBLIC_VIACEP_URL": "https://viacep.com.br/ws",
+        "EXPO_PUBLIC_NOMINATIM_URL": "https://nominatim.openstreetmap.org"
+      }
+    }
   },
   "submit": {
     "production": {}
