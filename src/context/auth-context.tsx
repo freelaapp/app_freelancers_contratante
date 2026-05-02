@@ -11,6 +11,7 @@ type User = {
   userType: "contractor" | "provider" | null;
   module: "home-services" | "bars-restaurants" | null;
   contractorId: string | null;
+  avatarUrl: string | null;
 };
 
 type AuthContextType = {
@@ -20,6 +21,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
   completeProfile: (module: "home-services" | "bars-restaurants", contractorId: string) => void;
+  updateAvatar: (avatarUrl: string) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -71,10 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await tokenStore.set(accessToken, refreshToken);
 
       let name = email;
+      let avatarUrl: string | null = null;
       if (!onboarding.isPending) {
         try {
           const profileRes = await authService.getProfile();
           name = profileRes.data.name ?? email;
+          avatarUrl = profileRes.data.avatarUrl ?? null;
         } catch {
           // best-effort — fallback to email
         }
@@ -97,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userType: apiUser.userType as "contractor" | "provider" | null,
         module: resolvedModule,
         contractorId,
+        avatarUrl,
       };
 
       console.log("[AUTH] contexto resolvido:", JSON.stringify({ module: resolvedModule, contractorId }, null, 2));
@@ -114,13 +119,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function completeProfile(module: "home-services" | "bars-restaurants", contractorId: string): void {
     if (!user) return;
-    const updated: User = { ...user, profileCompleted: true, userType: "contractor", module, contractorId };
+    const updated: User = { ...user, profileCompleted: true, userType: "contractor", module, contractorId, avatarUrl: user.avatarUrl };
+    tokenStore.setUser(updated);
+    setUser(updated);
+  }
+
+  function updateAvatar(avatarUrl: string): void {
+    if (!user) return;
+    const updated: User = { ...user, avatarUrl };
     tokenStore.setUser(updated);
     setUser(updated);
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isInitializing, signIn, signOut, completeProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, isInitializing, signIn, signOut, completeProfile, updateAvatar }}>
       {children}
     </AuthContext.Provider>
   );
