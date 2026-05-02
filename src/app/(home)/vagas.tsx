@@ -1,16 +1,22 @@
 import { FilterChipBar } from "@/components/filter-chip-bar";
 import { PageHeader } from "@/components/page-header";
 import { VagaCard } from "@/components/vaga-card";
-import { colors, spacing } from "@/constants/theme";
+import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
+import { useAuth } from "@/context/auth-context";
+import { vagasService } from "@/services/vagas.service";
+import type { VagaApi, VagaStatus } from "@/types/vagas";
+import { mapApiStatus, formatVagaValue } from "@/utils/vaga-status-map";
 import { VAGA_FILTERS } from "@/utils/vaga-filters";
-import { VAGAS_MOCK, type VagaStatus } from "@/utils/vagas-mock";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
+
 const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
   todos: ["confirmado", "aguardando", "finalizado"],
   confirmados: ["confirmado"],
@@ -20,10 +26,22 @@ const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
 
 export default function VagasScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState("todos");
+  const [loading, setLoading] = useState(true);
+  const [vagas, setVagas] = useState<VagaApi[]>([]);
 
-  const filtered = VAGAS_MOCK.filter((v) =>
-    STATUS_BY_FILTER[activeFilter].includes(v.status)
+  useEffect(() => {
+    if (!user) return;
+    const contractorId = user.contractorId ?? user.id;
+    vagasService
+      .listByContractor(contractorId)
+      .then(setVagas)
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const filtered = vagas.filter((v) =>
+    STATUS_BY_FILTER[activeFilter].includes(mapApiStatus(v.status))
   );
 
   return (
@@ -36,23 +54,36 @@ export default function VagasScreen() {
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[0]}
       >
-        {/* Filtros sticky */}
         <FilterChipBar options={VAGA_FILTERS} activeId={activeFilter} onSelect={setActiveFilter} />
 
-        {/* Lista */}
         <View style={styles.list}>
-          {filtered.map((item) => (
-            <VagaCard
-              key={item.id}
-              title={item.title}
-              location={item.location}
-              date={item.date}
-              time={item.time}
-              value={item.value}
-              status={item.status}
-              onPress={() => router.push(`/(home)/vaga/${item.id}`)}
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color={colors.primary}
+              style={styles.loader}
             />
-          ))}
+          ) : filtered.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Nenhuma vaga encontrada</Text>
+              <Text style={styles.emptySubtext}>
+                Ajuste o filtro ou crie uma nova vaga.
+              </Text>
+            </View>
+          ) : (
+            filtered.map((item) => (
+              <VagaCard
+                key={item.id}
+                title={item.title}
+                location={item.location ?? ""}
+                date={item.date ?? ""}
+                time={item.startTime ?? ""}
+                value={formatVagaValue(item.value as number | undefined)}
+                status={mapApiStatus(item.status)}
+                onPress={() => router.push(`/(home)/vaga/${item.id}`)}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
@@ -73,5 +104,23 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing["6"],
     paddingHorizontal: spacing["8"],
+  },
+  loader: {
+    marginTop: spacing["16"],
+  },
+  emptyContainer: {
+    alignItems: "center",
+    marginTop: spacing["16"],
+    gap: spacing["4"],
+  },
+  emptyText: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  emptySubtext: {
+    fontSize: fontSizes.base,
+    color: colors.muted,
+    textAlign: "center",
   },
 });

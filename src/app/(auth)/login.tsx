@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useRef } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/auth-context";
 import { Input } from "@/components/input";
+import { loginSchema, LoginFormValues } from "@/validation/login.schema";
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
@@ -23,12 +26,13 @@ export default function LoginScreen() {
 
   const passwordRef = useRef<TextInput>(null);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { control, handleSubmit } = useForm<LoginFormValues>({
+    resolver: yupResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-  async function handleSignIn() {
-    if (!email || !password) return;
-    await signIn(email, password);
+  async function handleSignIn(data: LoginFormValues) {
+    await signIn(data.email, data.password);
   }
 
   return (
@@ -63,32 +67,48 @@ export default function LoginScreen() {
           Faça login para contratar profissionais
         </Text>
 
-        <Input
-          label="E-mail"
-          icon="mail-outline"
-          placeholder="Digite seu e-mail"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          blurOnSubmit={false}
-          editable={!isLoading}
-          value={email}
-          onChangeText={setEmail}
-          containerStyle={styles.inputSpacing}
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, onBlur, value }, fieldState }) => (
+            <Input
+              label="E-mail"
+              icon="mail-outline"
+              placeholder="Digite seu e-mail"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
+              editable={!isLoading}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={fieldState.error?.message}
+              containerStyle={styles.inputSpacing}
+            />
+          )}
         />
 
-        <Input
-          ref={passwordRef}
-          label="Senha"
-          icon="lock-closed-outline"
-          placeholder="Digite sua senha"
-          secureTextEntry
-          returnKeyType="done"
-          onSubmitEditing={handleSignIn}
-          editable={!isLoading}
-          value={password}
-          onChangeText={setPassword}
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, onBlur, value }, fieldState }) => (
+            <Input
+              ref={passwordRef}
+              label="Senha"
+              icon="lock-closed-outline"
+              placeholder="Digite sua senha"
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit(handleSignIn)}
+              editable={!isLoading}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={fieldState.error?.message}
+            />
+          )}
         />
 
         <TouchableOpacity
@@ -100,7 +120,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={styles.signInButton}
-          onPress={handleSignIn}
+          onPress={handleSubmit(handleSignIn)}
           disabled={isLoading}
           activeOpacity={0.85}
         >

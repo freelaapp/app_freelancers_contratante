@@ -1,10 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { tokenStore } from "@/services/token-store";
+import { registerUnauthorizedHandler, unregisterUnauthorizedHandler } from "@/services/api";
+import { authService } from "@/services/auth.service";
+import { toast } from "@/utils/toast";
 
 type User = {
   id: string;
   name: string;
   email: string;
   profileCompleted: boolean;
+  contractorId?: string;
 };
 
 type AuthContextType = {
@@ -12,7 +17,7 @@ type AuthContextType = {
   isLoading: boolean;
   isInitializing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   completeProfile: () => void;
 };
 
@@ -24,20 +29,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitializing(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    async function restoreSession() {
+      try {
+        const token = await tokenStore.get();
+        if (token) {
+          const { data } = await authService.me();
+          setUser({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            profileCompleted: data.profileCompleted,
+            contractorId: data.contractorId,
+          });
+        }
+      } catch {
+        await tokenStore.clear();
+      } finally {
+        setIsInitializing(false);
+      }
+    }
+    restoreSession();
   }, []);
 
-  async function signIn(email: string, _password: string): Promise<void> {
+  useEffect(() => {
+    registerUnauthorizedHandler(async () => {
+      setUser(null);
+    });
+    return () => unregisterUnauthorizedHandler();
+  }, []);
+
+  async function signIn(email: string, password: string): Promise<void> {
     setIsLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-    setUser({ id: "1", name: "Usuário Teste", email, profileCompleted: false });
-    setIsLoading(false);
+    try {
+      const { data } = await authService.login({ email, password });
+      await tokenStore.set(data.accessToken);
+      setUser({
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        profileCompleted: data.user.profileCompleted,
+        contractorId: data.user.contractorId,
+      });
+      toast.success("Login realizado com sucesso!");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function signOut(): void {
+  async function signOut(): Promise<void> {
+    await tokenStore.clear();
     setUser(null);
   }
 

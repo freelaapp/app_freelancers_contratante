@@ -1,4 +1,4 @@
-import { colors, fontWeights, radii } from "@/constants/theme";
+import { colors, fontWeights } from "@/constants/theme";
 import { StyleSheet, Text, View } from "react-native";
 
 type Props = {

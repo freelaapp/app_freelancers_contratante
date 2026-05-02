@@ -7,9 +7,12 @@ import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
 import { ServiceChip } from "@/components/service-chip";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
 import { SERVICES } from "@/utils/services";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { router, Stack } from "expo-router";
 import { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   ScrollView,
   StyleSheet,
@@ -23,20 +26,33 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function CriarVagaScreen() {
   const insets = useSafeAreaInsets();
 
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [dataEvento, setDataEvento] = useState("");
+  const { control, handleSubmit, setValue, watch } = useForm<CriarVagaFormValues>({
+    resolver: yupResolver(criarVagaSchema),
+    defaultValues: {
+      selectedServices: [],
+      dataEvento: "",
+      descricao: "",
+    },
+  });
+
   const [noEstabelecimento, setNoEstabelecimento] = useState(true);
-  const [descricao, setDescricao] = useState("");
 
-  const toggleService = useCallback((id: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  }, []);
+  const selectedServices = watch("selectedServices");
 
-  const handlePublish = useCallback(() => {
+  const toggleService = useCallback(
+    (id: string) => {
+      const current = selectedServices ?? [];
+      const next = current.includes(id)
+        ? current.filter((s) => s !== id)
+        : [...current, id];
+      setValue("selectedServices", next, { shouldValidate: true });
+    },
+    [selectedServices, setValue]
+  );
+
+  function handlePublish(data: CriarVagaFormValues) {
     router.back();
-  }, []);
+  }
 
   return (
     <View style={styles.screen}>
@@ -58,42 +74,58 @@ export default function CriarVagaScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-
-        <CardContainer>
-          <Text style={styles.sectionTitle}>Serviços necessários</Text>
-          <Text style={styles.sectionSubtitle}>
-            Selecione os profissionais
-          </Text>
-          <View style={styles.chipsGrid}>
-            {Array.from({ length: Math.ceil(SERVICES.length / 2) }, (_, i) => {
-              const row = SERVICES.slice(i * 2, i * 2 + 2);
-              return (
-                <View key={i} style={styles.chipsRow}>
-                  {row.map((service) => (
-                    <ServiceChip
-                      key={service.id}
-                      emoji={service.emoji}
-                      label={service.label}
-                      selected={selectedServices.includes(service.id)}
-                      onPress={() => toggleService(service.id)}
-                    />
-                  ))}
-                  {row.length === 1 && <View style={styles.chipPlaceholder} />}
-                </View>
-              );
-            })}
-          </View>
-        </CardContainer>
+        <Controller
+          control={control}
+          name="selectedServices"
+          render={({ fieldState }) => (
+            <CardContainer>
+              <Text style={styles.sectionTitle}>Serviços necessários</Text>
+              <Text style={styles.sectionSubtitle}>
+                Selecione os profissionais
+              </Text>
+              <View style={styles.chipsGrid}>
+                {Array.from({ length: Math.ceil(SERVICES.length / 2) }, (_, i) => {
+                  const row = SERVICES.slice(i * 2, i * 2 + 2);
+                  return (
+                    <View key={i} style={styles.chipsRow}>
+                      {row.map((service) => (
+                        <ServiceChip
+                          key={service.id}
+                          emoji={service.emoji}
+                          label={service.label}
+                          selected={(selectedServices ?? []).includes(service.id)}
+                          onPress={() => toggleService(service.id)}
+                        />
+                      ))}
+                      {row.length === 1 && <View style={styles.chipPlaceholder} />}
+                    </View>
+                  );
+                })}
+              </View>
+              {fieldState.error?.message && (
+                <Text style={styles.fieldError}>{fieldState.error.message}</Text>
+              )}
+            </CardContainer>
+          )}
+        />
 
         <CardContainer>
           <CardHeader icon="calendar-outline" title="Data do evento" />
-          <Input
-            placeholder="dd/mm/aaaa"
-            keyboardType="numeric"
-            icon="calendar-outline"
-            value={dataEvento}
-            onChangeText={setDataEvento}
-            maxLength={10}
+          <Controller
+            control={control}
+            name="dataEvento"
+            render={({ field: { onChange, onBlur, value }, fieldState }) => (
+              <Input
+                placeholder="dd/mm/aaaa"
+                keyboardType="numeric"
+                icon="calendar-outline"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={fieldState.error?.message}
+                maxLength={10}
+              />
+            )}
           />
         </CardContainer>
 
@@ -115,14 +147,29 @@ export default function CriarVagaScreen() {
           <Text style={styles.descSubtitle}>
             Descreva detalhes importantes para os freelancers
           </Text>
-          <TextInput
-            style={styles.descInput}
-            multiline
-            textAlignVertical="top"
-            placeholder="Ex.: Preciso de 2 garçons para evento corporativo no sábado, das 18h às 23h. Traje social exigido. Experiência com serviço de mesa..."
-            placeholderTextColor={colors.muted}
-            value={descricao}
-            onChangeText={setDescricao}
+          <Controller
+            control={control}
+            name="descricao"
+            render={({ field: { onChange, onBlur, value }, fieldState }) => (
+              <>
+                <TextInput
+                  style={[
+                    styles.descInput,
+                    fieldState.error ? styles.descInputError : null,
+                  ]}
+                  multiline
+                  textAlignVertical="top"
+                  placeholder="Ex.: Preciso de 2 garçons para evento corporativo no sábado, das 18h às 23h. Traje social exigido. Experiência com serviço de mesa..."
+                  placeholderTextColor={colors.muted}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                />
+                {fieldState.error?.message && (
+                  <Text style={styles.fieldError}>{fieldState.error.message}</Text>
+                )}
+              </>
+            )}
           />
         </CardContainer>
 
@@ -134,7 +181,7 @@ export default function CriarVagaScreen() {
       </ScrollView>
 
       <BottomActionBar backgroundColor={colors.white} showTopBorder>
-        <PrimaryButton label="Publicar contratação →" onPress={handlePublish} />
+        <PrimaryButton label="Publicar contratação →" onPress={handleSubmit(handlePublish)} />
       </BottomActionBar>
     </View>
   );
@@ -199,5 +246,13 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     fontSize: fontSizes.base,
     color: colors.ink,
+  },
+  descInputError: {
+    borderColor: colors.error,
+  },
+  fieldError: {
+    fontSize: fontSizes.xs,
+    color: colors.error,
+    marginTop: spacing["3"],
   },
 });

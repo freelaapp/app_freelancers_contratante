@@ -1,5 +1,5 @@
 import { radii } from "@/constants/theme";
-import { Modal, Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { Modal, Pressable, StyleProp, StyleSheet, ViewStyle } from "react-native";
 
 type Props = {
   visible: boolean;

@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 
-type BookingStatus = "confirmado" | "aguardando" | "cancelado";
+type BookingStatus = "confirmado" | "aguardando" | "cancelado" | "finalizado";
 
 type BookingCardProps = {
   title: string;
@@ -19,6 +19,7 @@ const BADGE_LABEL: Record<BookingStatus, string> = {
   confirmado: "Confirmado",
   aguardando: "Aguardando",
   cancelado: "Cancelado",
+  finalizado: "Finalizado",
 };
 
 export function BookingCard({
