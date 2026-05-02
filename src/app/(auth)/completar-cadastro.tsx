@@ -7,6 +7,7 @@ import { SelectField } from "@/components/select-field";
 import { TabSelector } from "@/components/tab-selector";
 import { useAuth } from "@/context/auth-context";
 import { contractorService } from "@/services/contractor.service";
+import { toast } from "@/utils/toast";
 import { CepNotFoundError, fetchAddressByCep, fetchCoordinatesByCep } from "@/services/viacep";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -37,7 +38,7 @@ const TAB_DOCUMENTO_OPTIONS = [
 
 export default function CompletarCadastroScreen() {
   const router = useRouter();
-  const { completeProfile } = useAuth();
+  const { completeProfile, user } = useAuth();
   const { bottom } = useSafeAreaInsets();
 
   const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("casa");
@@ -174,6 +175,7 @@ export default function CompletarCadastroScreen() {
         const casaRes = await contractorService.createCasa(casaPayload);
         console.log("[ONBOARDING] resposta home-services:", JSON.stringify(casaRes.data, null, 2));
         completeProfile("home-services", casaRes.data.id);
+        toast.success("Freela em Casa cadastrado com sucesso!", `Bem-vindo, ${user?.name ?? ""}!`);
       } else {
         const barsPayload = {
           contactName: nomeResponsavel || undefined,
@@ -206,8 +208,11 @@ export default function CompletarCadastroScreen() {
         }
 
         completeProfile("bars-restaurants", barsRes.data.id);
+        toast.success("Freela para Empresas cadastrado com sucesso!", `Bem-vindo, ${user?.name ?? ""}!`);
       }
       router.replace("/(home)");
+    } catch {
+      toast.error("Não foi possível concluir o cadastro.", "Verifique os dados e tente novamente.")
     } finally {
       setIsSubmitting(false);
     }

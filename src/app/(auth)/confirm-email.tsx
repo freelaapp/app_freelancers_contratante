@@ -52,10 +52,11 @@ export default function ConfirmEmailScreen() {
     setIsLoading(true);
     try {
       await authService.confirmEmail({ email: emailParam ?? "", code: code.join("") });
-      toast.success("E-mail confirmado! Faça login.");
+      toast.success("E-mail validado com sucesso!", "Agora faça login para continuar.");
       router.replace("/(auth)/login");
     } catch {
       // erro tratado pelo interceptor
+      toast.error("Código inválido ou expirado.", "Verifique o código e tente novamente.")
     } finally {
       setIsLoading(false);
     }
@@ -65,11 +66,12 @@ export default function ConfirmEmailScreen() {
     setIsResending(true);
     try {
       await authService.resendConfirmationCode(emailParam ?? "");
-      toast.success("Código reenviado!");
+      toast.success("Código reenviado!", "Verifique sua caixa de entrada.");
       setCode(Array(CODE_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
     } catch {
       // erro tratado pelo interceptor
+      toast.error("Não foi possível reenviar o código.", "Tente novamente.")
     } finally {
       setIsResending(false);
     }
