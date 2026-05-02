@@ -52,8 +52,6 @@ export default function RegisterScreen() {
       const digits = data.phone.replace(/\D/g, "");
       const phoneNumber = digits ? (digits.startsWith("55") ? `+${digits}` : `+55${digits}`) : undefined;
 
-      // v2: apenas name, email, password, phoneNumber (opcional)
-      // persona e module são definidos no onboarding, não no registro
       const { data: tokens } = await authService.register({
         name: data.name,
         email: data.email,
@@ -61,8 +59,11 @@ export default function RegisterScreen() {
         ...(phoneNumber ? { phoneNumber } : {}),
       });
 
-      // Salva o token retornado para usar na confirmação de email
-      await tokenStore.set(tokens.accessToken, tokens.refreshToken ?? "");
+      try {
+        await tokenStore.set(tokens.accessToken, tokens.refreshToken ?? "");
+      } catch {
+        // best-effort — o redirect deve acontecer de qualquer forma
+      }
 
       toast.success("Cadastro realizado! Verifique seu e-mail.");
       router.push({ pathname: "/(auth)/confirm-email", params: { email: data.email } });

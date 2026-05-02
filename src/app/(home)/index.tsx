@@ -15,10 +15,12 @@ export default function HomeScreen() {
   const [vagas, setVagas] = useState<VagaApi[]>([]);
 
   useEffect(() => {
-    if (!user) return;
-    const contractorId = user.contractorId ?? user.id;
+    if (!user?.contractorId || !user?.module) {
+      setLoading(false);
+      return;
+    }
     vagasService
-      .listByContractor(contractorId)
+      .listByContractor(user.module, user.contractorId)
       .then(setVagas)
       .finally(() => setLoading(false));
   }, [user]);

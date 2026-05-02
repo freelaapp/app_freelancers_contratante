@@ -264,10 +264,10 @@ export default function VagaDetailScreen() {
   const [compareceu, setCompareceu] = useState<boolean | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!id) return;
+    if (!id || !user?.module) return;
     try {
       const [vagaData, candidatosData] = await Promise.all([
-        vagasService.getById(id),
+        vagasService.getById(user.module, id),
         candidaturasService.listByVacancy(id),
       ]);
       setVaga(vagaData);
@@ -284,7 +284,7 @@ export default function VagaDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     loadData();

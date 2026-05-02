@@ -1,17 +1,19 @@
 import { api } from "@/services/api";
 import type { VagaApi, VagaDetalheApi } from "@/types/vagas";
 
+type ContractorModule = "home-services" | "bars-restaurants";
+
 export const vagasService = {
-  async listByContractor(contractorId: string): Promise<VagaApi[]> {
+  async listByContractor(module: ContractorModule, contractorId: string): Promise<VagaApi[]> {
     const { data } = await api.get<VagaApi[]>(
-      `/v1/bars-restaurants/vacancies/contractors/${contractorId}`
+      `/v1/${module}/vacancies/contractors/${contractorId}`
     );
     return data;
   },
 
-  async getById(id: string): Promise<VagaDetalheApi> {
+  async getById(module: ContractorModule, id: string): Promise<VagaDetalheApi> {
     const { data } = await api.get<VagaDetalheApi>(
-      `/v1/bars-restaurants/vacancies/${id}`
+      `/v1/${module}/vacancies/${id}`
     );
     return data;
   },

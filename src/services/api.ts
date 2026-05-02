@@ -1,6 +1,12 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { tokenStore } from "./token-store";
 import { toast } from "@/utils/toast";
+
+declare module "axios" {
+  interface InternalAxiosRequestConfig {
+    _retry?: boolean;
+  }
+}
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://api.freelaservicosapp.com.br";
 
@@ -21,6 +27,8 @@ api.interceptors.request.use(async (config) => {
 });
 
 let onUnauthorized: (() => void) | null = null;
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
 
 export function registerUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
@@ -97,6 +105,43 @@ api.interceptors.response.use(
     });
 
     if (status === 401) {
+      const refreshToken = await tokenStore.getRefresh();
+
+      if (refreshToken && !error.config?._retry) {
+        if (isRefreshing) {
+          return new Promise((resolve) => {
+            refreshQueue.push((newToken) => {
+              error.config!.headers.Authorization = `Bearer ${newToken}`;
+              resolve(api(error.config!));
+            });
+          });
+        }
+
+        isRefreshing = true;
+        error.config!._retry = true;
+
+        try {
+          const { data } = await axios.post(`${BASE_URL}/v1/users/auth/refresh`, { refreshToken });
+          const newAccessToken: string = data?.data?.accessToken ?? data?.accessToken;
+
+          await tokenStore.set(newAccessToken, data?.data?.refreshToken ?? data?.refreshToken ?? refreshToken);
+          api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+
+          refreshQueue.forEach((cb) => cb(newAccessToken));
+          refreshQueue = [];
+
+          error.config!.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(error.config!);
+        } catch {
+          refreshQueue = [];
+          await tokenStore.clear();
+          onUnauthorized?.();
+          return Promise.reject(error);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
       await tokenStore.clear();
       onUnauthorized?.();
       return Promise.reject(error);
