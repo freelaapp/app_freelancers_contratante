@@ -1,6 +1,67 @@
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { CompactHeader } from "@/components/compact-header";
 import { Input } from "@/components/input";
+import { MaskedInput } from "@/components/masked-input";
+
+const CPF_MASK = [
+  /\d/,
+  /\d/,
+  /\d/,
+  ".",
+  /\d/,
+  /\d/,
+  /\d/,
+  ".",
+  /\d/,
+  /\d/,
+  /\d/,
+  "-",
+  /\d/,
+  /\d/,
+];
+
+const CNPJ_MASK = [
+  /\d/,
+  /\d/,
+  ".",
+  /\d/,
+  /\d/,
+  /\d/,
+  ".",
+  /\d/,
+  /\d/,
+  /\d/,
+  "/",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  "-",
+  /\d/,
+  /\d/,
+];
+
+const PHONE_MASK = [
+  "(",
+  /\d/,
+  /\d/,
+  ")",
+  " ",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  "-",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+];
+
+const CEP_MASK = [/\d/, /\d/, /\d/, /\d/, /\d/, "-", /\d/, /\d/, /\d/];
+
+const DATE_MASK = [/\d/, /\d/, "/", /\d/, /\d/, "/", /\d/, /\d/, /\d/, /\d/];
 import { PhotoUpload } from "@/components/photo-upload";
 import { PrimaryButton } from "@/components/primary-button";
 import { SelectField } from "@/components/select-field";
@@ -254,35 +315,44 @@ export default function CompletarCadastroScreen() {
             />
 
             <View style={styles.fieldSpacing}>
-              <Input
+              <MaskedInput
                 label="Número do documento"
                 icon="document-text-outline"
                 placeholder={tabDocumento === "cpf" ? "000.000.000-00" : "00.000.000/0001-00"}
                 keyboardType="numeric"
                 value={documento}
                 onChangeText={setDocumento}
+                mask={tabDocumento === "cpf" ? CPF_MASK : CNPJ_MASK}
+                maxLength={tabDocumento === "cpf" ? 14 : 18}
+                hint={tabDocumento === "cpf" ? "CPF" : "CNPJ"}
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
+              <MaskedInput
                 label="Celular"
                 icon="call-outline"
                 placeholder="(00) 00000-0000"
                 keyboardType="phone-pad"
                 value={celular}
                 onChangeText={setCelular}
+                mask={PHONE_MASK}
+                maxLength={15}
+                hint="DDD + número"
               />
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
+              <MaskedInput
                 label="Data de nascimento"
                 icon="calendar-outline"
                 placeholder="DD/MM/AAAA"
                 keyboardType="numeric"
                 value={dataNascimento}
                 onChangeText={setDataNascimento}
+                mask={DATE_MASK}
+                maxLength={10}
+                hint="DD/MM/AAAA"
               />
             </View>
 
@@ -290,13 +360,16 @@ export default function CompletarCadastroScreen() {
 
             <View style={[styles.row, styles.fieldSpacing]}>
               <View style={styles.rowFlex}>
-                <Input
+                <MaskedInput
                   label="CEP"
                   placeholder="00000-000"
                   keyboardType="numeric"
                   value={cep}
                   onChangeText={handleCepChange}
                   error={cepError}
+                  mask={CEP_MASK}
+                  maxLength={9}
+                  hint="CEP"
                   rightElement={
                     cepLoading
                       ? <ActivityIndicator size="small" color={colors.primary} />
@@ -331,6 +404,7 @@ export default function CompletarCadastroScreen() {
                 value={numero}
                 onChangeText={setNumero}
                 containerStyle={styles.numeroContainer}
+                maxLength={6}
               />
               <View style={styles.rowFlex}>
                 <Input
@@ -368,13 +442,16 @@ export default function CompletarCadastroScreen() {
             <Text style={styles.sectionLabel}>DADOS DA EMPRESA</Text>
 
             <View style={styles.fieldSpacing}>
-              <Input
+              <MaskedInput
                 label="CNPJ"
                 icon="document-text-outline"
                 placeholder="00.000.000/0001-00"
                 keyboardType="numeric"
                 value={cnpjEmpresa}
                 onChangeText={setCnpjEmpresa}
+                mask={CNPJ_MASK}
+                maxLength={18}
+                hint="CNPJ"
               />
             </View>
 
@@ -408,13 +485,16 @@ export default function CompletarCadastroScreen() {
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
+              <MaskedInput
                 label="Celular"
                 icon="call-outline"
                 placeholder="(00) 00000-0000"
                 keyboardType="phone-pad"
                 value={celularEmpresa}
                 onChangeText={setCelularEmpresa}
+                mask={PHONE_MASK}
+                maxLength={15}
+                hint="DDD + número"
               />
             </View>
 
@@ -429,13 +509,16 @@ export default function CompletarCadastroScreen() {
 
             <View style={[styles.row, styles.fieldSpacing]}>
               <View style={styles.rowFlex}>
-                <Input
+                <MaskedInput
                   label="CEP"
                   placeholder="00000-000"
                   keyboardType="numeric"
                   value={cepEmpresa}
                   onChangeText={handleCepEmpresaChange}
                   error={cepEmpresaError}
+                  mask={CEP_MASK}
+                  maxLength={9}
+                  hint="CEP"
                   rightElement={cepEmpresaLoading ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}
                 />
               </View>
@@ -466,6 +549,7 @@ export default function CompletarCadastroScreen() {
                 value={numeroEmpresa}
                 onChangeText={setNumeroEmpresa}
                 containerStyle={styles.numeroContainer}
+                maxLength={6}
               />
               <View style={styles.rowFlex}>
                 <Input
@@ -521,13 +605,16 @@ export default function CompletarCadastroScreen() {
             </View>
 
             <View style={styles.fieldSpacing}>
-              <Input
+              <MaskedInput
                 label="Telefone do responsável"
                 icon="call-outline"
                 placeholder="(00) 00000-0000"
                 keyboardType="phone-pad"
                 value={telefoneResponsavel}
                 onChangeText={setTelefoneResponsavel}
+                mask={PHONE_MASK}
+                maxLength={15}
+                hint="DDD + número"
               />
             </View>
           </>

@@ -10,24 +10,26 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import MaskInput, { Mask } from "react-native-mask-input";
+import { Input } from "./input";
 
-type Props = TextInputProps & {
-  label?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  error?: string;
-  hint?: string;
-  containerStyle?: ViewStyle;
-  rightElement?: ReactNode;
+type InputProps = React.ComponentProps<typeof Input>;
+
+type MaskedInputProps = Omit<InputProps, "onChangeText"> & {
+  mask: Mask;
+  onChangeText?: (raw: string) => void;
 };
 
-export const Input = forwardRef<TextInput, Props>(
+export const MaskedInput = forwardRef<TextInput, MaskedInputProps>(
   (
     {
+      mask,
       label,
       icon,
       error,
       hint,
-      secureTextEntry,
+      value,
+      onChangeText,
       style,
       containerStyle,
       rightElement,
@@ -37,7 +39,6 @@ export const Input = forwardRef<TextInput, Props>(
     },
     ref
   ) => {
-    const [hidden, setHidden] = useState(secureTextEntry ?? false);
     const [focused, setFocused] = useState(false);
 
     return (
@@ -47,7 +48,11 @@ export const Input = forwardRef<TextInput, Props>(
         <View
           style={[
             styles.container,
-            error ? styles.containerError : focused ? styles.containerFocused : styles.containerDefault,
+            error
+              ? styles.containerError
+              : focused
+              ? styles.containerFocused
+              : styles.containerDefault,
             containerStyle,
           ]}
         >
@@ -55,11 +60,15 @@ export const Input = forwardRef<TextInput, Props>(
             <Ionicons name={icon} size={20} color={colors.muted} style={styles.icon} />
           )}
 
-          <TextInput
+          <MaskInput
             ref={ref}
             style={[styles.input, style]}
             placeholderTextColor={colors.muted}
-            secureTextEntry={hidden}
+            mask={mask}
+            value={value}
+            onChangeText={(_, raw) => {
+              onChangeText?.(raw ?? "");
+            }}
             onFocus={(e) => {
               setFocused(true);
               onFocus?.(e);
@@ -71,20 +80,7 @@ export const Input = forwardRef<TextInput, Props>(
             {...rest}
           />
 
-          {secureTextEntry && (
-            <TouchableOpacity
-              onPress={() => setHidden((h) => !h)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={hidden ? "eye-outline" : "eye-off-outline"}
-                size={20}
-                color={colors.muted}
-              />
-            </TouchableOpacity>
-          )}
-
-          {!secureTextEntry && rightElement}
+          {rightElement}
         </View>
 
         {error ? (
@@ -97,7 +93,7 @@ export const Input = forwardRef<TextInput, Props>(
   }
 );
 
-Input.displayName = "Input";
+MaskedInput.displayName = "MaskedInput";
 
 const styles = StyleSheet.create({
   wrapper: {
