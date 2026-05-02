@@ -42,12 +42,17 @@ const ERROR_MESSAGES: Record<number, string> = {
 
 type ApiErrorData = {
   message?: string | string[];
-  error?: string;
+  error?: string | { code?: string; message?: string };
   errors?: string[] | Record<string, string[]>;
 };
 
 function extractApiMessage(data: ApiErrorData | undefined): string | undefined {
   if (!data) return undefined;
+
+  // Formato do contrato v2: { error: { code, message } }
+  if (data.error && typeof data.error === "object" && data.error.message) {
+    return data.error.message;
+  }
 
   if (typeof data.message === "string" && data.message) return data.message;
 
@@ -68,7 +73,18 @@ function extractApiMessage(data: ApiErrorData | undefined): string | undefined {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // O contrato v2 envelopa toda resposta de sucesso em { data: payload }
+    // Desembrulha automaticamente para que os services recebam o payload direto
+    if (
+      response.data &&
+      typeof response.data === "object" &&
+      "data" in response.data
+    ) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   async (error: AxiosError<ApiErrorData>) => {
     const status = error.response?.status;
 

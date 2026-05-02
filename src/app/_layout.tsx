@@ -14,15 +14,15 @@ function RootNavigator() {
     if (isInitializing) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const currentScreen = segments[1] as string | undefined;
+    const inCompletarCadastro = currentScreen === "completar-cadastro";
 
     if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (user && inAuthGroup) {
-      if (!user.profileCompleted) {
-        router.replace("/(auth)/completar-cadastro");
-      } else {
-        router.replace("/(home)");
-      }
+    } else if (user && !user.profileCompleted && inAuthGroup && !inCompletarCadastro) {
+      router.replace("/(auth)/completar-cadastro");
+    } else if (user && user.profileCompleted && inAuthGroup) {
+      router.replace("/(home)");
     } else if (user && !user.profileCompleted && !inAuthGroup) {
       router.replace("/(auth)/completar-cadastro");
     }

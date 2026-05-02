@@ -21,9 +21,16 @@ jest.mock("@/services/auth.service", () => ({
         refreshToken: "fake-refresh-token",
         user: {
           id: "1",
-          name: "Usuário Teste",
           email: "usuario@freela.com",
-          profileCompleted: false,
+          emailConfirmed: true,
+          userType: "contractor",
+        },
+        onboarding: { isPending: false, nextStep: null },
+        context: {
+          modules: ["bars-restaurants"],
+          profilesByModule: {
+            "bars-restaurants": { contractorId: "contractor-1", role: "contractor" },
+          },
         },
       },
     }),
@@ -31,7 +38,7 @@ jest.mock("@/services/auth.service", () => ({
       data: {
         id: "1",
         name: "Usuário Teste",
-        email: "teste@freela.com",
+        email: "usuario@freela.com",
         profileCompleted: true,
       },
     }),

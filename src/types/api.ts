@@ -3,23 +3,32 @@ export type AuthTokens = {
   refreshToken: string;
 };
 
-export type UserMe = {
-  id: string;
+// Resposta do GET /v1/users/me (perfil do usuário, sem campos de auth)
+export type UserProfile = {
+  id: string;       // profile UUID
+  userId: string;   // user UUID
   name: string;
-  email: string;
+  phone?: string;
   avatarUrl?: string;
-  profileCompleted: boolean;
-  contractorId?: string;
+  cityId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
+
+// Mantido por compatibilidade com mocks de teste
+export type UserMe = UserProfile;
 
 export type RegisterPayload = {
   name: string;
   email: string;
-  phoneNumber: string;
   password: string;
-  persona: "contractor" | "provider";
-  module: "bars-restaurants" | "home-services" | "freela-em-casa";
-  contractorProfile?: Record<string, unknown>;
+  phoneNumber?: string;
+};
+
+// Resposta do POST /v1/users/register — retorna TokenPair diretamente
+export type RegisterResponse = {
+  accessToken: string;
+  refreshToken: string;
 };
 
 export type LoginPayload = {
@@ -30,11 +39,25 @@ export type LoginPayload = {
 export type LoginResponse = {
   accessToken: string;
   refreshToken: string;
-  user: UserMe;
+  user: {
+    id: string;
+    email: string;
+    emailConfirmed: boolean;
+    userType: string;
+  };
+  onboarding: {
+    isPending: boolean;
+    nextStep: string | null;
+  };
+  context: {
+    modules: string[];
+    profilesByModule: Record<string, { contractorId: string; role: string }>;
+  };
 };
 
 export type ConfirmEmailPayload = {
-  email: string;
+  userId?: string;
+  email?: string;
   code: string;
 };
 

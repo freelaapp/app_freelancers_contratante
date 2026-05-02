@@ -15,26 +15,38 @@ beforeEach(() => {
 });
 
 describe("authService.register", () => {
-  it("deve chamar POST /v1/users/register com payload correto", async () => {
-    mockApi.post.mockResolvedValueOnce({ data: {} });
+  it("deve chamar POST /v1/users/register com payload correto (sem persona/module)", async () => {
+    mockApi.post.mockResolvedValueOnce({
+      data: { accessToken: "access-token", refreshToken: "refresh-token" },
+    });
 
     await authService.register({
       name: "João Silva",
       email: "joao@email.com",
+      password: "Senha123!",
       phoneNumber: "+5511999999999",
-      password: "senha123",
-      persona: "contractor",
-      module: "bars-restaurants",
     });
 
     expect(mockApi.post).toHaveBeenCalledWith("/v1/users/register", {
       name: "João Silva",
       email: "joao@email.com",
+      password: "Senha123!",
       phoneNumber: "+5511999999999",
-      password: "senha123",
-      persona: "contractor",
-      module: "bars-restaurants",
     });
+  });
+
+  it("deve retornar accessToken e refreshToken no registro", async () => {
+    const mockTokens = { accessToken: "access-token", refreshToken: "refresh-token" };
+    mockApi.post.mockResolvedValueOnce({ data: mockTokens });
+
+    const result = await authService.register({
+      name: "João Silva",
+      email: "joao@email.com",
+      password: "Senha123!",
+    });
+
+    expect(result.data.accessToken).toBe("access-token");
+    expect(result.data.refreshToken).toBe("refresh-token");
   });
 });
 
