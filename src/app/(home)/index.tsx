@@ -148,9 +148,9 @@ const styles = StyleSheet.create({
     gap: spacing["6"],
   },
   sectionScroll: {
-    maxHeight: 177,
+    maxHeight: 300,
   },
   cardList: {
-    gap: spacing["6"],
+    gap: spacing["4"],
   },
 });

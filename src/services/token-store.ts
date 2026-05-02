@@ -1,15 +1,42 @@
-// Armazenamento em memória — funciona no Expo Go sem módulos nativos
-// Substituir por expo-secure-store quando fizer dev build (npx expo run:ios)
-let _token: string | null = null;
+import * as SecureStore from "expo-secure-store";
+
+const KEYS = {
+  accessToken: "auth_access_token",
+  refreshToken: "auth_refresh_token",
+  user: "auth_user",
+} as const;
 
 export const tokenStore = {
-  async get(): Promise<string | null> {
-    return _token;
+  get: async (): Promise<string | null> => SecureStore.getItemAsync(KEYS.accessToken),
+
+  set: async (accessToken: string, refreshToken: string): Promise<void> => {
+    await Promise.all([
+      SecureStore.setItemAsync(KEYS.accessToken, accessToken),
+      SecureStore.setItemAsync(KEYS.refreshToken, refreshToken),
+    ]);
   },
-  async set(token: string): Promise<void> {
-    _token = token;
+
+  getRefresh: async (): Promise<string | null> => SecureStore.getItemAsync(KEYS.refreshToken),
+
+  clear: async (): Promise<void> => {
+    await Promise.all([
+      SecureStore.deleteItemAsync(KEYS.accessToken),
+      SecureStore.deleteItemAsync(KEYS.refreshToken),
+      SecureStore.deleteItemAsync(KEYS.user),
+    ]);
   },
-  async clear(): Promise<void> {
-    _token = null;
+
+  setUser: async (user: object): Promise<void> => {
+    await SecureStore.setItemAsync(KEYS.user, JSON.stringify(user));
+  },
+
+  getUser: async <T>(): Promise<T | null> => {
+    const raw = await SecureStore.getItemAsync(KEYS.user);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
   },
 };

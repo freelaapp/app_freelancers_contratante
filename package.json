@@ -9,7 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest",
+    "test": "jest --no-coverage",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
@@ -23,7 +23,10 @@
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
-    }
+    },
+    "testMatch": [
+      "**/__tests__/**/*.test.[jt]s?(x)"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

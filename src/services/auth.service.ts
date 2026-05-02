@@ -1,8 +1,8 @@
-import { api } from "@/services/api";
+import { AxiosResponse } from "axios";
+import { api } from "./api";
 import type {
   RegisterPayload,
   RegisterResponse,
-  LoginPayload,
   LoginResponse,
   ConfirmEmailPayload,
   ForgotPasswordPayload,
@@ -14,8 +14,11 @@ export const authService = {
   register: (payload: RegisterPayload): Promise<{ data: RegisterResponse }> =>
     api.post("/v1/users/register", payload),
 
-  login: (payload: LoginPayload): Promise<{ data: LoginResponse }> =>
-    api.post("/v1/users/login", payload),
+  login: (email: string, password: string): Promise<AxiosResponse<LoginResponse>> =>
+    api.post("/v1/users/login", { email, password }),
+
+  getProfile: (): Promise<AxiosResponse<UserProfile>> =>
+    api.get("/v1/users/profile"),
 
   me: (): Promise<{ data: UserProfile }> =>
     api.get("/v1/users/me"),

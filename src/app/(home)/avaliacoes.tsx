@@ -1,7 +1,5 @@
-import { AvaliacaoCard } from "@/components/avaliacao-card";
 import { CardContainer } from "@/components/card-container";
 import { CardHeader } from "@/components/card-header";
-import { Divider } from "@/components/divider";
 import { PageHeader } from "@/components/page-header";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
@@ -29,6 +27,39 @@ function formatFeedbackDate(dateStr?: string): string {
   } catch {
     return dateStr;
   }
+}
+
+type AvaliacaoCardProps = {
+  nome: string;
+  data: string;
+  estrelas: number;
+  comentario?: string;
+  showDivider?: boolean;
+};
+
+function AvaliacaoCard({ nome, data, estrelas, comentario, showDivider }: AvaliacaoCardProps) {
+  return (
+    <View>
+      {showDivider && <View style={styles.divider} />}
+      <View style={styles.avaliacaoRow}>
+        <View style={styles.avaliacaoInfo}>
+          <Text style={styles.avaliacaoNome}>{nome}</Text>
+          <Text style={styles.avaliacaoData}>{data}</Text>
+          {comentario ? <Text style={styles.avaliacaoComentario}>{comentario}</Text> : null}
+        </View>
+        <View style={styles.avaliacaoStars}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Ionicons
+              key={i}
+              name={i < estrelas ? "star" : "star-outline"}
+              size={14}
+              color={i < estrelas ? colors.primary : colors.muted}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export default function AvaliacoesScreen() {
@@ -165,5 +196,38 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.base,
     color: colors.muted,
     textAlign: "center",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing["4"],
+  },
+  avaliacaoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing["4"],
+  },
+  avaliacaoInfo: {
+    flex: 1,
+    gap: spacing["1"],
+  },
+  avaliacaoNome: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  avaliacaoData: {
+    fontSize: fontSizes.base,
+    color: colors.muted,
+  },
+  avaliacaoComentario: {
+    fontSize: fontSizes.base,
+    color: colors.textSecondary,
+    marginTop: spacing["2"],
+  },
+  avaliacaoStars: {
+    flexDirection: "row",
+    gap: 2,
   },
 });

@@ -61,7 +61,7 @@ describe("authService.login", () => {
     };
     mockApi.post.mockResolvedValueOnce(mockResponse);
 
-    const result = await authService.login({ email: "joao@email.com", password: "senha123" });
+    const result = await authService.login("joao@email.com", "senha123");
 
     expect(mockApi.post).toHaveBeenCalledWith("/v1/users/login", {
       email: "joao@email.com",

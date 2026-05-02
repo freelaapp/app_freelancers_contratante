@@ -5,6 +5,12 @@ const viaCepClient = axios.create({
   timeout: 8000,
 });
 
+const nominatimClient = axios.create({
+  baseURL: "https://nominatim.openstreetmap.org",
+  timeout: 8000,
+  headers: { "Accept-Language": "pt-BR" },
+});
+
 export type ViaCepResponse = {
   cep: string;
   logradouro: string;
@@ -21,6 +27,25 @@ export type ViaCepResponse = {
 export class CepNotFoundError extends Error {
   constructor() {
     super("CEP não encontrado");
+  }
+}
+
+export type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+export async function fetchCoordinatesByCep(cep: string): Promise<Coordinates | null> {
+  const digits = cep.replace(/\D/g, "");
+  try {
+    const { data } = await nominatimClient.get<{ lat: string; lon: string }[]>(
+      "/search",
+      { params: { postalcode: digits, country: "BR", format: "json", limit: 1 } }
+    );
+    if (!data.length) return null;
+    return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+  } catch {
+    return null;
   }
 }
 

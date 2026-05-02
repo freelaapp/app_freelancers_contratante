@@ -65,7 +65,7 @@ export default function VagasScreen() {
             />
           ) : filtered.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Nenhuma vaga encontrada</Text>
+              <Text style={styles.emptyTitle}>Nenhuma vaga encontrada</Text>
               <Text style={styles.emptySubtext}>
                 Ajuste o filtro ou crie uma nova vaga.
               </Text>
@@ -102,8 +102,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing["16"],
   },
   list: {
-    gap: spacing["6"],
     paddingHorizontal: spacing["8"],
+    paddingTop: spacing["8"],
+    gap: spacing["4"],
   },
   loader: {
     marginTop: spacing["16"],
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
     marginTop: spacing["16"],
     gap: spacing["4"],
   },
-  emptyText: {
+  emptyTitle: {
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.semibold,
     color: colors.ink,

@@ -62,7 +62,7 @@ export default function RegisterScreen() {
       });
 
       // Salva o token retornado para usar na confirmação de email
-      await tokenStore.set(tokens.accessToken);
+      await tokenStore.set(tokens.accessToken, tokens.refreshToken ?? "");
 
       toast.success("Cadastro realizado! Verifique seu e-mail.");
       router.push({ pathname: "/(auth)/confirm-email", params: { email: data.email } });

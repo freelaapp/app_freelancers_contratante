@@ -70,13 +70,13 @@ describe("tokenStore integrado com interceptor de request", () => {
   });
 
   it("deve ter token disponível após signIn simulado", async () => {
-    await tokenStore.set("fake-jwt-token");
+    await tokenStore.set("fake-jwt-token", "fake-refresh-token");
     const token = await tokenStore.get();
     expect(token).toBe("fake-jwt-token");
   });
 
   it("deve limpar token após logout simulado", async () => {
-    await tokenStore.set("fake-jwt-token");
+    await tokenStore.set("fake-jwt-token", "fake-refresh-token");
     await tokenStore.clear();
     const token = await tokenStore.get();
     expect(token).toBeNull();

@@ -77,7 +77,7 @@ describe("AuthProvider — estado inicial", () => {
   });
 
   it("deve restaurar sessão quando há token salvo", async () => {
-    await tokenStore.set("fake-jwt-token");
+    await tokenStore.set("fake-jwt-token", "fake-refresh-token");
 
     let captured: ReturnType<typeof useAuth> | null = null;
     renderWithAuth((ctx) => { captured = ctx; });
@@ -167,7 +167,7 @@ describe("AuthProvider — completeProfile", () => {
     await waitFor(() => expect(captured!.isInitializing).toBe(false));
 
     await act(async () => { await captured!.signIn("usuario@freela.com", "senha123"); });
-    act(() => { captured!.completeProfile(); });
+    act(() => { captured!.completeProfile("bars-restaurants", "contractor-id-1"); });
 
     expect(captured!.user?.profileCompleted).toBe(true);
   });
