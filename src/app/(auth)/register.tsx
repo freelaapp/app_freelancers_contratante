@@ -20,7 +20,26 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CompactHeader } from "@/components/compact-header";
 import { Input } from "@/components/input";
+import { MaskedInput } from "@/components/masked-input";
 import { registerSchema, RegisterFormValues } from "@/validation/register.schema";
+
+const PHONE_MASK = [
+  "(",
+  /\d/,
+  /\d/,
+  ")",
+  " ",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  "-",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+];
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -142,7 +161,7 @@ export default function RegisterScreen() {
           control={control}
           name="phone"
           render={({ field: { onChange, onBlur, value }, fieldState }) => (
-            <Input
+            <MaskedInput
               ref={phoneRef}
               label="Celular"
               icon="call-outline"
@@ -157,6 +176,9 @@ export default function RegisterScreen() {
               onBlur={onBlur}
               error={fieldState.error?.message}
               containerStyle={styles.inputWhite}
+              mask={PHONE_MASK}
+              maxLength={15}
+              hint="DDD + número"
             />
           )}
         />

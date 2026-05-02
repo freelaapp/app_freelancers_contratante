@@ -13,6 +13,7 @@ export { HomeHeader } from "./home-header";
 export { InfoBox } from "./info-box";
 export { PageHeader } from "./page-header";
 export { Input } from "./input";
+export { MaskedInput } from "./masked-input";
 export { PhotoUpload } from "./photo-upload";
 export { PrimaryButton } from "./primary-button";
 export { SectionHeader } from "./section-header";

@@ -34,4 +34,27 @@ export const authService = {
 
   resetPassword: (payload: ResetPasswordPayload) =>
     api.post("/v1/users/reset-password", payload),
+
+  uploadAvatar: async (uri: string): Promise<string> => {
+    const filename = uri.split("/").pop() ?? "avatar.jpg";
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
+    const mimeMap: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+    };
+    const type = mimeMap[ext] ?? "image/jpeg";
+
+    const formData = new FormData();
+    formData.append("file", { uri, name: filename, type } as unknown as Blob);
+
+    const res = await api.post<{ url: string }>("/v1/uploads/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.url;
+  },
+
+  updateProfile: (payload: { name?: string; avatarUrl?: string }): Promise<AxiosResponse<UserProfile>> =>
+    api.put("/v1/users/profile", payload),
 };

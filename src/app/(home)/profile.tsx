@@ -3,7 +3,9 @@ import { CardHeader } from "@/components/card-header";
 import { Divider } from "@/components/divider";
 import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { authService } from "@/services/auth.service";
 import { contractorService } from "@/services/contractor.service";
+import { toast } from "@/utils/toast";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -74,15 +76,21 @@ function PhotoSlot({ uri, label, uploading, onPress }: PhotoSlotProps) {
 }
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateAvatar } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [facadeUri, setFacadeUri] = useState<string | null>(null);
   const [interiorUri, setInteriorUri] = useState<string | null>(null);
   const [uploadingFacade, setUploadingFacade] = useState(false);
   const [uploadingInterior, setUploadingInterior] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl ?? null);
 
   const isBars = user?.module === "bars-restaurants";
+
+  useEffect(() => {
+    setAvatarUri(user?.avatarUrl ?? null);
+  }, [user?.avatarUrl]);
 
   useEffect(() => {
     console.log("[PROFILE] user contexto:", JSON.stringify({ module: user?.module, contractorId: user?.contractorId }, null, 2));
@@ -93,7 +101,46 @@ export default function ProfileScreen() {
       setFacadeUri(data.establishmentFacadeImage ?? null);
       setInteriorUri(data.establishmentInteriorImage ?? null);
     }).catch((err) => console.warn("[PROFILE] erro getBarsById:", err));
+
+    if (!user?.avatarUrl) {
+      authService.getProfile().then((res) => {
+        const fetchedUrl = res.data.avatarUrl ?? null;
+        if (fetchedUrl) {
+          updateAvatar(fetchedUrl);
+        }
+      }).catch(() => undefined);
+    }
   }, [user?.contractorId, isBars]);
+
+  async function handlePickAvatar(): Promise<void> {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permissão necessária", "Permita o acesso à galeria nas configurações.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const uri = result.assets[0].uri;
+    setUploadingAvatar(true);
+    try {
+      const url = await authService.uploadAvatar(uri);
+      await authService.updateProfile({ avatarUrl: url });
+      updateAvatar(url);
+      toast.success("Foto de perfil atualizada!");
+    } catch {
+      toast.error("Não foi possível atualizar a foto. Tente novamente.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function pickAndUpload(type: "facade" | "interior") {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -144,7 +191,20 @@ export default function ProfileScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.profileHeader}>
-        <AvatarInitials initials={initials} size={56} />
+        <TouchableOpacity onPress={handlePickAvatar} disabled={uploadingAvatar} activeOpacity={0.8} style={styles.avatarWrapper}>
+          {uploadingAvatar ? (
+            <View style={[styles.avatarContainer, { width: 72, height: 72, borderRadius: 36 }]}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+          ) : (
+            <AvatarInitials initials={initials} size={72} />
+          )}
+          <View style={styles.cameraBadge}>
+            <Ionicons name="camera" size={14} color={colors.primary} />
+          </View>
+        </TouchableOpacity>
         <View style={styles.profileInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.profileName}>{user?.name ?? "Contratante"}</Text>
@@ -322,5 +382,31 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     fontWeight: fontWeights.medium,
     color: colors.error,
+  },
+  avatarWrapper: {
+    position: "relative",
+  },
+  avatarContainer: {
+    backgroundColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
