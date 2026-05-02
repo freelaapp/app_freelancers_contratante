@@ -4,6 +4,7 @@ import { api } from "@/services/api";
 jest.mock("@/services/api", () => ({
   api: {
     post: jest.fn(),
+    put: jest.fn(),
     get: jest.fn(),
   },
 }));

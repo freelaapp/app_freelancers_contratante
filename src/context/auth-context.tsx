@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { authService } from "@/services/auth.service";
 import { tokenStore } from "@/services/token-store";
+import { registerUnauthorizedHandler, unregisterUnauthorizedHandler } from "@/services/api";
 
 type User = {
   id: string;
@@ -44,11 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(storedUser);
           }
         }
+      } catch {
+        await tokenStore.clear();
       } finally {
         setIsInitializing(false);
       }
     }
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    registerUnauthorizedHandler(async () => {
+      setUser(null);
+    });
+    return () => unregisterUnauthorizedHandler();
   }, []);
 
   async function signIn(email: string, password: string): Promise<void> {
@@ -84,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name,
         email: apiUser.email,
         profileCompleted: !onboarding.isPending,
-        userType: apiUser.userType,
+        userType: apiUser.userType as "contractor" | "provider" | null,
         module: resolvedModule,
         contractorId,
       };

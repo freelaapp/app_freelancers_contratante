@@ -6,11 +6,26 @@ import { FreelancerProfileSheet } from "@/components/freelancer-profile-sheet";
 import { StarRating } from "@/components/star-rating";
 import { StatusBadge } from "@/components/status-badge";
 import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
-import { type Candidato, type VagaDetalhe } from "@/types/api";
+import { useAuth } from "@/context/auth-context";
+import { candidaturasService } from "@/services/candidaturas.service";
+import { feedbacksService } from "@/services/feedbacks.service";
+import { jobsService } from "@/services/jobs.service";
+import { vagasService } from "@/services/vagas.service";
+import type { CandidatoApi, JobApi, VagaDetalheApi } from "@/types/vagas";
+import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
+import { toast } from "@/utils/toast";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const STEPS = [
@@ -59,7 +74,11 @@ function CodeModal({ visible, code, title, confirmLabel, onClose, onConfirm }: C
   );
 }
 
-function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
+type InfoCardProps = {
+  vaga: VagaDetalheApi;
+};
+
+function InfoCard({ vaga }: InfoCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.infoTopRow}>
@@ -69,8 +88,8 @@ function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
           </View>
           <View>
             <Text style={styles.infoLabel}>Data e Horário</Text>
-            <Text style={styles.infoValueBold}>{vaga.data}</Text>
-            <Text style={styles.infoValueMuted}>{vaga.horario}</Text>
+            <Text style={styles.infoValueBold}>{vaga.date ?? "—"}</Text>
+            <Text style={styles.infoValueMuted}>{vaga.startTime ?? "—"}</Text>
           </View>
         </View>
         <Divider orientation="vertical" />
@@ -80,8 +99,7 @@ function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
           </View>
           <View>
             <Text style={styles.infoLabel}>Local</Text>
-            <Text style={styles.infoValueBold}>{vaga.local}</Text>
-            <Text style={styles.infoValueMuted}>{vaga.distancia}</Text>
+            <Text style={styles.infoValueBold}>{vaga.location ?? "—"}</Text>
           </View>
         </View>
       </View>
@@ -91,46 +109,60 @@ function InfoCard({ vaga }: { vaga: VagaDetalhe }) {
       <View style={styles.infoBottomRow}>
         <View style={styles.infoBottomLeft}>
           <Ionicons name="hourglass-outline" size={15} color={colors.muted} />
-          <Text style={styles.infoDuracao}>Duração: {vaga.duracao}</Text>
+          <Text style={styles.infoDuracao}>
+            {vaga.duration ? `Duração: ${vaga.duration}` : "Duração não informada"}
+          </Text>
         </View>
-        <Text style={styles.infoValor}>{vaga.valor}</Text>
+        <Text style={styles.infoValor}>
+          {formatVagaValue(vaga.value as number | undefined)}
+        </Text>
       </View>
     </View>
   );
 }
 
-function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: {
-  item: Candidato;
+type CandidatoRowProps = {
+  item: CandidatoApi;
   showDivider: boolean;
   onVerPerfil: () => void;
   onAceitar?: () => void;
   onRecusar?: () => void;
-}) {
-  const isAceito = item.status === "aceito";
-  const isRecusado = item.status === "recusado";
+};
+
+function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: CandidatoRowProps) {
+  const isAceito = item.status === "accepted";
+  const isRecusado = item.status === "rejected";
+  const initials = item.name
+    ? item.name
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+    : "??";
 
   return (
     <>
       {showDivider && <Divider />}
       <View style={styles.candidatoRow}>
-        <AvatarInitials initials={item.iniciais} size={40} backgroundColor={colors.primary} />
+        <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} />
         <View style={styles.candidatoInfo}>
-          <Text style={styles.candidatoNome}>{item.nome}</Text>
-          <Text style={styles.candidatoCargo}>{item.cargo}</Text>
-          <View style={styles.candidatoMeta}>
-            <Ionicons name="star" size={11} color={colors.primary} />
-            <Text style={styles.candidatoMetaText}>
-              {item.avaliacao} ({item.reviews}) • {item.jobs} jobs
-            </Text>
-          </View>
+          <Text style={styles.candidatoNome}>{item.name ?? "Candidato"}</Text>
+          <Text style={styles.candidatoCargo}>{item.role ?? ""}</Text>
+          {item.rating != null && (
+            <View style={styles.candidatoMeta}>
+              <Ionicons name="star" size={11} color={colors.primary} />
+              <Text style={styles.candidatoMetaText}>
+                {item.rating}
+                {item.reviewCount != null && ` (${item.reviewCount})`}
+                {item.jobCount != null && ` • ${item.jobCount} jobs`}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.candidatoActions}>
-          {isAceito && (
-            <StatusBadge status="aceito" label="Aceito" />
-          )}
-          {isRecusado && (
-            <StatusBadge status="recusado" label="Recusado" />
-          )}
+          {isAceito && <StatusBadge status="aceito" label="Aceito" />}
+          {isRecusado && <StatusBadge status="recusado" label="Recusado" />}
           {!isAceito && !isRecusado && (
             <>
               <TouchableOpacity style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
@@ -162,13 +194,15 @@ function StatusCard({ stepAtual }: { stepAtual: number }) {
 
           return (
             <View key={step} style={styles.stepItem}>
-              {/* Linha + dot na mesma linha horizontal */}
               <View style={styles.stepDotRow}>
-                {/* Linha esquerda */}
                 {index > 0 && (
-                  <View style={[styles.stepLineLeft, { backgroundColor: isDone || isCurrent ? colors.primary : colors.border }]} />
+                  <View
+                    style={[
+                      styles.stepLineLeft,
+                      { backgroundColor: isDone || isCurrent ? colors.primary : colors.border },
+                    ]}
+                  />
                 )}
-                {/* Dot */}
                 <View
                   style={[
                     styles.stepDot,
@@ -176,9 +210,13 @@ function StatusCard({ stepAtual }: { stepAtual: number }) {
                     isCurrent && styles.stepDotCurrent,
                   ]}
                 />
-                {/* Linha direita */}
                 {!isLast && (
-                  <View style={[styles.stepLineRight, { backgroundColor: isDone ? colors.primary : colors.border }]} />
+                  <View
+                    style={[
+                      styles.stepLineRight,
+                      { backgroundColor: isDone ? colors.primary : colors.border },
+                    ]}
+                  />
                 )}
               </View>
               <Text style={[styles.stepLabel, (isDone || isCurrent) && styles.stepLabelActive]}>
@@ -196,7 +234,7 @@ type CtaConfig = { label: string; nextStep: number | null };
 
 function getCtaConfig(step: number, temCandidatoAceito: boolean): CtaConfig {
   if (step === 1 && !temCandidatoAceito) return { label: "Aceitar Candidato", nextStep: null };
-  if (step === 1 && temCandidatoAceito)  return { label: "Confirmar Seleção", nextStep: 2 };
+  if (step === 1 && temCandidatoAceito) return { label: "Confirmar Seleção", nextStep: 2 };
   if (step === 2) return { label: "Confirmar Pagamento", nextStep: 3 };
   if (step === 3) return { label: "Check-in", nextStep: 4 };
   if (step === 4) return { label: "Check-out", nextStep: 5 };
@@ -209,16 +247,15 @@ export default function VagaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [selectedCandidato, setSelectedCandidato] = useState<Candidato | null>(null);
+  const { user } = useAuth();
 
-  const vagaBase: VagaDetalhe | null = null;
+  const [loading, setLoading] = useState(true);
+  const [vaga, setVaga] = useState<VagaDetalheApi | null>(null);
+  const [candidatos, setCandidatos] = useState<CandidatoApi[]>([]);
+  const [job, setJob] = useState<JobApi | null>(null);
   const [stepAtual, setStepAtual] = useState(0);
-  const [candidatos, setCandidatos] = useState<Candidato[]>([]);
 
-  const temCandidatoAceito = candidatos.some((c) => c.status === "aceito");
-  const totalAceitos = candidatos.filter((c) => c.status === "aceito").length;
-  const mostrarCandidatos = stepAtual <= 1;
-
+  const [selectedCandidato, setSelectedCandidato] = useState<CandidatoApi | null>(null);
   const [checkinCode, setCheckinCode] = useState<string | null>(null);
   const [checkoutCode, setCheckoutCode] = useState<string | null>(null);
   const [avaliarVisible, setAvaliarVisible] = useState(false);
@@ -226,34 +263,86 @@ export default function VagaDetailScreen() {
   const [comentario, setComentario] = useState("");
   const [compareceu, setCompareceu] = useState<boolean | null>(null);
 
+  const loadData = useCallback(async () => {
+    if (!id) return;
+    try {
+      const [vagaData, candidatosData] = await Promise.all([
+        vagasService.getById(id),
+        candidaturasService.listByVacancy(id),
+      ]);
+      setVaga(vagaData);
+      setCandidatos(candidatosData);
+      setStepAtual(mapApiStatusToStep(vagaData.status));
+
+      try {
+        const jobData = await jobsService.getByVacancy(id);
+        setJob(jobData);
+        setStepAtual(mapApiStatusToStep(jobData.status));
+      } catch {
+        // job pode não existir ainda para vagas abertas
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const temCandidatoAceito = candidatos.some((c) => c.status === "accepted");
+  const totalAceitos = candidatos.filter((c) => c.status === "accepted").length;
+  const mostrarCandidatos = stepAtual <= 1;
   const cta = getCtaConfig(stepAtual, temCandidatoAceito);
 
-  if (!vagaBase) {
-    return (
-      <View style={[styles.screen, { justifyContent: "center", alignItems: "center" }]}>
-        <TouchableOpacity style={[styles.backBtn, { position: "absolute", top: insets.top + 16, left: 16 }]} onPress={() => router.back()} activeOpacity={0.8}>
-          <Ionicons name="arrow-back" size={20} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 16, color: colors.muted }}>Vaga não encontrada</Text>
-      </View>
+  async function handleAceitarCandidato(candidatoId: string) {
+    await candidaturasService.accept(candidatoId);
+    setCandidatos((prev) =>
+      prev.map((c) =>
+        c.id === candidatoId
+          ? { ...c, status: "accepted" as const }
+          : c.status === "accepted"
+          ? { ...c, status: "pending" as const }
+          : c
+      )
     );
   }
 
-  const vaga = { ...(vagaBase as VagaDetalhe), stepAtual };
-
-  function gerarCodigo() {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  async function handleRecusarCandidato(candidatoId: string) {
+    await candidaturasService.reject(candidatoId);
+    setCandidatos((prev) =>
+      prev.map((c) => (c.id === candidatoId ? { ...c, status: "rejected" as const } : c))
+    );
   }
 
-  function handleCta() {
-    if (stepAtual === 3) { setCheckinCode(gerarCodigo()); return; }
-    if (stepAtual === 4) { setCheckoutCode(gerarCodigo()); return; }
-    if (stepAtual === 6) { setAvaliarVisible(true); return; }
+  async function handleCta() {
+    if (stepAtual === 3) {
+      if (!job) return;
+      const code = await jobsService.generateCheckinCode(job.id);
+      setCheckinCode(code);
+      return;
+    }
+    if (stepAtual === 4) {
+      if (!job) return;
+      const code = await jobsService.generateCheckoutCode(job.id);
+      setCheckoutCode(code);
+      return;
+    }
+    if (stepAtual === 6) {
+      setAvaliarVisible(true);
+      return;
+    }
     if (cta.nextStep !== null) setStepAtual(cta.nextStep);
   }
 
-  function handleConfirmarAvaliacao() {
+  async function handleConfirmarAvaliacao() {
+    if (!job) return;
+    await feedbacksService.create({
+      jobId: job.id,
+      rating: estrelas,
+      comment: comentario,
+    });
+    toast.success("Avaliação enviada!");
     setAvaliarVisible(false);
     setEstrelas(0);
     setComentario("");
@@ -261,37 +350,33 @@ export default function VagaDetailScreen() {
     router.back();
   }
 
-  function handleAceitarCandidato(candidatoId: string) {
-    setCandidatos((prev) =>
-      prev.map((c) =>
-        c.id === candidatoId
-          ? { ...c, status: "aceito" }
-          : c.status === "aceito"
-          ? { ...c, status: "pendente" }
-          : c
-      )
+  if (loading) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
   }
 
-  function handleRecusarCandidato(candidatoId: string) {
-    setCandidatos((prev) =>
-      prev.map((c) => (c.id === candidatoId ? { ...c, status: "recusado" } : c))
+  if (!vaga) {
+    return (
+      <View style={styles.loadingScreen}>
+        <Text style={styles.errorText}>Vaga não encontrada.</Text>
+      </View>
     );
   }
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing["6"] }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
-        {/* overlay badge — unique to header */}
         <View style={styles.statusBadge}>
-          <Text style={styles.statusBadgeText}>{vaga.statusLabel}</Text>
+          <Text style={styles.statusBadgeText}>{vaga.status}</Text>
         </View>
-        <Text style={styles.headerTitle}>{vaga.titulo}</Text>
-        <Text style={styles.headerSubtitle}>{vaga.subtitulo}</Text>
+        <Text style={styles.headerTitle}>{vaga.title}</Text>
+        <Text style={styles.headerSubtitle}>{vaga.location ?? ""}</Text>
       </View>
 
       <ScrollView
@@ -301,19 +386,20 @@ export default function VagaDetailScreen() {
       >
         <InfoCard vaga={vaga} />
 
-        {/* Endereço */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Endereço</Text>
-          <Text style={styles.cardBody}>{vaga.endereco}</Text>
-        </View>
+        {vaga.address ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Endereço</Text>
+            <Text style={styles.cardBody}>{vaga.address}</Text>
+          </View>
+        ) : null}
 
-        {/* Descrição */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Descrição</Text>
-          <Text style={styles.cardBody}>{vaga.descricao}</Text>
-        </View>
+        {vaga.description ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Descrição</Text>
+            <Text style={styles.cardBody}>{vaga.description}</Text>
+          </View>
+        ) : null}
 
-        {/* Candidatos — visível apenas nos steps iniciais */}
         {mostrarCandidatos && (
           <View style={styles.card}>
             <View style={styles.candidatosHeader}>
@@ -322,23 +408,26 @@ export default function VagaDetailScreen() {
                 <Text style={styles.aceitosLabel}>{totalAceitos} aceito</Text>
               )}
             </View>
-            {candidatos.map((c, i) => (
-              <CandidatoRow
-                key={c.id}
-                item={c}
-                showDivider={i > 0}
-                onVerPerfil={() => setSelectedCandidato(c)}
-                onAceitar={() => handleAceitarCandidato(c.id)}
-                onRecusar={() => handleRecusarCandidato(c.id)}
-              />
-            ))}
+            {candidatos.length === 0 ? (
+              <Text style={styles.cardBody}>Nenhum candidato ainda.</Text>
+            ) : (
+              candidatos.map((c, i) => (
+                <CandidatoRow
+                  key={c.id}
+                  item={c}
+                  showDivider={i > 0}
+                  onVerPerfil={() => setSelectedCandidato(c)}
+                  onAceitar={() => handleAceitarCandidato(c.id)}
+                  onRecusar={() => handleRecusarCandidato(c.id)}
+                />
+              ))
+            )}
           </View>
         )}
 
         <StatusCard stepAtual={stepAtual} />
       </ScrollView>
 
-      {/* Botões fixos */}
       <BottomActionBar backgroundColor="#F0F0F0" style={styles.bottomBarGap}>
         <TouchableOpacity style={styles.checkinBtn} activeOpacity={0.85} onPress={handleCta}>
           <Text style={styles.checkinBtnText}>{cta.label}</Text>
@@ -366,7 +455,6 @@ export default function VagaDetailScreen() {
         onConfirm={() => { setCheckoutCode(null); setStepAtual(5); }}
       />
 
-      {/* Modal Avaliar */}
       <CenteredModal
         visible={avaliarVisible}
         onClose={() => setAvaliarVisible(false)}
@@ -374,12 +462,10 @@ export default function VagaDetailScreen() {
       >
         <Text style={styles.avaliarTitle}>Faça uma avaliação</Text>
 
-        {/* Estrelas */}
         <View style={styles.avaliarStars}>
           <StarRating count={estrelas} size={36} interactive onPress={setEstrelas} />
         </View>
 
-        {/* Comentário */}
         <TextInput
           style={styles.avaliarInput}
           placeholder="Escreva um comentário..."
@@ -390,7 +476,6 @@ export default function VagaDetailScreen() {
           textAlignVertical="top"
         />
 
-        {/* Compareceu */}
         <Text style={styles.avaliarPergunta}>O freelancer compareceu ao serviço?</Text>
         <View style={styles.avaliarRespostas}>
           <TouchableOpacity
@@ -398,19 +483,26 @@ export default function VagaDetailScreen() {
             onPress={() => setCompareceu(true)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.avaliarBtnText, { color: compareceu === true ? colors.white : "#16A34A" }]}>Sim</Text>
+            <Text style={[styles.avaliarBtnText, { color: compareceu === true ? colors.white : "#16A34A" }]}>
+              Sim
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.avaliarBtn, { backgroundColor: compareceu === false ? "#DC2626" : "#FEE2E2" }]}
             onPress={() => setCompareceu(false)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.avaliarBtnText, { color: compareceu === false ? colors.white : "#DC2626" }]}>Não</Text>
+            <Text style={[styles.avaliarBtnText, { color: compareceu === false ? colors.white : "#DC2626" }]}>
+              Não
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Confirmar */}
-        <TouchableOpacity style={styles.avaliarConfirmarBtn} onPress={handleConfirmarAvaliacao} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.avaliarConfirmarBtn}
+          onPress={handleConfirmarAvaliacao}
+          activeOpacity={0.85}
+        >
           <Text style={styles.avaliarConfirmarBtnText}>Confirmar</Text>
         </TouchableOpacity>
       </CenteredModal>
@@ -418,8 +510,17 @@ export default function VagaDetailScreen() {
       <FreelancerProfileSheet
         visible={selectedCandidato !== null}
         onClose={() => setSelectedCandidato(null)}
-        nome={selectedCandidato?.nome ?? ""}
-        iniciais={selectedCandidato?.iniciais ?? ""}
+        nome={selectedCandidato?.name ?? ""}
+        iniciais={
+          selectedCandidato?.name
+            ? selectedCandidato.name
+                .split(" ")
+                .slice(0, 2)
+                .map((w) => w[0])
+                .join("")
+                .toUpperCase()
+            : "??"
+        }
         avaliacoes={[]}
       />
     </View>
@@ -427,12 +528,21 @@ export default function VagaDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background,
+  },
+  errorText: {
+    fontSize: fontSizes.lg,
+    color: colors.muted,
+  },
   screen: {
     flex: 1,
     backgroundColor: "#F0F0F0",
   },
 
-  // Header
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing["8"],
@@ -471,7 +581,6 @@ const styles = StyleSheet.create({
     color: colors.inkButton,
   },
 
-  // Scroll
   scroll: {
     flex: 1,
     marginTop: -(spacing["16"] + spacing["6"]),
@@ -483,7 +592,6 @@ const styles = StyleSheet.create({
     gap: spacing["8"],
   },
 
-  // Card base
   card: {
     backgroundColor: colors.white,
     borderRadius: radii["2xl"],
@@ -502,7 +610,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Info card
   infoTopRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -557,7 +664,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  // Candidatos
   candidatosHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -626,7 +732,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // Status steps
   stepsRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -677,7 +782,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.medium,
   },
 
-  // Bottom bar gap (applied as style prop to BottomActionBar)
   bottomBarGap: {
     gap: spacing["4"],
   },
@@ -706,7 +810,6 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Modal check-in / check-out
   checkinModal: {
     gap: spacing["10"],
   },
@@ -745,7 +848,6 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Modal avaliar
   avaliarModal: {
     gap: spacing["8"],
   },

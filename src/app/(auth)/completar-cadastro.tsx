@@ -10,6 +10,7 @@ import { contractorService } from "@/services/contractor.service";
 import { CepNotFoundError, fetchAddressByCep, fetchCoordinatesByCep } from "@/services/viacep";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -65,6 +66,7 @@ export default function CompletarCadastroScreen() {
   const [foto2, setFoto2] = useState("");
   const [latitude, setLatitude] = useState<number | undefined>(undefined);
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
+
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState("");
 
@@ -147,7 +149,7 @@ export default function CompletarCadastroScreen() {
     if (digits.length === 8) fetchCepEmpresa(value);
   }
 
-  async function handleSubmit() {
+  async function handleSubmitForm() {
     setIsSubmitting(true);
     try {
       const addressParts = [rua, numero, complemento, bairro, cidade, estado]
@@ -290,7 +292,11 @@ export default function CompletarCadastroScreen() {
                   value={cep}
                   onChangeText={handleCepChange}
                   error={cepError}
-                  rightElement={cepLoading ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}
+                  rightElement={
+                    cepLoading
+                      ? <ActivityIndicator size="small" color={colors.primary} />
+                      : undefined
+                  }
                 />
               </View>
               <SelectField
@@ -525,7 +531,7 @@ export default function CompletarCadastroScreen() {
         <View style={styles.buttonSpacing}>
           <PrimaryButton
             label={isSubmitting ? "Enviando..." : "Finalizar cadastro"}
-            onPress={handleSubmit}
+            onPress={handleSubmitForm}
             disabled={isSubmitting}
           />
         </View>

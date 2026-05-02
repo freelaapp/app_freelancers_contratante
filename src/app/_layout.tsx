@@ -2,6 +2,7 @@ import { AppSplash } from "@/components/app-splash";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
+import Toast from "react-native-toast-message";
 
 function RootNavigator() {
   const { user, isInitializing } = useAuth();
@@ -13,19 +14,19 @@ function RootNavigator() {
     if (isInitializing) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const currentScreen = segments[1] as string | undefined;
+    const inCompletarCadastro = currentScreen === "completar-cadastro";
 
     if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (user && inAuthGroup) {
-      if (!user.profileCompleted) {
-        router.replace("/(auth)/completar-cadastro");
-      } else {
-        router.replace("/(home)");
-      }
+    } else if (user && !user.profileCompleted && inAuthGroup && !inCompletarCadastro) {
+      router.replace("/(auth)/completar-cadastro");
+    } else if (user && user.profileCompleted && inAuthGroup) {
+      router.replace("/(home)");
     } else if (user && !user.profileCompleted && !inAuthGroup) {
       router.replace("/(auth)/completar-cadastro");
     }
-  }, [user, isInitializing, segments]);
+  }, [user, isInitializing, segments, router]);
 
   return (
     <>
@@ -47,8 +48,11 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+      <Toast />
+    </>
   );
 }

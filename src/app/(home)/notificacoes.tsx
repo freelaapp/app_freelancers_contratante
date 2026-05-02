@@ -2,7 +2,12 @@ import { PageHeader } from "@/components/page-header";
 import { colors, fontSizes, fontWeights, radii, spacing, tabShadow } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type Tab = "notificacoes" | "mensagens";
 
@@ -47,17 +52,25 @@ export default function NotificacoesScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.emptyText}>
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconWrapper}>
+          <Ionicons
+            name={activeTab === "notificacoes" ? "notifications-off-outline" : "chatbubble-ellipses-outline"}
+            size={48}
+            color={colors.muted}
+          />
+        </View>
+        <Text style={styles.emptyTitle}>
           {activeTab === "notificacoes"
-            ? "Nenhuma notificação no momento"
-            : "Nenhuma mensagem no momento"}
+            ? "Nenhuma notificação por enquanto"
+            : "Nenhuma mensagem por enquanto"}
         </Text>
-      </ScrollView>
+        <Text style={styles.emptySubtitle}>
+          {activeTab === "notificacoes"
+            ? "Quando houver novidades, elas aparecerão aqui."
+            : "Suas mensagens aparecerão aqui quando disponíveis."}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -67,6 +80,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+
   tabsWrapper: {
     paddingHorizontal: spacing["8"],
     paddingBottom: spacing["8"],
@@ -99,19 +113,33 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: fontWeights.semibold,
   },
-  scroll: {
+
+  emptyContainer: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing["12"],
+    gap: spacing["6"],
   },
-  scrollContent: {
-    paddingHorizontal: spacing["8"],
-    paddingBottom: spacing["16"],
-    paddingTop: spacing["8"],
+  emptyIconWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: radii.full,
+    backgroundColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing["4"],
   },
-  emptyText: {
+  emptyTitle: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  emptySubtitle: {
     fontSize: fontSizes.base,
     color: colors.muted,
-    fontWeight: fontWeights.medium,
     textAlign: "center",
-    paddingVertical: spacing["8"],
+    lineHeight: 20,
   },
 });

@@ -29,7 +29,7 @@ export function AppSplash({ onFinish, isReady }: Props) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [logoScale, logoOpacity]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -41,7 +41,7 @@ export function AppSplash({ onFinish, isReady }: Props) {
       }).start(onFinish);
     }, 300);
     return () => clearTimeout(timer);
-  }, [isReady]);
+  }, [isReady, opacity, onFinish]);
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>

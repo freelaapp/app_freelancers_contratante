@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
+import { authService } from "@/services/auth.service";
+import { toast } from "@/utils/toast";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -11,14 +13,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CompactHeader } from "@/components/compact-header";
-import { api } from "@/services/api";
 
 const CODE_LENGTH = 6;
 
 export default function ConfirmEmailScreen() {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email: emailParam } = useLocalSearchParams<{ email: string }>();
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [isLoading, setIsLoading] = useState(false);
@@ -50,13 +51,11 @@ export default function ConfirmEmailScreen() {
     if (!canConfirm) return;
     setIsLoading(true);
     try {
-      await api.post("/v1/users/confirm-email", {
-        code: code.join(""),
-        email,
-      });
+      await authService.confirmEmail({ email: emailParam ?? "", code: code.join("") });
+      toast.success("E-mail confirmado! Faça login.");
       router.replace("/(auth)/login");
     } catch {
-      // api interceptor already shows Alert on API errors
+      // erro tratado pelo interceptor
     } finally {
       setIsLoading(false);
     }
@@ -65,11 +64,12 @@ export default function ConfirmEmailScreen() {
   async function handleResend() {
     setIsResending(true);
     try {
-      await api.get(`/v1/users/generate-email-confirmation-code/${encodeURIComponent(email ?? "")}`);
+      await authService.resendConfirmationCode(emailParam ?? "");
+      toast.success("Código reenviado!");
       setCode(Array(CODE_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
     } catch {
-      // api interceptor already shows Alert on API errors
+      // erro tratado pelo interceptor
     } finally {
       setIsResending(false);
     }
