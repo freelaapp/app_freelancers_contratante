@@ -69,6 +69,7 @@ export default function RegisterScreen() {
       router.push({ pathname: "/(auth)/confirm-email", params: { email: data.email } });
     } catch {
       // erro tratado pelo interceptor
+      toast.error("Não foi possível criar sua conta.", "Tente novamente em instantes.")
     }
   }
 

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authService } from "@/services/auth.service";
 import { toast } from "@/utils/toast";
 import {
@@ -24,8 +24,18 @@ export default function ConfirmEmailScreen() {
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current !== null) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, []);
 
   const filledCount = code.filter((d) => d !== "").length;
   const canConfirm = filledCount === CODE_LENGTH;
@@ -52,10 +62,11 @@ export default function ConfirmEmailScreen() {
     setIsLoading(true);
     try {
       await authService.confirmEmail({ email: emailParam ?? "", code: code.join("") });
-      toast.success("E-mail confirmado! Faça login.");
+      toast.success("E-mail validado com sucesso!", "Agora faça login para continuar.");
       router.replace("/(auth)/login");
     } catch {
       // erro tratado pelo interceptor
+      toast.error("Código inválido ou expirado.", "Verifique o código e tente novamente.")
     } finally {
       setIsLoading(false);
     }
@@ -65,11 +76,23 @@ export default function ConfirmEmailScreen() {
     setIsResending(true);
     try {
       await authService.resendConfirmationCode(emailParam ?? "");
-      toast.success("Código reenviado!");
+      toast.success("Código reenviado!", "Verifique sua caixa de entrada.");
       setCode(Array(CODE_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
+      setCountdown(60);
+      countdownRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current!);
+            countdownRef.current = null;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } catch {
       // erro tratado pelo interceptor
+      toast.error("Não foi possível reenviar o código.", "Tente novamente.")
     } finally {
       setIsResending(false);
     }
@@ -128,17 +151,21 @@ export default function ConfirmEmailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.resendRow}
+          style={[styles.resendRow, countdown > 0 && styles.resendDisabled]}
           onPress={handleResend}
-          disabled={isResending || isLoading}
+          disabled={isResending || isLoading || countdown > 0}
           activeOpacity={0.7}
         >
           {isResending ? (
             <ActivityIndicator size="small" color="#687076" />
+          ) : countdown > 0 ? (
+            <Ionicons name="time-outline" size={16} color="#B0B7C0" />
           ) : (
             <Ionicons name="refresh-outline" size={16} color="#687076" />
           )}
-          <Text style={styles.resendText}>Reenviar código</Text>
+          <Text style={[styles.resendText, countdown > 0 && styles.resendTextDisabled]}>
+            {countdown > 0 ? `Reenviar em ${countdown}s` : "Reenviar código"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -227,5 +254,11 @@ const styles = StyleSheet.create({
   resendText: {
     fontSize: 14,
     color: "#687076",
+  },
+  resendDisabled: {
+    opacity: 0.5,
+  },
+  resendTextDisabled: {
+    color: "#B0B7C0",
   },
 });
