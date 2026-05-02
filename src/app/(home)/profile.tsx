@@ -3,8 +3,20 @@ import { CardHeader } from "@/components/card-header";
 import { Divider } from "@/components/divider";
 import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { contractorService } from "@/services/contractor.service";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type MenuItemProps = {
@@ -31,10 +43,95 @@ function MenuItem({ icon, title, subtitle, onPress, showDivider = true }: MenuIt
   );
 }
 
+type PhotoSlotProps = {
+  uri: string | null;
+  label: string;
+  uploading: boolean;
+  onPress: () => void;
+};
+
+function PhotoSlot({ uri, label, uploading, onPress }: PhotoSlotProps) {
+  return (
+    <TouchableOpacity style={styles.photoSlot} onPress={onPress} activeOpacity={0.7} disabled={uploading}>
+      {uploading ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : uri ? (
+        <Image
+          source={{ uri }}
+          style={{ flex: 1, alignSelf: "stretch" }}
+          resizeMode="cover"
+          onLoad={() => console.log(`[PROFILE] imagem carregou: ${uri}`)}
+          onError={(e) => console.warn(`[PROFILE] erro ao carregar imagem: ${uri}`, e.nativeEvent)}
+        />
+      ) : (
+        <>
+          <Ionicons name="image-outline" size={28} color={colors.primary} />
+          <Text style={styles.photoLabel}>{label}</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-
   const insets = useSafeAreaInsets();
+
+  const [facadeUri, setFacadeUri] = useState<string | null>(null);
+  const [interiorUri, setInteriorUri] = useState<string | null>(null);
+  const [uploadingFacade, setUploadingFacade] = useState(false);
+  const [uploadingInterior, setUploadingInterior] = useState(false);
+
+  const isBars = user?.module === "bars-restaurants";
+
+  useEffect(() => {
+    console.log("[PROFILE] user contexto:", JSON.stringify({ module: user?.module, contractorId: user?.contractorId }, null, 2));
+    if (!isBars || !user?.contractorId) return;
+    contractorService.getBarsById(user.contractorId).then((res) => {
+      const data = (res.data as any).props ?? res.data;
+      console.log("[PROFILE] dados contractor banco:", JSON.stringify(data, null, 2));
+      setFacadeUri(data.establishmentFacadeImage ?? null);
+      setInteriorUri(data.establishmentInteriorImage ?? null);
+    }).catch((err) => console.warn("[PROFILE] erro getBarsById:", err));
+  }, [user?.contractorId, isBars]);
+
+  async function pickAndUpload(type: "facade" | "interior") {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permissão necessária", "Permita o acesso à galeria nas configurações.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const uri = result.assets[0].uri;
+    const setUploading = type === "facade" ? setUploadingFacade : setUploadingInterior;
+    const setUri = type === "facade" ? setFacadeUri : setInteriorUri;
+
+    setUploading(true);
+    try {
+      const payload =
+        type === "facade"
+          ? { establishmentFacadeImage: uri }
+          : { establishmentInteriorImage: uri };
+
+      const res = await contractorService.updateBarsImages(payload);
+      const data = (res.data as any).props ?? res.data;
+      console.log(`[PROFILE] upload ${type} resposta banco:`, JSON.stringify(data, null, 2));
+      setUri(uri);
+    } catch {
+      Alert.alert("Erro", "Não foi possível enviar a imagem. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const initials = user?.name
     ? user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -46,7 +143,6 @@ export default function ProfileScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing["12"] }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Avatar + nome */}
       <View style={styles.profileHeader}>
         <AvatarInitials initials={initials} size={56} />
         <View style={styles.profileInfo}>
@@ -61,22 +157,26 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Fotos do estabelecimento */}
-      <View style={[styles.card, styles.photosCard]}>
-        <CardHeader icon="image-outline" title="Fotos do Estabelecimento" iconColor={colors.ink} />
-        <View style={styles.photosRow}>
-          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.7}>
-            <Ionicons name="image-outline" size={28} color={colors.primary} />
-            <Text style={styles.photoLabel}>Fachada</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.photoSlot} activeOpacity={0.7}>
-            <Ionicons name="add-circle-outline" size={28} color={colors.primary} />
-            <Text style={styles.photoLabel}>Ambiente Interno</Text>
-          </TouchableOpacity>
+      {isBars && (
+        <View style={[styles.card, styles.photosCard]}>
+          <CardHeader icon="image-outline" title="Fotos do Estabelecimento" iconColor={colors.ink} />
+          <View style={styles.photosRow}>
+            <PhotoSlot
+              uri={facadeUri}
+              label="Fachada"
+              uploading={uploadingFacade}
+              onPress={() => pickAndUpload("facade")}
+            />
+            <PhotoSlot
+              uri={interiorUri}
+              label="Ambiente Interno"
+              uploading={uploadingInterior}
+              onPress={() => pickAndUpload("interior")}
+            />
+          </View>
         </View>
-      </View>
+      )}
 
-      {/* Menu */}
       <View style={[styles.card, styles.menuCard]}>
         <MenuItem
           icon="receipt-outline"
@@ -101,7 +201,6 @@ export default function ProfileScreen() {
         />
       </View>
 
-      {/* Sair */}
       <View style={[styles.card, styles.logoutCard]}>
         <TouchableOpacity style={styles.logoutRow} onPress={signOut} activeOpacity={0.7}>
           <Ionicons name="exit-outline" size={20} color={colors.error} />
@@ -122,8 +221,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing["16"],
     gap: spacing["8"],
   },
-
-  // Header
   profileHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -154,15 +251,11 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: fontWeights.medium,
   },
-
-  // Card base
   card: {
     backgroundColor: colors.white,
     borderRadius: radii["2xl"],
     ...cardShadow,
   },
-
-  // Photos
   photosCard: {
     padding: spacing["8"],
     gap: spacing["8"],
@@ -173,7 +266,7 @@ const styles = StyleSheet.create({
   },
   photoSlot: {
     flex: 1,
-    aspectRatio: 1.4,
+    height: 110,
     borderWidth: 1.5,
     borderColor: colors.primary,
     borderStyle: "dashed",
@@ -182,14 +275,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing["3"],
     backgroundColor: "rgba(245, 166, 35, 0.05)",
+    overflow: "hidden",
   },
   photoLabel: {
     fontSize: fontSizes.base,
     color: colors.primary,
     fontWeight: fontWeights.medium,
   },
-
-  // Menu
   menuCard: {
     paddingHorizontal: spacing["8"],
     overflow: "hidden",
@@ -217,8 +309,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.base,
     color: colors.muted,
   },
-
-  // Logout
   logoutCard: {
     paddingHorizontal: spacing["8"],
   },

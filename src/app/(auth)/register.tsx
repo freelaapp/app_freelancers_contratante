@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/auth-context";
 import { CompactHeader } from "@/components/compact-header";
 import { Input } from "@/components/input";
+import { api } from "@/services/api";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -46,9 +47,19 @@ export default function RegisterScreen() {
   async function handleRegister() {
     if (!canSubmit) return;
     setIsLoading(true);
-    await new Promise<void>((r) => setTimeout(r, 1000));
-    setIsLoading(false);
-    router.push({ pathname: "/(auth)/confirm-email", params: { email } });
+    try {
+      const phoneNumber = "+55" + phone.replace(/\D/g, "");
+      const payload = { name, email, phoneNumber, password };
+      console.log("[REGISTER] payload enviado:", JSON.stringify(payload, null, 2));
+      const response = await api.post<{ user: { id: string } }>("/v1/users/register", payload);
+      console.log("[REGISTER] resposta da API:", JSON.stringify(response.data, null, 2));
+      const userId = response.data.user.id;
+      router.push({ pathname: "/(auth)/confirm-email", params: { email, userId } });
+    } catch {
+      // api interceptor already shows Alert on API errors
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (

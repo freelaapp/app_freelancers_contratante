@@ -14,6 +14,10 @@ export type LoginResponse = {
     isPending: boolean;
     nextStep: string | null;
   };
+  context: {
+    modules: string[];
+    profilesByModule: Record<string, { contractorId?: string; providerId?: string; role: string }>;
+  };
 };
 
 export type UserProfile = {

@@ -58,6 +58,7 @@ export default function CompletarCadastroScreen() {
   const [ramoEstabelecimento, setRamoEstabelecimento] = useState("");
   const [nomeEstabelecimento, setNomeEstabelecimento] = useState("");
   const [celularEmpresa, setCelularEmpresa] = useState("");
+  const [emailResponsavel, setEmailResponsavel] = useState("");
   const [nomeResponsavel, setNomeResponsavel] = useState("");
   const [telefoneResponsavel, setTelefoneResponsavel] = useState("");
   const [foto1, setFoto1] = useState("");
@@ -66,6 +67,20 @@ export default function CompletarCadastroScreen() {
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState("");
+
+  // Address states for empresas tab (separate from casa)
+  const [cepEmpresa, setCepEmpresa] = useState("");
+  const [estadoEmpresa, setEstadoEmpresa] = useState("");
+  const [ruaEmpresa, setRuaEmpresa] = useState("");
+  const [numeroEmpresa, setNumeroEmpresa] = useState("");
+  const [complementoEmpresa, setComplementoEmpresa] = useState("");
+  const [bairroEmpresa, setBairroEmpresa] = useState("");
+  const [cidadeEmpresa, setCidadeEmpresa] = useState("");
+  const [latitudeEmpresa, setLatitudeEmpresa] = useState<number | undefined>(undefined);
+  const [longitudeEmpresa, setLongitudeEmpresa] = useState<number | undefined>(undefined);
+  const [cepEmpresaLoading, setCepEmpresaLoading] = useState(false);
+  const [cepEmpresaError, setCepEmpresaError] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function fetchCep(raw: string) {
@@ -100,6 +115,38 @@ export default function CompletarCadastroScreen() {
     if (digits.length === 8) fetchCep(value);
   }
 
+  async function fetchCepEmpresa(raw: string) {
+    setCepEmpresaLoading(true);
+    setCepEmpresaError("");
+    setLatitudeEmpresa(undefined);
+    setLongitudeEmpresa(undefined);
+    try {
+      const [address, coords] = await Promise.all([
+        fetchAddressByCep(raw),
+        fetchCoordinatesByCep(raw),
+      ]);
+      setRuaEmpresa(address.logradouro ?? "");
+      setBairroEmpresa(address.bairro ?? "");
+      setCidadeEmpresa(address.localidade ?? "");
+      setEstadoEmpresa(address.uf ?? "");
+      if (coords) {
+        setLatitudeEmpresa(coords.latitude);
+        setLongitudeEmpresa(coords.longitude);
+      }
+    } catch (err) {
+      setCepEmpresaError(err instanceof CepNotFoundError ? "CEP não encontrado" : "Erro ao buscar CEP");
+    } finally {
+      setCepEmpresaLoading(false);
+    }
+  }
+
+  function handleCepEmpresaChange(value: string) {
+    setCepEmpresa(value);
+    setCepEmpresaError("");
+    const digits = value.replace(/\D/g, "");
+    if (digits.length === 8) fetchCepEmpresa(value);
+  }
+
   async function handleSubmit() {
     setIsSubmitting(true);
     try {
@@ -108,7 +155,7 @@ export default function CompletarCadastroScreen() {
         .join(", ");
 
       if (tabPrincipal === "casa") {
-        await contractorService.createCasa({
+        const casaPayload = {
           document: documento ? documento.replace(/\D/g, "") : undefined,
           cep: cep ? cep.replace(/\D/g, "") : undefined,
           street: rua || undefined,
@@ -120,16 +167,44 @@ export default function CompletarCadastroScreen() {
           address: addressParts || undefined,
           latitude,
           longitude,
-        });
+        };
+        console.log("[ONBOARDING] payload home-services:", JSON.stringify(casaPayload, null, 2));
+        const casaRes = await contractorService.createCasa(casaPayload);
+        console.log("[ONBOARDING] resposta home-services:", JSON.stringify(casaRes.data, null, 2));
+        completeProfile("home-services", casaRes.data.id);
       } else {
-        await contractorService.createBars({
+        const barsPayload = {
+          contactName: nomeResponsavel || undefined,
+          contactEmail: emailResponsavel || undefined,
+          contactPhone: telefoneResponsavel ? telefoneResponsavel.replace(/\D/g, "") : undefined,
+          cep: cepEmpresa ? cepEmpresa.replace(/\D/g, "") : undefined,
+          street: ruaEmpresa || undefined,
+          neighborhood: bairroEmpresa || undefined,
+          city: cidadeEmpresa || undefined,
+          uf: estadoEmpresa || undefined,
+          number: numeroEmpresa || undefined,
+          complement: complementoEmpresa || undefined,
+          latitude: latitudeEmpresa,
+          longitude: longitudeEmpresa,
+          cnpj: cnpjEmpresa ? cnpjEmpresa.replace(/\D/g, "") : undefined,
+          corporateReason: razaoSocial || undefined,
           companyName: nomeEstabelecimento || undefined,
-          document: cnpjEmpresa ? cnpjEmpresa.replace(/\D/g, "") : undefined,
           segment: ramoEstabelecimento || undefined,
-        });
-      }
+        };
+        console.log("[ONBOARDING] payload bars-restaurants:", JSON.stringify(barsPayload, null, 2));
+        const barsRes = await contractorService.createBars(barsPayload);
+        console.log("[ONBOARDING] resposta bars-restaurants:", JSON.stringify(barsRes.data, null, 2));
 
-      completeProfile();
+        if (foto1 || foto2) {
+          const imgRes = await contractorService.updateBarsImages({
+            establishmentFacadeImage: foto1 || undefined,
+            establishmentInteriorImage: foto2 || undefined,
+          });
+          console.log("[ONBOARDING] upload imagens bars-restaurants:", JSON.stringify(imgRes.data, null, 2));
+        }
+
+        completeProfile("bars-restaurants", barsRes.data.id);
+      }
       router.replace("/(home)");
     } finally {
       setIsSubmitting(false);
@@ -302,11 +377,12 @@ export default function CompletarCadastroScreen() {
             </View>
 
             <View style={styles.fieldSpacing}>
-              <SelectField
+              <Input
                 label="Ramo do estabelecimento"
-                placeholder="Selecione o ramo"
-                value={ramoEstabelecimento || undefined}
-                onPress={() => {}}
+                icon="storefront-outline"
+                placeholder="Ex: Restaurante, Bar, Café..."
+                value={ramoEstabelecimento}
+                onChangeText={setRamoEstabelecimento}
               />
             </View>
 
@@ -346,16 +422,16 @@ export default function CompletarCadastroScreen() {
                   label="CEP"
                   placeholder="00000-000"
                   keyboardType="numeric"
-                  value={cep}
-                  onChangeText={handleCepChange}
-                  error={cepError}
-                  rightElement={cepLoading ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}
+                  value={cepEmpresa}
+                  onChangeText={handleCepEmpresaChange}
+                  error={cepEmpresaError}
+                  rightElement={cepEmpresaLoading ? <ActivityIndicator size="small" color={colors.primary} /> : undefined}
                 />
               </View>
               <SelectField
                 label="Estado"
                 placeholder="UF"
-                value={estado || undefined}
+                value={estadoEmpresa || undefined}
                 onPress={() => {}}
                 style={styles.estadoField}
               />
@@ -366,8 +442,8 @@ export default function CompletarCadastroScreen() {
                 label="Rua"
                 icon="location-outline"
                 placeholder="Nome da rua"
-                value={rua}
-                onChangeText={setRua}
+                value={ruaEmpresa}
+                onChangeText={setRuaEmpresa}
               />
             </View>
 
@@ -376,16 +452,16 @@ export default function CompletarCadastroScreen() {
                 label="Número"
                 placeholder="123"
                 keyboardType="numeric"
-                value={numero}
-                onChangeText={setNumero}
+                value={numeroEmpresa}
+                onChangeText={setNumeroEmpresa}
                 containerStyle={styles.numeroContainer}
               />
               <View style={styles.rowFlex}>
                 <Input
                   label="Complemento"
                   placeholder="Apto, sala..."
-                  value={complemento}
-                  onChangeText={setComplemento}
+                  value={complementoEmpresa}
+                  onChangeText={setComplementoEmpresa}
                 />
               </View>
             </View>
@@ -394,8 +470,8 @@ export default function CompletarCadastroScreen() {
               <Input
                 label="Bairro"
                 placeholder="Bairro"
-                value={bairro}
-                onChangeText={setBairro}
+                value={bairroEmpresa}
+                onChangeText={setBairroEmpresa}
               />
             </View>
 
@@ -404,8 +480,8 @@ export default function CompletarCadastroScreen() {
                 label="Cidade"
                 icon="location-outline"
                 placeholder="Cidade"
-                value={cidade}
-                onChangeText={setCidade}
+                value={cidadeEmpresa}
+                onChangeText={setCidadeEmpresa}
               />
             </View>
 
@@ -418,6 +494,18 @@ export default function CompletarCadastroScreen() {
                 placeholder="Nome do responsável"
                 value={nomeResponsavel}
                 onChangeText={setNomeResponsavel}
+              />
+            </View>
+
+            <View style={styles.fieldSpacing}>
+              <Input
+                label="E-mail do responsável"
+                icon="mail-outline"
+                placeholder="email@empresa.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={emailResponsavel}
+                onChangeText={setEmailResponsavel}
               />
             </View>
 

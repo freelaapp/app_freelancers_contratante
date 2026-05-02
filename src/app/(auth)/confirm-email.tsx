@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CompactHeader } from "@/components/compact-header";
+import { api } from "@/services/api";
 
 const CODE_LENGTH = 6;
 
@@ -48,17 +49,30 @@ export default function ConfirmEmailScreen() {
   async function handleConfirm() {
     if (!canConfirm) return;
     setIsLoading(true);
-    await new Promise<void>((r) => setTimeout(r, 1000));
-    setIsLoading(false);
-    router.replace("/(auth)/login");
+    try {
+      await api.post("/v1/users/confirm-email", {
+        code: code.join(""),
+        email,
+      });
+      router.replace("/(auth)/login");
+    } catch {
+      // api interceptor already shows Alert on API errors
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleResend() {
     setIsResending(true);
-    await new Promise<void>((r) => setTimeout(r, 1000));
-    setIsResending(false);
-    setCode(Array(CODE_LENGTH).fill(""));
-    inputRefs.current[0]?.focus();
+    try {
+      await api.get(`/v1/users/generate-email-confirmation-code/${encodeURIComponent(email ?? "")}`);
+      setCode(Array(CODE_LENGTH).fill(""));
+      inputRefs.current[0]?.focus();
+    } catch {
+      // api interceptor already shows Alert on API errors
+    } finally {
+      setIsResending(false);
+    }
   }
 
   return (

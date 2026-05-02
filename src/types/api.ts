@@ -71,11 +71,24 @@ export type CasaContractorPayload = {
 };
 
 export type BarsContractorPayload = {
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  cep?: string;
+  street?: string;
+  neighborhood?: string;
+  city?: string;
+  uf?: string;
+  number?: string;
+  complement?: string;
+  latitude?: number;
+  longitude?: number;
+  cnpj?: string;
+  corporateReason?: string;
+  cpf?: string;
   companyName?: string;
   document?: string;
   segment?: string;
-  cityId?: string;
-  avatarUrl?: string;
 };
 
 export type City = {
@@ -101,5 +114,8 @@ export type BarsContractor = {
   document: string;
   segment: string;
   cityId: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
+  establishmentFacadeImage: string | null;
+  establishmentInteriorImage: string | null;
+  photos: string[];
 };
