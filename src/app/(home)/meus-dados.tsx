@@ -1,66 +1,192 @@
 import { CompactHeader } from "@/components/compact-header";
 import { Input } from "@/components/input";
 import { MaskedInput } from "@/components/masked-input";
-import { PrimaryButton } from "@/components/primary-button";
-import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { authService } from "@/services/auth.service";
 import { contractorService } from "@/services/contractor.service";
+import { CepNotFoundError, fetchAddressByCep } from "@/services/viacep";
 import { toast } from "@/utils/toast";
 import { yupResolver } from "@hookform/resolvers/yup";
+import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as yup from "yup";
 
-const CPF_MASK = [
-  /\d/, /\d/, /\d/, ".", /\d/, /\d/, /\d/, ".", /\d/, /\d/, /\d/, "-", /\d/, /\d/,
-];
-
-const CNPJ_MASK = [
-  /\d/, /\d/, ".", /\d/, /\d/, /\d/, ".", /\d/, /\d/, /\d/, "/", /\d/, /\d/, /\d/, /\d/, "-", /\d/, /\d/,
-];
-
 const PHONE_MASK = [
-  "(", /\d/, /\d/, ")", " ", /\d/, /\d/, /\d/, /\d/, /\d/, "-", /\d/, /\d/, /\d/, /\d/,
+  "(",
+  /\d/,
+  /\d/,
+  ")",
+  " ",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+  "-",
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
 ];
 
-type FormValues = {
+const CEP_MASK = [/\d/, /\d/, /\d/, /\d/, /\d/, "-", /\d/, /\d/, /\d/];
+
+type UserFormValues = {
   name: string;
+};
+
+type EstablishmentFormValues = {
   companyName: string;
-  document: string;
+  corporateReason: string;
   segment: string;
 };
 
-const schema = yup.object({
-  name: yup.string().min(3, "Nome deve ter ao menos 3 caracteres").required("Nome é obrigatório"),
-  companyName: yup.string().optional().default(""),
-  document: yup.string().optional().default(""),
-  segment: yup.string().optional().default(""),
+type AddressFormValues = {
+  cep: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  uf: string;
+};
+
+const userSchema = yup.object({
+  name: yup
+    .string()
+    .min(3, "Nome deve ter ao menos 3 caracteres")
+    .required("Nome é obrigatório"),
 });
+
+const establishmentSchema = yup.object({
+  companyName: yup.string().default(""),
+  corporateReason: yup.string().default(""),
+  segment: yup.string().default(""),
+});
+
+const addressSchema = yup.object({
+  cep: yup.string().default(""),
+  street: yup.string().default(""),
+  number: yup.string().default(""),
+  complement: yup.string().default(""),
+  neighborhood: yup.string().default(""),
+  city: yup.string().default(""),
+  uf: yup.string().max(2, "UF deve ter 2 caracteres").default(""),
+});
+
+type SectionCardProps = {
+  iconName: keyof typeof Ionicons.glyphMap;
+  title: string;
+  children: React.ReactNode;
+  danger?: boolean;
+};
+
+function SectionCard({ iconName, title, children, danger = false }: SectionCardProps) {
+  return (
+    <View style={[styles.card, danger && styles.dangerCard]}>
+      <View style={styles.sectionHeader}>
+        <Ionicons
+          name={iconName}
+          size={20}
+          color={danger ? colors.error : colors.primary}
+        />
+        <Text style={[styles.sectionTitle, danger && styles.dangerTitle]}>
+          {title}
+        </Text>
+      </View>
+      {children}
+    </View>
+  );
+}
 
 type ReadOnlyFieldProps = {
   label: string;
   value: string;
+  helperText?: string;
+  mask?: (string | RegExp)[];
 };
 
-function ReadOnlyField({ label, value }: ReadOnlyFieldProps) {
+function ReadOnlyField({ label, value, helperText }: ReadOnlyFieldProps) {
   return (
-    <View style={styles.readOnlyWrapper}>
-      <Text style={styles.readOnlyLabel}>{label}</Text>
-      <View style={styles.readOnlyContainer}>
-        <Text style={styles.readOnlyValue}>{value || "—"}</Text>
+    <View style={styles.fieldWrapper}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.readOnlyInput}>
+        <Text style={styles.readOnlyText}>{value || "—"}</Text>
       </View>
+      {helperText && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
+  );
+}
+
+type PhotoSlotProps = {
+  uri: string | null;
+  label: string;
+  uploading: boolean;
+  onPress: () => void;
+};
+
+function PhotoSlot({ uri, label, uploading, onPress }: PhotoSlotProps) {
+  return (
+    <TouchableOpacity
+      style={styles.photoSlot}
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={uploading}
+    >
+      {uploading ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : uri ? (
+        <Image
+          source={{ uri }}
+          style={styles.photoImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <>
+          <Ionicons name="image-outline" size={24} color={colors.primary} />
+          <Text style={styles.photoLabel}>{label}</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+type SaveButtonProps = {
+  label: string;
+  onPress: () => void;
+  loading: boolean;
+};
+
+function SaveButton({ label, onPress, loading }: SaveButtonProps) {
+  return (
+    <TouchableOpacity
+      style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+      onPress={onPress}
+      activeOpacity={0.8}
+      disabled={loading}
+    >
+      {loading ? (
+        <ActivityIndicator color={colors.white} size="small" />
+      ) : (
+        <Text style={styles.saveButtonText}>{label}</Text>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -68,93 +194,243 @@ export default function MeusDadosScreen() {
   const { user } = useAuth();
   const { bottom } = useSafeAreaInsets();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [phone, setPhone] = useState("");
-
   const isBars = user?.module === "bars-restaurants";
   const isCasa = user?.module === "home-services";
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
-    resolver: yupResolver(schema),
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [document, setDocument] = useState("");
+
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+
+  const [facadeUri, setFacadeUri] = useState<string | null>(null);
+  const [interiorUri, setInteriorUri] = useState<string | null>(null);
+  const [uploadingFacade, setUploadingFacade] = useState(false);
+  const [uploadingInterior, setUploadingInterior] = useState(false);
+
+  const [savingUser, setSavingUser] = useState(false);
+  const [savingEstablishment, setSavingEstablishment] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
+
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
+
+  const userForm = useForm<UserFormValues>({
+    resolver: yupResolver(userSchema),
+    defaultValues: { name: "" },
+  });
+
+  const establishmentForm = useForm<EstablishmentFormValues>({
+    resolver: yupResolver(establishmentSchema),
+    defaultValues: { companyName: "", corporateReason: "", segment: "" },
+  });
+
+  const addressForm = useForm<AddressFormValues>({
+    resolver: yupResolver(addressSchema),
     defaultValues: {
-      name: "",
-      companyName: "",
-      document: "",
-      segment: "",
+      cep: "",
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      uf: "",
     },
   });
 
   useEffect(() => {
     async function loadData() {
-      setIsLoading(true);
+      setIsLoadingData(true);
       try {
         const profileRes = await authService.getProfile();
         const profile = profileRes.data;
 
-        const updates: Partial<FormValues> = {
-          name: profile.name ?? user?.name ?? "",
-        };
-
+        userForm.reset({ name: profile.name ?? user?.name ?? "" });
+        setEmail(user?.email ?? "");
         setPhone(profile.phone ?? "");
 
         if (isBars && user?.contractorId) {
           const barsRes = await contractorService.getBarsById(user.contractorId);
-          const barsData = (barsRes.data as unknown as { props?: typeof barsRes.data }).props ?? barsRes.data;
-          updates.companyName = barsData.companyName ?? "";
-          updates.document = barsData.document ?? "";
-          updates.segment = barsData.segment ?? "";
+          const barsData =
+            (barsRes.data as unknown as { props?: typeof barsRes.data }).props ??
+            barsRes.data;
+
+          establishmentForm.reset({
+            companyName: barsData.companyName ?? "",
+            corporateReason: "",
+            segment: barsData.segment ?? "",
+          });
+
+          setDocument(barsData.document ?? "");
+          setFacadeUri(barsData.establishmentFacadeImage ?? null);
+          setInteriorUri(barsData.establishmentInteriorImage ?? null);
+          setContactName("");
+          setContactPhone("");
         }
 
         if (isCasa && user?.contractorId) {
           const casaRes = await contractorService.getCasaById(user.contractorId);
-          const casaData = (casaRes.data as unknown as { props?: typeof casaRes.data }).props ?? casaRes.data;
-          updates.document = casaData.document ?? "";
-        }
+          const casaData =
+            (casaRes.data as unknown as { props?: typeof casaRes.data }).props ??
+            casaRes.data;
 
-        reset(updates as FormValues);
+          setDocument(casaData.document ?? "");
+        }
       } catch {
         toast.error("Não foi possível carregar seus dados.", "Tente novamente.");
       } finally {
-        setIsLoading(false);
+        setIsLoadingData(false);
       }
     }
 
     loadData();
   }, [user?.contractorId, isBars, isCasa]);
 
-  async function onSubmit(values: FormValues) {
-    setIsSaving(true);
+  async function handleCepChange(raw: string) {
+    addressForm.setValue("cep", raw);
+    setCepError("");
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+
+    setCepLoading(true);
     try {
-      await authService.updateProfile({ name: values.name });
-
-      if (isBars) {
-        await contractorService.updateBars({
-          companyName: values.companyName || undefined,
-          document: values.document ? values.document.replace(/\D/g, "") : undefined,
-          segment: values.segment || undefined,
-        });
-      }
-
-      if (isCasa) {
-        await contractorService.updateCasa({
-          name: values.name || undefined,
-          document: values.document ? values.document.replace(/\D/g, "") : undefined,
-        });
-      }
-
-      toast.success("Dados atualizados com sucesso!");
-    } catch {
-      toast.error("Não foi possível salvar.", "Tente novamente.");
+      const address = await fetchAddressByCep(raw);
+      addressForm.setValue("street", address.logradouro ?? "");
+      addressForm.setValue("neighborhood", address.bairro ?? "");
+      addressForm.setValue("city", address.localidade ?? "");
+      addressForm.setValue("uf", address.uf ?? "");
+    } catch (err) {
+      setCepError(
+        err instanceof CepNotFoundError ? "CEP não encontrado" : "Erro ao buscar CEP"
+      );
     } finally {
-      setIsSaving(false);
+      setCepLoading(false);
     }
   }
 
-  if (isLoading) {
+  async function handleSaveUser(values: UserFormValues) {
+    setSavingUser(true);
+    try {
+      await authService.updateProfile({ name: values.name });
+      toast.success("Informações salvas com sucesso!");
+    } catch {
+      toast.error("Não foi possível salvar.", "Tente novamente.");
+    } finally {
+      setSavingUser(false);
+    }
+  }
+
+  async function handleSaveEstablishment(values: EstablishmentFormValues) {
+    setSavingEstablishment(true);
+    try {
+      await contractorService.updateBars({
+        companyName: values.companyName || undefined,
+        segment: values.segment || undefined,
+      });
+      toast.success("Estabelecimento atualizado!");
+    } catch {
+      toast.error("Não foi possível salvar.", "Tente novamente.");
+    } finally {
+      setSavingEstablishment(false);
+    }
+  }
+
+  async function handleSaveAddress(values: AddressFormValues) {
+    setSavingAddress(true);
+    try {
+      const addressParts = [
+        values.street,
+        values.number,
+        values.complement,
+        values.neighborhood,
+        values.city,
+        values.uf,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      await contractorService.updateCasa({
+        cep: values.cep ? values.cep.replace(/\D/g, "") : undefined,
+        street: values.street || undefined,
+        neighborhood: values.neighborhood || undefined,
+        city: values.city || undefined,
+        uf: values.uf || undefined,
+        number: values.number || undefined,
+        complement: values.complement || undefined,
+        address: addressParts || undefined,
+      });
+      toast.success("Endereço atualizado!");
+    } catch {
+      toast.error("Não foi possível salvar.", "Tente novamente.");
+    } finally {
+      setSavingAddress(false);
+    }
+  }
+
+  async function pickAndUpload(type: "facade" | "interior") {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permissão necessária",
+        "Permita o acesso à galeria nas configurações."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const uri = result.assets[0].uri;
+    const setUploading = type === "facade" ? setUploadingFacade : setUploadingInterior;
+    const setUri = type === "facade" ? setFacadeUri : setInteriorUri;
+
+    setUploading(true);
+    try {
+      const payload =
+        type === "facade"
+          ? { establishmentFacadeImage: uri }
+          : { establishmentInteriorImage: uri };
+      await contractorService.updateBarsImages(payload);
+      setUri(uri);
+      toast.success("Imagem atualizada com sucesso!");
+    } catch {
+      Alert.alert("Erro", "Não foi possível enviar a imagem. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleRequestDeletion() {
+    Alert.alert(
+      "Confirmar exclusão",
+      "Tem certeza? Esta ação não pode ser desfeita.",
+      [
+        { text: "Cancelar" },
+        {
+          text: "Solicitar",
+          style: "destructive",
+          onPress: () => toast.info("Funcionalidade em breve."),
+        },
+      ]
+    );
+  }
+
+  if (isLoadingData) {
     return (
-      <View style={styles.loadingRoot}>
-        <CompactHeader title="Meus Dados" subtitle="Gerencie suas informações" />
+      <View style={styles.root}>
+        <CompactHeader
+          title="Perfil do Estabelecimento"
+          subtitle="Gerencie suas informações"
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -167,7 +443,10 @@ export default function MeusDadosScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <CompactHeader title="Meus Dados" subtitle="Gerencie suas informações" />
+      <CompactHeader
+        title="Perfil do Estabelecimento"
+        subtitle="Gerencie suas informações"
+      />
 
       <ScrollView
         style={styles.scrollArea}
@@ -178,146 +457,305 @@ export default function MeusDadosScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionLabel}>DADOS PESSOAIS</Text>
+        {isBars && (
+          <SectionCard iconName="image-outline" title="Fotos do Estabelecimento">
+            <View style={styles.photosRow}>
+              <PhotoSlot
+                uri={facadeUri}
+                label="Fachada"
+                uploading={uploadingFacade}
+                onPress={() => pickAndUpload("facade")}
+              />
+              <PhotoSlot
+                uri={interiorUri}
+                label="Ambiente Interno"
+                uploading={uploadingInterior}
+                onPress={() => pickAndUpload("interior")}
+              />
+            </View>
+          </SectionCard>
+        )}
 
-        <View style={[styles.card, styles.cardPadded]}>
+        <SectionCard iconName="person-outline" title="Informações do Usuário">
           <Controller
-            control={control}
+            control={userForm.control}
             name="name"
             render={({ field: { value, onChange } }) => (
               <Input
-                label="Nome completo"
-                icon="person-outline"
+                label="Nome"
                 placeholder="Seu nome completo"
                 value={value}
                 onChangeText={onChange}
-                error={errors.name?.message}
+                error={userForm.formState.errors.name?.message}
                 autoCapitalize="words"
               />
             )}
           />
 
-          <View style={styles.fieldSpacing}>
-            <ReadOnlyField label="E-mail" value={user?.email ?? ""} />
+          <View style={styles.fieldGap}>
+            <ReadOnlyField label="E-mail" value={email} />
           </View>
 
-          <View style={styles.fieldSpacing}>
-            <View style={styles.readOnlyWrapper}>
-              <Text style={styles.readOnlyLabel}>Telefone</Text>
-              <MaskedInput
-                label=""
-                placeholder="(00) 00000-0000"
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={setPhone}
-                mask={PHONE_MASK}
-                maxLength={15}
-                editable={false}
-                containerStyle={styles.readOnlyContainer}
-                style={styles.readOnlyValue}
-              />
+          <View style={styles.fieldGap}>
+            <View style={styles.fieldWrapper}>
+              <Text style={styles.fieldLabel}>Celular</Text>
+              <View style={styles.readOnlyInput}>
+                <Text style={styles.readOnlyText}>{phone || "—"}</Text>
+              </View>
             </View>
           </View>
-        </View>
+
+          <View style={styles.buttonGap}>
+            <SaveButton
+              label="Salvar Informações"
+              onPress={userForm.handleSubmit(handleSaveUser)}
+              loading={savingUser}
+            />
+          </View>
+        </SectionCard>
 
         {isBars && (
-          <>
-            <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
-              DADOS DO ESTABELECIMENTO
-            </Text>
+          <SectionCard iconName="storefront-outline" title="Dados do Estabelecimento">
+            <Controller
+              control={establishmentForm.control}
+              name="companyName"
+              render={({ field: { value, onChange } }) => (
+                <Input
+                  label="Nome do Estabelecimento"
+                  placeholder="Nome fantasia"
+                  value={value}
+                  onChangeText={onChange}
+                  error={establishmentForm.formState.errors.companyName?.message}
+                  autoCapitalize="words"
+                />
+              )}
+            />
 
-            <View style={[styles.card, styles.cardPadded]}>
+            <View style={styles.fieldGap}>
               <Controller
-                control={control}
-                name="companyName"
+                control={establishmentForm.control}
+                name="corporateReason"
                 render={({ field: { value, onChange } }) => (
                   <Input
-                    label="Nome do estabelecimento"
-                    icon="storefront-outline"
-                    placeholder="Nome fantasia"
+                    label="Razão Social"
+                    placeholder="Razão social da empresa"
                     value={value}
                     onChangeText={onChange}
-                    error={errors.companyName?.message}
+                    error={establishmentForm.formState.errors.corporateReason?.message}
                     autoCapitalize="words"
                   />
                 )}
               />
-
-              <View style={styles.fieldSpacing}>
-                <Controller
-                  control={control}
-                  name="document"
-                  render={({ field: { value, onChange } }) => (
-                    <MaskedInput
-                      label="CNPJ"
-                      icon="document-text-outline"
-                      placeholder="00.000.000/0001-00"
-                      keyboardType="numeric"
-                      value={value}
-                      onChangeText={onChange}
-                      mask={CNPJ_MASK}
-                      maxLength={18}
-                      error={errors.document?.message}
-                    />
-                  )}
-                />
-              </View>
-
-              <View style={styles.fieldSpacing}>
-                <Controller
-                  control={control}
-                  name="segment"
-                  render={({ field: { value, onChange } }) => (
-                    <Input
-                      label="Segmento"
-                      icon="business-outline"
-                      placeholder="Ex: Restaurante, Bar, Café..."
-                      value={value}
-                      onChangeText={onChange}
-                      error={errors.segment?.message}
-                      autoCapitalize="sentences"
-                    />
-                  )}
-                />
-              </View>
             </View>
-          </>
-        )}
 
-        {isCasa && (
-          <>
-            <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
-              DADOS PESSOAIS DO ESTABELECIMENTO
-            </Text>
+            <View style={styles.fieldGap}>
+              <ReadOnlyField
+                label="CNPJ"
+                value={document || "—"}
+                helperText="O CNPJ não pode ser alterado."
+              />
+            </View>
 
-            <View style={[styles.card, styles.cardPadded]}>
+            <View style={styles.fieldGap}>
               <Controller
-                control={control}
-                name="document"
+                control={establishmentForm.control}
+                name="segment"
                 render={({ field: { value, onChange } }) => (
-                  <MaskedInput
-                    label="CPF/Documento"
-                    icon="document-text-outline"
-                    placeholder="000.000.000-00"
-                    keyboardType="numeric"
+                  <Input
+                    label="Ramo de Atividade"
+                    placeholder="Ex: Restaurante, Bar, Buffet..."
                     value={value}
                     onChangeText={onChange}
-                    mask={CPF_MASK}
-                    maxLength={14}
-                    error={errors.document?.message}
+                    error={establishmentForm.formState.errors.segment?.message}
+                    autoCapitalize="sentences"
                   />
                 )}
               />
             </View>
-          </>
+
+            <View style={styles.buttonGap}>
+              <SaveButton
+                label="Salvar Alterações"
+                onPress={establishmentForm.handleSubmit(handleSaveEstablishment)}
+                loading={savingEstablishment}
+              />
+            </View>
+          </SectionCard>
         )}
 
-        <View style={styles.buttonSpacing}>
-          <PrimaryButton
-            label={isSaving ? "Salvando..." : "Salvar Alterações"}
-            onPress={handleSubmit(onSubmit)}
-            disabled={isSaving}
-          />
+        {isCasa && (
+          <SectionCard iconName="location-outline" title="Endereço">
+            <Controller
+              control={addressForm.control}
+              name="cep"
+              render={({ field: { value } }) => (
+                <MaskedInput
+                  label="CEP"
+                  placeholder="00000-000"
+                  keyboardType="numeric"
+                  value={value}
+                  onChangeText={handleCepChange}
+                  mask={CEP_MASK}
+                  maxLength={9}
+                  error={cepError || undefined}
+                  rightElement={
+                    cepLoading ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : undefined
+                  }
+                />
+              )}
+            />
+
+            <View style={styles.fieldGap}>
+              <Controller
+                control={addressForm.control}
+                name="street"
+                render={({ field: { value, onChange } }) => (
+                  <Input
+                    label="Rua"
+                    placeholder="Nome da rua"
+                    value={value}
+                    onChangeText={onChange}
+                  />
+                )}
+              />
+            </View>
+
+            <View style={[styles.fieldGap, styles.row]}>
+              <View style={styles.flexOne}>
+                <Controller
+                  control={addressForm.control}
+                  name="number"
+                  render={({ field: { value, onChange } }) => (
+                    <Input
+                      label="Número"
+                      placeholder="123"
+                      keyboardType="numeric"
+                      value={value}
+                      onChangeText={onChange}
+                      maxLength={6}
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.flexOneHalf}>
+                <Controller
+                  control={addressForm.control}
+                  name="complement"
+                  render={({ field: { value, onChange } }) => (
+                    <Input
+                      label="Complemento"
+                      placeholder="Apto, sala..."
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  )}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldGap}>
+              <Controller
+                control={addressForm.control}
+                name="neighborhood"
+                render={({ field: { value, onChange } }) => (
+                  <Input
+                    label="Bairro"
+                    placeholder="Bairro"
+                    value={value}
+                    onChangeText={onChange}
+                  />
+                )}
+              />
+            </View>
+
+            <View style={[styles.fieldGap, styles.row]}>
+              <View style={styles.flexOneHalf}>
+                <Controller
+                  control={addressForm.control}
+                  name="city"
+                  render={({ field: { value, onChange } }) => (
+                    <Input
+                      label="Cidade"
+                      placeholder="Selecione a cidade"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.flexOne}>
+                <Controller
+                  control={addressForm.control}
+                  name="uf"
+                  render={({ field: { value, onChange } }) => (
+                    <Input
+                      label="Estado"
+                      placeholder="UF"
+                      value={value}
+                      onChangeText={onChange}
+                      maxLength={2}
+                      autoCapitalize="characters"
+                      error={addressForm.formState.errors.uf?.message}
+                    />
+                  )}
+                />
+              </View>
+            </View>
+
+            <View style={styles.buttonGap}>
+              <SaveButton
+                label="Salvar Endereço"
+                onPress={addressForm.handleSubmit(handleSaveAddress)}
+                loading={savingAddress}
+              />
+            </View>
+          </SectionCard>
+        )}
+
+        {isBars && (
+          <SectionCard iconName="person-circle-outline" title="Responsável pela Operação">
+            <ReadOnlyField
+              label="Nome do Responsável"
+              value={contactName || "—"}
+              helperText="Não pode ser alterado após o cadastro."
+            />
+
+            <View style={styles.fieldGap}>
+              <ReadOnlyField
+                label="Telefone"
+                value={contactPhone || "—"}
+                helperText="Não pode ser alterado após o cadastro."
+              />
+            </View>
+          </SectionCard>
+        )}
+
+        <View style={[styles.card, styles.dangerCard]}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="warning-outline" size={20} color={colors.error} />
+            <Text style={[styles.sectionTitle, styles.dangerTitle]}>
+              Zona de Perigo
+            </Text>
+          </View>
+
+          <Text style={styles.dangerDescription}>
+            Ao solicitar a exclusão, um código será enviado para seu e-mail. Após
+            confirmação, sua conta será apagada em 7 dias. Faça login novamente para
+            cancelar.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.dangerButton}
+            onPress={handleRequestDeletion}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
+            <Text style={styles.dangerButtonText}>
+              Solicitar Exclusão da Conta
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -326,10 +764,6 @@ export default function MeusDadosScreen() {
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
-    backgroundColor: colors.primary,
-  },
-  loadingRoot: {
     flex: 1,
     backgroundColor: colors.primary,
   },
@@ -349,52 +783,138 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing["8"],
-    paddingTop: spacing["10"],
-  },
-  sectionLabel: {
-    fontSize: fontSizes.sm,
-    fontWeight: fontWeights.semibold,
-    color: colors.muted,
-    textTransform: "uppercase",
-    marginBottom: spacing["4"],
-  },
-  sectionLabelSpaced: {
-    marginTop: spacing["10"],
+    paddingTop: spacing["8"],
+    gap: spacing["8"],
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: radii["2xl"],
-    ...cardShadow,
-  },
-  cardPadded: {
+    borderRadius: radii.lg,
     padding: spacing["8"],
+    ...cardShadowStrong,
   },
-  fieldSpacing: {
-    marginTop: spacing["8"],
+  dangerCard: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
   },
-  readOnlyWrapper: {
-    gap: spacing["3"],
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["4"],
+    marginBottom: spacing["8"],
   },
-  readOnlyLabel: {
+  sectionTitle: {
     fontSize: fontSizes.md,
     fontWeight: fontWeights.semibold,
     color: colors.ink,
   },
-  readOnlyContainer: {
-    height: 52,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    backgroundColor: colors.borderLight,
-    borderColor: colors.border,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing["7"],
+  dangerTitle: {
+    color: colors.error,
   },
-  readOnlyValue: {
+  fieldWrapper: {
+    gap: spacing["3"],
+  },
+  fieldLabel: {
     fontSize: fontSizes.md,
-    color: colors.muted,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
   },
-  buttonSpacing: {
-    marginTop: spacing["10"],
+  readOnlyInput: {
+    height: 52,
+    backgroundColor: colors.borderLight,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing["7"],
+    justifyContent: "center",
+  },
+  readOnlyText: {
+    fontSize: fontSizes.md,
+    color: colors.textSecondary,
+  },
+  helperText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.regular,
+    color: colors.textSecondary,
+    marginTop: spacing["2"],
+  },
+  fieldGap: {
+    marginTop: spacing["8"],
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing["6"],
+  },
+  flexOne: {
+    flex: 1,
+  },
+  flexOneHalf: {
+    flex: 1.5,
+  },
+  buttonGap: {
+    marginTop: spacing["8"],
+  },
+  saveButton: {
+    height: 52,
+    borderRadius: radii.md,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+  saveButtonText: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.semibold,
+    color: colors.white,
+  },
+  photosRow: {
+    flexDirection: "row",
+    gap: spacing["8"],
+  },
+  photoSlot: {
+    flex: 1,
+    height: 90,
+    backgroundColor: "#FFFBF2",
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: "dashed",
+    borderRadius: radii.md,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing["3"],
+    overflow: "hidden",
+  },
+  photoImage: {
+    flex: 1,
+    alignSelf: "stretch",
+  },
+  photoLabel: {
+    fontSize: fontSizes.sm,
+    color: colors.primary,
+  },
+  dangerDescription: {
+    fontSize: fontSizes.base,
+    fontWeight: fontWeights.regular,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing["8"],
+  },
+  dangerButton: {
+    height: 52,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.error,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing["4"],
+  },
+  dangerButtonText: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.error,
   },
 });
