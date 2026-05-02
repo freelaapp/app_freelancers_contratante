@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "@/context/auth-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function RootNavigator() {
   const { user, isInitializing } = useAuth();
@@ -46,13 +47,18 @@ function RootNavigator() {
   );
 }
 
+function ToastWithInsets() {
+  const { top } = useSafeAreaInsets();
+  return <Toast topOffset={top + 12} />;
+}
+
 export default function RootLayout() {
   return (
     <>
       <AuthProvider>
         <RootNavigator />
       </AuthProvider>
-      <Toast />
+      <ToastWithInsets />
     </>
   );
 }
