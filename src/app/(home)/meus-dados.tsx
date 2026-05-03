@@ -97,6 +97,20 @@ type SectionCardProps = {
   danger?: boolean;
 };
 
+type InlineHeaderProps = { top: number; onBack: () => void };
+
+function InlineHeader({ top, onBack }: InlineHeaderProps) {
+  return (
+    <View style={[styles.header, { paddingTop: top + 8 }]}>
+      <TouchableOpacity testID="back-button" onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="chevron-back" size={24} color={colors.ink} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Perfil do Estabelecimento</Text>
+      <View style={{ width: 24 }} />
+    </View>
+  );
+}
+
 function SectionCard({ iconName, title, children, danger = false }: SectionCardProps) {
   return (
     <View style={[styles.card, danger && styles.dangerCard]}>
@@ -425,20 +439,10 @@ export default function MeusDadosScreen() {
     );
   }
 
-  const InlineHeader = () => (
-    <View style={[styles.header, { paddingTop: top + 8 }]}>
-      <TouchableOpacity testID="back-button" onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name="chevron-back" size={24} color={colors.ink} />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Perfil do Estabelecimento</Text>
-      <View style={{ width: 24 }} />
-    </View>
-  );
-
   if (isLoadingData) {
     return (
       <View style={styles.root}>
-        <InlineHeader />
+        <InlineHeader top={top} onBack={() => router.back()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} testID="loading-indicator" />
         </View>
@@ -451,7 +455,7 @@ export default function MeusDadosScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <InlineHeader />
+      <InlineHeader top={top} onBack={() => router.back()} />
 
       <ScrollView
         style={styles.scrollArea}
