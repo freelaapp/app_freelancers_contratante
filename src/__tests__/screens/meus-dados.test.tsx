@@ -105,8 +105,12 @@ const profileResponse = {
 const barsContractorResponse = {
   data: {
     companyName: "Zé Boteco LTDA",
+    corporateReason: "Zé Boteco Comércio LTDA",
     segment: "Bar",
-    document: "12.345.678/0001-99",
+    cnpj: "12345678000199",
+    document: null,
+    contactName: "José Silva",
+    contactPhone: "11999999999",
     establishmentFacadeImage: null,
     establishmentInteriorImage: null,
   },
@@ -185,6 +189,30 @@ describe("MeusDadosScreen — renderização após carga", () => {
     await renderAndWaitLoad();
 
     expect(screen.getByText("Dados do Estabelecimento")).toBeTruthy();
+  });
+
+  it("2d2. pré-preenche companyName, corporateReason e segment com dados da API", async () => {
+    setupBarsUser();
+    await renderAndWaitLoad();
+
+    expect(screen.getByDisplayValue("Zé Boteco LTDA")).toBeTruthy();
+    expect(screen.getByDisplayValue("Zé Boteco Comércio LTDA")).toBeTruthy();
+    expect(screen.getByDisplayValue("Bar")).toBeTruthy();
+  });
+
+  it("2d3. exibe CNPJ formatado como campo somente-leitura", async () => {
+    setupBarsUser();
+    await renderAndWaitLoad();
+
+    expect(screen.getByText("12345678000199")).toBeTruthy();
+  });
+
+  it("2d4. exibe contactName e contactPhone no responsável pela operação", async () => {
+    setupBarsUser();
+    await renderAndWaitLoad();
+
+    expect(screen.getByText("José Silva")).toBeTruthy();
+    expect(screen.getByText("11999999999")).toBeTruthy();
   });
 
   it("2e. NÃO exibe seção de Endereço para módulo bars-restaurants", async () => {

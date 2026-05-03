@@ -275,15 +275,15 @@ export default function MeusDadosScreen() {
 
           establishmentForm.reset({
             companyName: barsData.companyName ?? "",
-            corporateReason: "",
+            corporateReason: barsData.corporateReason ?? "",
             segment: barsData.segment ?? "",
           });
 
-          setDocument(barsData.document ?? "");
+          setDocument(barsData.cnpj ?? barsData.document ?? "");
           setFacadeUri(barsData.establishmentFacadeImage ?? null);
           setInteriorUri(barsData.establishmentInteriorImage ?? null);
-          setContactName("");
-          setContactPhone("");
+          setContactName(barsData.contactName ?? "");
+          setContactPhone(barsData.contactPhone ?? "");
         }
 
         if (isCasa && user?.contractorId) {
