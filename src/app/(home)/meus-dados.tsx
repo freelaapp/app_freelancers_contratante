@@ -427,7 +427,7 @@ export default function MeusDadosScreen() {
 
   const InlineHeader = () => (
     <View style={[styles.header, { paddingTop: top + 8 }]}>
-      <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <TouchableOpacity testID="back-button" onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Ionicons name="chevron-back" size={24} color={colors.ink} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>Perfil do Estabelecimento</Text>
@@ -440,7 +440,7 @@ export default function MeusDadosScreen() {
       <View style={styles.root}>
         <InlineHeader />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} testID="loading-indicator" />
         </View>
       </View>
     );
