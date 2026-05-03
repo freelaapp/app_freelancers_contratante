@@ -50,7 +50,7 @@ export function HomeHeader({
           <TouchableOpacity style={styles.iconButton} onPress={onChat} activeOpacity={0.8}>
             <Ionicons name="chatbubble-outline" size={20} color={colors.dark} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={onNotifications} activeOpacity={0.8}>
+          <TouchableOpacity testID="header-notifications-button" style={styles.iconButton} onPress={onNotifications} activeOpacity={0.8}>
             <Ionicons name="notifications-outline" size={20} color={colors.dark} />
             <View style={styles.badge} />
           </TouchableOpacity>
