@@ -43,11 +43,12 @@ type CodeModalProps = {
   code: string | null;
   title: string;
   confirmLabel: string;
+  loading?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 };
 
-function CodeModal({ visible, code, title, confirmLabel, onClose, onConfirm }: CodeModalProps) {
+function CodeModal({ visible, code, title, confirmLabel, loading, onClose, onConfirm }: CodeModalProps) {
   return (
     <CenteredModal visible={visible} onClose={onClose} contentStyle={styles.checkinModal}>
       <TouchableOpacity style={styles.checkinClose} onPress={onClose} hitSlop={8}>
@@ -64,11 +65,15 @@ function CodeModal({ visible, code, title, confirmLabel, onClose, onConfirm }: C
         </Text>
       </View>
       <TouchableOpacity
-        style={styles.checkinConfirmBtn}
+        style={[styles.checkinConfirmBtn, loading && { opacity: 0.7 }]}
         activeOpacity={0.85}
         onPress={onConfirm}
+        disabled={loading}
       >
-        <Text style={styles.checkinConfirmBtnText}>{confirmLabel}</Text>
+        {loading
+          ? <ActivityIndicator color={colors.white} size="small" />
+          : <Text style={styles.checkinConfirmBtnText}>{confirmLabel}</Text>
+        }
       </TouchableOpacity>
     </CenteredModal>
   );
@@ -258,6 +263,8 @@ export default function VagaDetailScreen() {
   const [selectedCandidato, setSelectedCandidato] = useState<CandidatoApi | null>(null);
   const [checkinCode, setCheckinCode] = useState<string | null>(null);
   const [checkoutCode, setCheckoutCode] = useState<string | null>(null);
+  const [checkinConfirming, setCheckinConfirming] = useState(false);
+  const [checkoutConfirming, setCheckoutConfirming] = useState(false);
   const [avaliarVisible, setAvaliarVisible] = useState(false);
   const [estrelas, setEstrelas] = useState(0);
   const [comentario, setComentario] = useState("");
@@ -333,6 +340,44 @@ export default function VagaDetailScreen() {
       return;
     }
     if (cta.nextStep !== null) setStepAtual(cta.nextStep);
+  }
+
+  async function handleConfirmCheckin() {
+    if (!job || !user?.module) return;
+    setCheckinConfirming(true);
+    try {
+      const confirmed = await jobsService.getCheckinStatus(user.module, job.id);
+      if (confirmed) {
+        setCheckinCode(null);
+        setStepAtual(4);
+      } else {
+        toast.error("O freelancer ainda não confirmou o check-in.");
+      }
+    } catch {
+      toast.error("Erro ao verificar check-in. Tente novamente.");
+    } finally {
+      setCheckinConfirming(false);
+    }
+  }
+
+  async function handleConfirmCheckout() {
+    if (!job || !user?.module) return;
+    setCheckoutConfirming(true);
+    try {
+      await jobsService.confirmCheckout(user.module, job.id);
+      setCheckoutCode(null);
+      setStepAtual(5);
+      toast.success("Check-out confirmado!");
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        toast.error("O freelancer ainda não confirmou o check-out.");
+      } else {
+        toast.error("Erro ao confirmar check-out. Tente novamente.");
+      }
+    } finally {
+      setCheckoutConfirming(false);
+    }
   }
 
   async function handleConfirmarAvaliacao() {
@@ -442,8 +487,9 @@ export default function VagaDetailScreen() {
         code={checkinCode}
         title="Código de Check-in"
         confirmLabel="Freelancer confirmou o código"
+        loading={checkinConfirming}
         onClose={() => setCheckinCode(null)}
-        onConfirm={() => { setCheckinCode(null); setStepAtual(4); }}
+        onConfirm={handleConfirmCheckin}
       />
 
       <CodeModal
@@ -451,8 +497,9 @@ export default function VagaDetailScreen() {
         code={checkoutCode}
         title="Código de Check-out"
         confirmLabel="Freelancer confirmou o código"
+        loading={checkoutConfirming}
         onClose={() => setCheckoutCode(null)}
-        onConfirm={() => { setCheckoutCode(null); setStepAtual(5); }}
+        onConfirm={handleConfirmCheckout}
       />
 
       <CenteredModal
