@@ -1,21 +1,22 @@
 import { colors, fontSizes, fontWeights, gradients, radii } from "@/constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
   label: string;
   onPress?: () => void;
   icon?: string;
   disabled?: boolean;
+  loading?: boolean;
 };
 
-export function PrimaryButton({ label, onPress, icon = "+", disabled = false }: Props) {
+export function PrimaryButton({ label, onPress, icon = "+", disabled = false, loading = false }: Props) {
   return (
     <TouchableOpacity
       style={styles.wrapper}
       onPress={onPress}
       activeOpacity={0.85}
-      disabled={disabled}
+      disabled={disabled || loading}
     >
       <LinearGradient
         colors={gradients.button.colors}
@@ -24,9 +25,13 @@ export function PrimaryButton({ label, onPress, icon = "+", disabled = false }: 
         style={styles.gradient}
       >
         <View style={styles.diagonalOverlay} />
-        <Text style={styles.label}>
-          {icon}{"   "}{label}{"   "}›
-        </Text>
+        {loading ? (
+          <ActivityIndicator color={colors.inkButton} size="small" testID="primary-button-loading" />
+        ) : (
+          <Text style={styles.label}>
+            {icon}{"   "}{label}{"   "}›
+          </Text>
+        )}
       </LinearGradient>
     </TouchableOpacity>
   );

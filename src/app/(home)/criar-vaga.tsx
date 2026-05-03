@@ -7,8 +7,11 @@ import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
 import { ServiceChip } from "@/components/service-chip";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
-import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
+import { useAuth } from "@/context/auth-context";
+import { vagasService } from "@/services/vagas.service";
+import { toast } from "@/utils/toast";
 import { SERVICES } from "@/utils/services";
+import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { router, Stack } from "expo-router";
 import { useCallback, useState } from "react";
@@ -25,17 +28,22 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CriarVagaScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
-  const { control, handleSubmit, setValue, watch } = useForm<CriarVagaFormValues>({
+  const { control, handleSubmit, setValue, watch, setError } = useForm<CriarVagaFormValues>({
     resolver: yupResolver(criarVagaSchema),
     defaultValues: {
       selectedServices: [],
       dataEvento: "",
+      horarioInicio: "",
+      horarioFim: "",
+      endereco: "",
       descricao: "",
     },
   });
 
   const [noEstabelecimento, setNoEstabelecimento] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const selectedServices = watch("selectedServices");
 
@@ -50,8 +58,43 @@ export default function CriarVagaScreen() {
     [selectedServices, setValue]
   );
 
-  function handlePublish(data: CriarVagaFormValues) {
-    router.back();
+  async function handlePublish(data: CriarVagaFormValues) {
+    if (!noEstabelecimento && !data.endereco?.trim()) {
+      setError("endereco", { message: "Endereço é obrigatório" });
+      return;
+    }
+
+    if (!user?.module || !user?.contractorId) return;
+
+    const [day, month, year] = data.dataEvento.split("/");
+    const dateISO = `${year}-${month}-${day}`;
+
+    const toISO = (date: string, time: string) => `${date}T${time}:00.000Z`;
+
+    const serviceType = SERVICES.find((s) => s.id === data.selectedServices[0])?.label ?? "";
+
+    const address = noEstabelecimento ? undefined : data.endereco;
+
+    const payload = {
+      title: serviceType,
+      description: data.descricao,
+      serviceType,
+      date: dateISO,
+      startTime: toISO(dateISO, data.horarioInicio),
+      endTime: toISO(dateISO, data.horarioFim),
+      address,
+    };
+
+    try {
+      setLoading(true);
+      await vagasService.create(user.module as "home-services" | "bars-restaurants", payload);
+      toast.success("Vaga publicada com sucesso!");
+      router.back();
+    } catch {
+      toast.error("Erro ao publicar a vaga. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -130,6 +173,44 @@ export default function CriarVagaScreen() {
         </CardContainer>
 
         <CardContainer>
+          <CardHeader icon="time-outline" title="Horário do evento" />
+          <Controller
+            control={control}
+            name="horarioInicio"
+            render={({ field: { onChange, onBlur, value }, fieldState }) => (
+              <Input
+                label="Horário de início"
+                placeholder="HH:MM"
+                keyboardType="numeric"
+                icon="time-outline"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={fieldState.error?.message}
+                maxLength={5}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="horarioFim"
+            render={({ field: { onChange, onBlur, value }, fieldState }) => (
+              <Input
+                label="Horário de encerramento"
+                placeholder="HH:MM"
+                keyboardType="numeric"
+                icon="time-outline"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={fieldState.error?.message}
+                maxLength={5}
+              />
+            )}
+          />
+        </CardContainer>
+
+        <CardContainer>
           <CardHeader icon="location-outline" title="Local do evento" />
           <View style={styles.toggleRow}>
             <Text style={styles.toggleLabel}>No seu estabelecimento?</Text>
@@ -140,6 +221,22 @@ export default function CriarVagaScreen() {
               thumbColor={colors.white}
             />
           </View>
+          {!noEstabelecimento && (
+            <Controller
+              control={control}
+              name="endereco"
+              render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                <Input
+                  placeholder="Rua, número, bairro..."
+                  icon="location-outline"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          )}
         </CardContainer>
 
         <CardContainer>
@@ -181,7 +278,11 @@ export default function CriarVagaScreen() {
       </ScrollView>
 
       <BottomActionBar backgroundColor={colors.white} showTopBorder>
-        <PrimaryButton label="Publicar contratação →" onPress={handleSubmit(handlePublish)} />
+        <PrimaryButton
+          label="Publicar contratação →"
+          onPress={handleSubmit(handlePublish)}
+          loading={loading}
+        />
       </BottomActionBar>
     </View>
   );

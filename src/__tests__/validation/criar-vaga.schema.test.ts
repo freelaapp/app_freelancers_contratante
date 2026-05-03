@@ -4,6 +4,8 @@ import { criarVagaSchema } from "@/validation/criar-vaga.schema";
 const validData = {
   selectedServices: ["garcom"],
   dataEvento: "15/06/2025",
+  horarioInicio: "18:00",
+  horarioFim: "23:00",
   descricao: "Preciso de um garçom para evento de casamento com 100 pessoas.",
 };
 
