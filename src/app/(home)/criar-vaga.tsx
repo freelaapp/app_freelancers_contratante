@@ -13,18 +13,191 @@ import { toast } from "@/utils/toast";
 import { SERVICES } from "@/utils/services";
 import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
 import { yupResolver } from "@hookform/resolvers/yup";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { router, Stack } from "expo-router";
 import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+
+const minDate = new Date();
+const maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+type DatePickerFieldProps = {
+  value: string;
+  error?: string;
+  testID?: string;
+  onConfirm: (date: Date) => void;
+};
+
+function DatePickerField({ value, error, testID, onConfirm }: DatePickerFieldProps) {
+  const [show, setShow] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
+
+  function handlePress() {
+    const initial = value ? parseDisplayDate(value) : new Date();
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: initial,
+        mode: "date",
+        minimumDate: minDate,
+        maximumDate: maxDate,
+        onChange: (_, date) => {
+          if (date) onConfirm(date);
+        },
+      });
+    } else {
+      setTempDate(initial);
+      setShow(true);
+    }
+  }
+
+  return (
+    <View style={dateStyles.wrapper}>
+      <TouchableOpacity
+        testID={testID}
+        style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}
+        onPress={handlePress}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="calendar-outline" size={20} color={colors.muted} style={dateStyles.icon} />
+        <Text style={[dateStyles.text, !value && dateStyles.placeholder]}>
+          {value || "Selecione a data"}
+        </Text>
+      </TouchableOpacity>
+
+      {error ? <Text style={dateStyles.error}>{error}</Text> : null}
+
+      {Platform.OS === "ios" && (
+        <Modal transparent animationType="slide" visible={show}>
+          <View style={dateStyles.overlay}>
+            <View style={dateStyles.sheet}>
+              <View style={dateStyles.toolbar}>
+                <TouchableOpacity onPress={() => setShow(false)}>
+                  <Text style={dateStyles.toolbarCancel}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { onConfirm(tempDate); setShow(false); }}>
+                  <Text style={dateStyles.toolbarConfirm}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display="spinner"
+                minimumDate={minDate}
+                maximumDate={maxDate}
+                onChange={(_, date) => { if (date) setTempDate(date); }}
+                locale="pt-BR"
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
+  );
+}
+
+type TimePickerFieldProps = {
+  label: string;
+  value: string;
+  error?: string;
+  testID?: string;
+  onConfirm: (time: string) => void;
+};
+
+function TimePickerField({ label, value, error, testID, onConfirm }: TimePickerFieldProps) {
+  const [show, setShow] = useState(false);
+  const [tempTime, setTempTime] = useState(new Date());
+
+  function handlePress() {
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: tempTime,
+        mode: "time",
+        is24Hour: true,
+        onChange: (_, date) => {
+          if (date) {
+            const h = String(date.getHours()).padStart(2, "0");
+            const m = String(date.getMinutes()).padStart(2, "0");
+            onConfirm(`${h}:${m}`);
+          }
+        },
+      });
+    } else {
+      setShow(true);
+    }
+  }
+
+  function formatTime(date: Date): string {
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  }
+
+  return (
+    <View style={dateStyles.wrapper}>
+      <Text style={timeStyles.label}>{label}</Text>
+      <TouchableOpacity
+        testID={testID}
+        style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}
+        onPress={handlePress}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="time-outline" size={20} color={colors.muted} style={dateStyles.icon} />
+        <Text style={[dateStyles.text, !value && dateStyles.placeholder]}>
+          {value || "HH:MM"}
+        </Text>
+      </TouchableOpacity>
+
+      {error ? <Text style={dateStyles.error}>{error}</Text> : null}
+
+      {Platform.OS === "ios" && (
+        <Modal transparent animationType="slide" visible={show}>
+          <View style={dateStyles.overlay}>
+            <View style={dateStyles.sheet}>
+              <View style={dateStyles.toolbar}>
+                <TouchableOpacity onPress={() => setShow(false)}>
+                  <Text style={dateStyles.toolbarCancel}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { onConfirm(formatTime(tempTime)); setShow(false); }}>
+                  <Text style={dateStyles.toolbarConfirm}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={tempTime}
+                mode="time"
+                display="spinner"
+                locale="pt-BR"
+                onChange={(_, date) => { if (date) setTempTime(date); }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
+  );
+}
+
+function parseDisplayDate(display: string): Date {
+  const [day, month, year] = display.split("/").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDateDisplay(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
 
 export default function CriarVagaScreen() {
   const insets = useSafeAreaInsets();
@@ -157,16 +330,14 @@ export default function CriarVagaScreen() {
           <Controller
             control={control}
             name="dataEvento"
-            render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
-                placeholder="dd/mm/aaaa"
-                keyboardType="numeric"
-                icon="calendar-outline"
+            render={({ field: { value }, fieldState }) => (
+              <DatePickerField
+                testID="date-picker-button"
                 value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
                 error={fieldState.error?.message}
-                maxLength={10}
+                onConfirm={(date) =>
+                  setValue("dataEvento", formatDateDisplay(date), { shouldValidate: true })
+                }
               />
             )}
           />
@@ -177,34 +348,26 @@ export default function CriarVagaScreen() {
           <Controller
             control={control}
             name="horarioInicio"
-            render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
+            render={({ field: { value }, fieldState }) => (
+              <TimePickerField
+                testID="time-inicio-button"
                 label="Horário de início"
-                placeholder="HH:MM"
-                keyboardType="numeric"
-                icon="time-outline"
                 value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
                 error={fieldState.error?.message}
-                maxLength={5}
+                onConfirm={(time) => setValue("horarioInicio", time, { shouldValidate: true })}
               />
             )}
           />
           <Controller
             control={control}
             name="horarioFim"
-            render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
+            render={({ field: { value }, fieldState }) => (
+              <TimePickerField
+                testID="time-fim-button"
                 label="Horário de encerramento"
-                placeholder="HH:MM"
-                keyboardType="numeric"
-                icon="time-outline"
                 value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
                 error={fieldState.error?.message}
-                maxLength={5}
+                onConfirm={(time) => setValue("horarioFim", time, { shouldValidate: true })}
               />
             )}
           />
@@ -215,6 +378,7 @@ export default function CriarVagaScreen() {
           <View style={styles.toggleRow}>
             <Text style={styles.toggleLabel}>No seu estabelecimento?</Text>
             <Switch
+              testID="toggle-estabelecimento"
               value={noEstabelecimento}
               onValueChange={setNoEstabelecimento}
               trackColor={{ false: colors.border, true: colors.primary }}
@@ -288,6 +452,70 @@ export default function CriarVagaScreen() {
   );
 }
 
+const dateStyles = StyleSheet.create({
+  wrapper: {
+    gap: spacing["3"],
+  },
+  container: {
+    height: 52,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing["7"],
+  },
+  containerDefault: {
+    borderColor: colors.border,
+  },
+  containerError: {
+    borderColor: colors.error,
+  },
+  icon: {
+    marginRight: spacing["5"],
+  },
+  text: {
+    flex: 1,
+    fontSize: fontSizes.md,
+    color: colors.ink,
+  },
+  placeholder: {
+    color: colors.muted,
+  },
+  error: {
+    fontSize: fontSizes.xs,
+    color: colors.error,
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii["2xl"],
+    borderTopRightRadius: radii["2xl"],
+    paddingBottom: spacing["16"],
+  },
+  toolbar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing["8"],
+    paddingVertical: spacing["7"],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  toolbarCancel: {
+    fontSize: fontSizes.md,
+    color: colors.muted,
+  },
+  toolbarConfirm: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.primary,
+  },
+});
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -355,5 +583,13 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.error,
     marginTop: spacing["3"],
+  },
+});
+
+const timeStyles = StyleSheet.create({
+  label: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
   },
 });

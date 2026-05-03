@@ -1,8 +1,22 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
+import { Platform } from "react-native";
 import CriarVagaScreen from "@/app/(home)/criar-vaga";
 
-// ─── Mocks de navegação ────────────────────────────────────────────────────────
+Object.defineProperty(Platform, "OS", { get: () => "android" });
+
+jest.mock("@react-native-community/datetimepicker", () => {
+  const { View } = require("react-native");
+  return {
+    __esModule: true,
+    default: View,
+    DateTimePickerAndroid: { open: jest.fn() },
+  };
+});
+
+const { DateTimePickerAndroid } = jest.requireMock("@react-native-community/datetimepicker") as {
+  DateTimePickerAndroid: { open: jest.Mock };
+};
 
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), push: jest.fn() },
@@ -10,13 +24,9 @@ jest.mock("expo-router", () => ({
   Stack: { Screen: () => null },
 }));
 
-// ─── Mock safe area ────────────────────────────────────────────────────────────
-
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-
-// ─── Mock LinearGradient ───────────────────────────────────────────────────────
 
 jest.mock("expo-linear-gradient", () => {
   const { View } = require("react-native");
@@ -26,13 +36,9 @@ jest.mock("expo-linear-gradient", () => {
   };
 });
 
-// ─── Mock icons ───────────────────────────────────────────────────────────────
-
 jest.mock("@expo/vector-icons", () => ({
   Ionicons: () => null,
 }));
-
-// ─── Mock auth context ────────────────────────────────────────────────────────
 
 jest.mock("@/context/auth-context", () => ({
   useAuth: jest.fn().mockReturnValue({
@@ -49,8 +55,6 @@ jest.mock("@/context/auth-context", () => ({
   }),
 }));
 
-// ─── Mock vagas service ───────────────────────────────────────────────────────
-
 const mockCreate = jest.fn().mockResolvedValue({ id: "vaga-1", title: "Barista" });
 
 jest.mock("@/services/vagas.service", () => ({
@@ -58,8 +62,6 @@ jest.mock("@/services/vagas.service", () => ({
     create: (...args: unknown[]) => mockCreate(...args),
   },
 }));
-
-// ─── Mock toast ───────────────────────────────────────────────────────────────
 
 const mockToastSuccess = jest.fn();
 const mockToastError = jest.fn();
@@ -71,29 +73,40 @@ jest.mock("@/utils/toast", () => ({
   },
 }));
 
-// ─── Mock react-native-toast-message ──────────────────────────────────────────
-
 jest.mock("react-native-toast-message", () => ({
   __esModule: true,
   default: { show: jest.fn() },
 }));
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+async function selectDate() {
+  await act(async () => {
+    DateTimePickerAndroid.open.mockImplementationOnce(({ onChange }: { onChange: (e: unknown, d?: Date) => void }) => {
+      onChange({}, new Date(2026, 5, 20));
+    });
+    fireEvent.press(screen.getByTestId("date-picker-button"));
+  });
+}
+
+async function selectTime(testID: string, hours: number, minutes: number) {
+  await act(async () => {
+    DateTimePickerAndroid.open.mockImplementationOnce(({ onChange }: { onChange: (e: unknown, d?: Date) => void }) => {
+      const d = new Date(2026, 5, 20, hours, minutes);
+      onChange({}, d);
+    });
+    fireEvent.press(screen.getByTestId(testID));
+  });
+}
 
 async function fillValidForm() {
   fireEvent.press(screen.getByText("Barista"));
-  fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-  fireEvent.changeText(screen.getByPlaceholderText("HH:MM", { selector: undefined }), "18:00");
-  const allHHMM = screen.getAllByPlaceholderText("HH:MM");
-  fireEvent.changeText(allHHMM[0], "18:00");
-  fireEvent.changeText(allHHMM[1], "23:00");
+  await selectDate();
+  await selectTime("time-inicio-button", 18, 0);
+  await selectTime("time-fim-button", 23, 0);
   fireEvent.changeText(
     screen.getByPlaceholderText(/Preciso de 2 garçons/),
     "Evento corporativo no sábado, traje social exigido."
   );
 }
-
-// ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -120,20 +133,49 @@ describe("CriarVagaScreen", () => {
     expect(chip).toBeTruthy();
   });
 
-  it("renderiza campo de data do evento", () => {
+  it("renderiza botão de data do evento", () => {
     render(<CriarVagaScreen />);
-    expect(screen.getByPlaceholderText("dd/mm/aaaa")).toBeTruthy();
+    expect(screen.getByTestId("date-picker-button")).toBeTruthy();
   });
 
-  it("renderiza campos de horário de início e fim", () => {
+  it("botão de data exibe placeholder quando sem valor", () => {
     render(<CriarVagaScreen />);
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    expect(horarioFields).toHaveLength(2);
+    expect(screen.getByText("Selecione a data")).toBeTruthy();
+  });
+
+  it("ao pressionar botão de data, exibe a data selecionada formatada", async () => {
+    render(<CriarVagaScreen />);
+    await selectDate();
+    expect(screen.getByText("20/06/2026")).toBeTruthy();
+  });
+
+  it("renderiza botões de horário de início e fim", () => {
+    render(<CriarVagaScreen />);
+    expect(screen.getByTestId("time-inicio-button")).toBeTruthy();
+    expect(screen.getByTestId("time-fim-button")).toBeTruthy();
+  });
+
+  it("botões de horário exibem placeholder HH:MM quando sem valor", () => {
+    render(<CriarVagaScreen />);
+    const placeholders = screen.getAllByText("HH:MM");
+    expect(placeholders).toHaveLength(2);
+  });
+
+  it("ao selecionar horário de início, exibe o valor formatado", async () => {
+    render(<CriarVagaScreen />);
+    await selectTime("time-inicio-button", 18, 0);
+    expect(screen.getByText("18:00")).toBeTruthy();
+  });
+
+  it("ao selecionar horário de fim, exibe o valor formatado", async () => {
+    render(<CriarVagaScreen />);
+    await selectTime("time-fim-button", 23, 0);
+    expect(screen.getByText("23:00")).toBeTruthy();
   });
 
   it("campo de endereço fica visível quando switch No estabelecimento está OFF", () => {
     render(<CriarVagaScreen />);
-    const switchEl = screen.getByRole("switch");
+    const switchEl = screen.getByTestId("toggle-estabelecimento");
     fireEvent(switchEl, "valueChange", false);
     expect(screen.getByPlaceholderText("Rua, número, bairro...")).toBeTruthy();
   });
@@ -151,37 +193,69 @@ describe("CriarVagaScreen", () => {
     });
   });
 
-  it("submeter com data em formato inválido exibe erro", async () => {
+  it("submeter sem data exibe erro de campo obrigatório", async () => {
     render(<CriarVagaScreen />);
     fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "2026-06-20");
     fireEvent.press(screen.getByText(/Publicar contratação/));
     await waitFor(() => {
-      expect(screen.getByText("Use o formato DD/MM/AAAA")).toBeTruthy();
+      expect(screen.getByText("Data do evento é obrigatória")).toBeTruthy();
     });
   });
 
-  it("submeter com horário em formato inválido exibe erro", async () => {
+  it("submeter sem horário exibe erro de campo obrigatório", async () => {
     render(<CriarVagaScreen />);
     fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    fireEvent.changeText(horarioFields[0], "1800");
+    await selectDate();
     fireEvent.press(screen.getByText(/Publicar contratação/));
     await waitFor(() => {
-      expect(screen.getByText("Use o formato HH:MM")).toBeTruthy();
+      expect(screen.getByText("Horário de início é obrigatório")).toBeTruthy();
+    });
+  });
+
+  it("exibe erro quando horarioFim é igual ao horarioInicio", async () => {
+    render(<CriarVagaScreen />);
+    fireEvent.press(screen.getByText("Barista"));
+    await selectDate();
+    await selectTime("time-inicio-button", 18, 0);
+    await selectTime("time-fim-button", 18, 0);
+    fireEvent.changeText(
+      screen.getByPlaceholderText(/Preciso de 2 garçons/),
+      "Evento corporativo no sábado, traje social exigido."
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByText(/Publicar contratação/));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Horário de encerramento deve ser depois do início")).toBeTruthy();
+    });
+  });
+
+  it("exibe erro quando horarioFim é antes do horarioInicio", async () => {
+    render(<CriarVagaScreen />);
+    fireEvent.press(screen.getByText("Barista"));
+    await selectDate();
+    await selectTime("time-inicio-button", 18, 0);
+    await selectTime("time-fim-button", 17, 0);
+    fireEvent.changeText(
+      screen.getByPlaceholderText(/Preciso de 2 garçons/),
+      "Evento corporativo no sábado, traje social exigido."
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByText(/Publicar contratação/));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Horário de encerramento deve ser depois do início")).toBeTruthy();
     });
   });
 
   it("submeter sem endereço quando switch está OFF exibe erro de campo obrigatório", async () => {
     render(<CriarVagaScreen />);
-    const switchEl = screen.getByRole("switch");
+    const switchEl = screen.getByTestId("toggle-estabelecimento");
     fireEvent(switchEl, "valueChange", false);
     fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    fireEvent.changeText(horarioFields[0], "18:00");
-    fireEvent.changeText(horarioFields[1], "23:00");
+    await selectDate();
+    await selectTime("time-inicio-button", 18, 0);
+    await selectTime("time-fim-button", 23, 0);
     fireEvent.changeText(
       screen.getByPlaceholderText(/Preciso de 2 garçons/),
       "Evento corporativo no sábado, traje social exigido."
@@ -194,15 +268,7 @@ describe("CriarVagaScreen", () => {
 
   it("submeter form válido chama vagasService.create com payload correto", async () => {
     render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    fireEvent.changeText(horarioFields[0], "18:00");
-    fireEvent.changeText(horarioFields[1], "23:00");
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
+    await fillValidForm();
     await act(async () => {
       fireEvent.press(screen.getByText(/Publicar contratação/));
     });
@@ -220,23 +286,10 @@ describe("CriarVagaScreen", () => {
   it("após sucesso chama toast.success e router.back", async () => {
     const routerMock = jest.requireMock("expo-router");
     render(<CriarVagaScreen />);
-
-    fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    fireEvent.changeText(horarioFields[0], "18:00");
-    fireEvent.changeText(horarioFields[1], "23:00");
-
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
-
+    await fillValidForm();
     await act(async () => {
       fireEvent.press(screen.getByText(/Publicar contratação/));
     });
-
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith("Vaga publicada com sucesso!");
       expect(routerMock.router.back).toHaveBeenCalled();
@@ -251,15 +304,7 @@ describe("CriarVagaScreen", () => {
       })
     );
     render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    fireEvent.changeText(horarioFields[0], "18:00");
-    fireEvent.changeText(horarioFields[1], "23:00");
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
+    await fillValidForm();
     act(() => {
       fireEvent.press(screen.getByText(/Publicar contratação/));
     });
@@ -274,15 +319,7 @@ describe("CriarVagaScreen", () => {
   it("erro na API exibe toast.error", async () => {
     mockCreate.mockRejectedValue(new Error("network error"));
     render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    fireEvent.changeText(screen.getByPlaceholderText("dd/mm/aaaa"), "20/06/2026");
-    const horarioFields = screen.getAllByPlaceholderText("HH:MM");
-    fireEvent.changeText(horarioFields[0], "18:00");
-    fireEvent.changeText(horarioFields[1], "23:00");
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
+    await fillValidForm();
     await act(async () => {
       fireEvent.press(screen.getByText(/Publicar contratação/));
     });

@@ -48,4 +48,37 @@ describe("criarVagaSchema", () => {
       criarVagaSchema.validate(validData, { abortEarly: false })
     ).resolves.toBeDefined();
   });
+
+  it("deve retornar erro quando horarioFim é igual ao horarioInicio", async () => {
+    try {
+      await criarVagaSchema.validate(
+        { ...validData, horarioInicio: "18:00", horarioFim: "18:00" },
+        { abortEarly: false }
+      );
+    } catch (err) {
+      const error = err as ValidationError;
+      expect(error.errors).toContain("Horário de encerramento deve ser depois do início");
+    }
+  });
+
+  it("deve retornar erro quando horarioFim é antes do horarioInicio", async () => {
+    try {
+      await criarVagaSchema.validate(
+        { ...validData, horarioInicio: "18:00", horarioFim: "17:00" },
+        { abortEarly: false }
+      );
+    } catch (err) {
+      const error = err as ValidationError;
+      expect(error.errors).toContain("Horário de encerramento deve ser depois do início");
+    }
+  });
+
+  it("deve resolver sem erro quando horarioFim é depois do horarioInicio", async () => {
+    await expect(
+      criarVagaSchema.validate(
+        { ...validData, horarioInicio: "18:00", horarioFim: "23:00" },
+        { abortEarly: false }
+      )
+    ).resolves.toBeDefined();
+  });
 });
