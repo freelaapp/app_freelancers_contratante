@@ -242,6 +242,7 @@ export default function MeusDadosScreen() {
     ? [
         { key: "dados", label: "Meus Dados" },
         { key: "estabelecimento", label: "Estabelecimento" },
+        { key: "endereco", label: "Endereço" },
         { key: "conta", label: "Conta" },
       ]
     : isCasa
@@ -328,6 +329,16 @@ export default function MeusDadosScreen() {
           setInteriorUri(barsData.establishmentInteriorImage ?? null);
           setContactName(barsData.contactName ?? "");
           setContactPhone(barsData.contactPhone ?? "");
+
+          addressForm.reset({
+            cep: barsData.cep ?? "",
+            street: barsData.street ?? "",
+            number: barsData.number ?? "",
+            complement: barsData.complement ?? "",
+            neighborhood: barsData.neighborhood ?? "",
+            city: barsData.city ?? "",
+            uf: barsData.uf ?? "",
+          });
         }
 
         if (isCasa && user?.contractorId) {
@@ -638,7 +649,7 @@ export default function MeusDadosScreen() {
           </SectionCard>
         )}
 
-        {isCasa && activeTab === "endereco" && (
+        {activeTab === "endereco" && (
           <SectionCard iconName="location-outline" title="Endereço">
             <Controller
               control={addressForm.control}
@@ -782,6 +793,23 @@ export default function MeusDadosScreen() {
                 label="Telefone"
                 value={contactPhone || "—"}
                 helperText="Não pode ser alterado após o cadastro."
+              />
+            </View>
+          </SectionCard>
+        )}
+
+        {activeTab === "conta" && (
+          <SectionCard iconName="shield-checkmark-outline" title="Dados de Acesso">
+            <ReadOnlyField
+              label="E-mail"
+              value={email}
+              helperText="Para alterar o e-mail, entre em contato com o suporte."
+            />
+            <View style={styles.fieldGap}>
+              <ReadOnlyField
+                label="Telefone"
+                value={phone || "—"}
+                helperText="Para alterar o telefone, entre em contato com o suporte."
               />
             </View>
           </SectionCard>
