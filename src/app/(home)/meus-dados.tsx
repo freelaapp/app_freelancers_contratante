@@ -1,4 +1,3 @@
-import { CompactHeader } from "@/components/compact-header";
 import { Input } from "@/components/input";
 import { MaskedInput } from "@/components/masked-input";
 import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
@@ -9,6 +8,7 @@ import { CepNotFoundError, fetchAddressByCep } from "@/services/viacep";
 import { toast } from "@/utils/toast";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -192,7 +192,8 @@ function SaveButton({ label, onPress, loading }: SaveButtonProps) {
 
 export default function MeusDadosScreen() {
   const { user } = useAuth();
-  const { bottom } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
+  const router = useRouter();
 
   const isBars = user?.module === "bars-restaurants";
   const isCasa = user?.module === "home-services";
@@ -424,13 +425,20 @@ export default function MeusDadosScreen() {
     );
   }
 
+  const InlineHeader = () => (
+    <View style={[styles.header, { paddingTop: top + 8 }]}>
+      <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="chevron-back" size={24} color={colors.ink} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Perfil do Estabelecimento</Text>
+      <View style={{ width: 24 }} />
+    </View>
+  );
+
   if (isLoadingData) {
     return (
       <View style={styles.root}>
-        <CompactHeader
-          title="Perfil do Estabelecimento"
-          subtitle="Gerencie suas informações"
-        />
+        <InlineHeader />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -443,10 +451,7 @@ export default function MeusDadosScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <CompactHeader
-        title="Perfil do Estabelecimento"
-        subtitle="Gerencie suas informações"
-      />
+      <InlineHeader />
 
       <ScrollView
         style={styles.scrollArea}
@@ -765,21 +770,32 @@ export default function MeusDadosScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing["8"],
+    paddingBottom: spacing["8"],
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  headerTitle: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
   },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: radii["3xl"],
-    borderTopRightRadius: radii["3xl"],
     justifyContent: "center",
     alignItems: "center",
   },
   scrollArea: {
     flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: radii["3xl"],
-    borderTopRightRadius: radii["3xl"],
   },
   scrollContent: {
     paddingHorizontal: spacing["8"],
