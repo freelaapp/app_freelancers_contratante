@@ -143,6 +143,10 @@ async function renderAndWaitLoad() {
   });
 }
 
+function switchTab(label: string) {
+  fireEvent.press(screen.getByText(label));
+}
+
 // ─── Testes ──────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -184,9 +188,10 @@ describe("MeusDadosScreen — renderização após carga", () => {
     expect(screen.getByText("ze@bar.com")).toBeTruthy();
   });
 
-  it("2d. exibe seção Dados do Estabelecimento para módulo bars-restaurants", async () => {
+  it("2d. exibe seção Dados do Estabelecimento ao navegar para aba Estabelecimento", async () => {
     setupBarsUser();
     await renderAndWaitLoad();
+    switchTab("Estabelecimento");
 
     expect(screen.getByText("Dados do Estabelecimento")).toBeTruthy();
   });
@@ -194,6 +199,7 @@ describe("MeusDadosScreen — renderização após carga", () => {
   it("2d2. pré-preenche companyName, corporateReason e segment com dados da API", async () => {
     setupBarsUser();
     await renderAndWaitLoad();
+    switchTab("Estabelecimento");
 
     expect(screen.getByDisplayValue("Zé Boteco LTDA")).toBeTruthy();
     expect(screen.getByDisplayValue("Zé Boteco Comércio LTDA")).toBeTruthy();
@@ -203,6 +209,7 @@ describe("MeusDadosScreen — renderização após carga", () => {
   it("2d3. exibe CNPJ formatado como campo somente-leitura", async () => {
     setupBarsUser();
     await renderAndWaitLoad();
+    switchTab("Estabelecimento");
 
     expect(screen.getByText("12345678000199")).toBeTruthy();
   });
@@ -210,26 +217,28 @@ describe("MeusDadosScreen — renderização após carga", () => {
   it("2d4. exibe contactName e contactPhone no responsável pela operação", async () => {
     setupBarsUser();
     await renderAndWaitLoad();
+    switchTab("Estabelecimento");
 
     expect(screen.getByText("José Silva")).toBeTruthy();
     expect(screen.getByText("11999999999")).toBeTruthy();
   });
 
-  it("2e. NÃO exibe seção de Endereço para módulo bars-restaurants", async () => {
+  it("2e. NÃO exibe conteúdo de Endereço na aba padrão para bars-restaurants", async () => {
     setupBarsUser();
     await renderAndWaitLoad();
 
-    expect(screen.queryByText("Endereço")).toBeNull();
+    expect(screen.queryByPlaceholderText("00000-000")).toBeNull();
   });
 
-  it("2f. exibe seção de Endereço para módulo home-services", async () => {
+  it("2f. exibe seção de Endereço na aba Endereço para módulo home-services", async () => {
     setupCasaUser();
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
-    expect(screen.getByText("Endereço")).toBeTruthy();
+    expect(screen.getByPlaceholderText("00000-000")).toBeTruthy();
   });
 
-  it("2g. NÃO exibe seção Dados do Estabelecimento para módulo home-services", async () => {
+  it("2g. NÃO exibe Dados do Estabelecimento para módulo home-services", async () => {
     setupCasaUser();
     await renderAndWaitLoad();
 
@@ -356,6 +365,7 @@ describe("MeusDadosScreen — busca de CEP", () => {
       uf: "SP",
     });
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
     const cepInput = screen.getByPlaceholderText("00000-000");
     await act(async () => {
@@ -377,6 +387,7 @@ describe("MeusDadosScreen — busca de CEP", () => {
   it("6b. NÃO busca CEP quando há menos de 8 dígitos", async () => {
     setupCasaUser();
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
     const cepInput = screen.getByPlaceholderText("00000-000");
     await act(async () => {
@@ -390,6 +401,7 @@ describe("MeusDadosScreen — busca de CEP", () => {
     setupCasaUser();
     mockFetchAddressByCep.mockRejectedValue(new CepNotFoundError());
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
     const cepInput = screen.getByPlaceholderText("00000-000");
     await act(async () => {
@@ -405,6 +417,7 @@ describe("MeusDadosScreen — busca de CEP", () => {
     setupCasaUser();
     mockFetchAddressByCep.mockRejectedValue(new Error("Network Error"));
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
     const cepInput = screen.getByPlaceholderText("00000-000");
     await act(async () => {
@@ -420,6 +433,7 @@ describe("MeusDadosScreen — busca de CEP", () => {
     setupCasaUser();
     mockFetchAddressByCep.mockRejectedValue(new CepNotFoundError());
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
     const cepInput = screen.getByPlaceholderText("00000-000");
 
@@ -449,6 +463,7 @@ describe("MeusDadosScreen — salvar endereço", () => {
     });
     mockUpdateCasa.mockResolvedValue({});
     await renderAndWaitLoad();
+    switchTab("Endereço");
 
     const cepInput = screen.getByPlaceholderText("00000-000");
     await act(async () => {
@@ -484,6 +499,7 @@ describe("MeusDadosScreen — salvar dados do estabelecimento (bars)", () => {
     setupBarsUser();
     mockUpdateBars.mockResolvedValue({});
     await renderAndWaitLoad();
+    switchTab("Estabelecimento");
 
     const companyNameInput = screen.getByDisplayValue("Zé Boteco LTDA");
     fireEvent.changeText(companyNameInput, "Novo Nome LTDA");

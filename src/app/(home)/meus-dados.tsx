@@ -17,7 +17,6 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -204,6 +203,33 @@ function SaveButton({ label, onPress, loading }: SaveButtonProps) {
   );
 }
 
+type Tab = { key: string; label: string };
+type TabMenuProps = { tabs: Tab[]; active: string; onChange: (key: string) => void };
+
+function TabMenu({ tabs, active, onChange }: TabMenuProps) {
+  return (
+    <View style={styles.tabBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBarContent}>
+        {tabs.map((tab) => {
+          const isActive = tab.key === active;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => onChange(tab.key)}
+              style={[styles.tabItem, isActive && styles.tabItemActive]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function MeusDadosScreen() {
   const { user } = useAuth();
   const { top, bottom } = useSafeAreaInsets();
@@ -212,6 +238,24 @@ export default function MeusDadosScreen() {
   const isBars = user?.module === "bars-restaurants";
   const isCasa = user?.module === "home-services";
 
+  const tabs: Tab[] = isBars
+    ? [
+        { key: "dados", label: "Meus Dados" },
+        { key: "estabelecimento", label: "Estabelecimento" },
+        { key: "conta", label: "Conta" },
+      ]
+    : isCasa
+    ? [
+        { key: "dados", label: "Meus Dados" },
+        { key: "endereco", label: "Endereço" },
+        { key: "conta", label: "Conta" },
+      ]
+    : [
+        { key: "dados", label: "Meus Dados" },
+        { key: "conta", label: "Conta" },
+      ];
+
+  const [activeTab, setActiveTab] = useState("dados");
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [phone, setPhone] = useState("");
@@ -443,6 +487,7 @@ export default function MeusDadosScreen() {
     return (
       <View style={styles.root}>
         <InlineHeader top={top} onBack={() => router.back()} />
+        <TabMenu tabs={tabs} active={activeTab} onChange={setActiveTab} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} testID="loading-indicator" />
         </View>
@@ -453,9 +498,10 @@ export default function MeusDadosScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
     >
       <InlineHeader top={top} onBack={() => router.back()} />
+      <TabMenu tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       <ScrollView
         style={styles.scrollArea}
@@ -466,7 +512,7 @@ export default function MeusDadosScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {isBars && (
+        {isBars && activeTab === "estabelecimento" && (
           <SectionCard iconName="image-outline" title="Fotos do Estabelecimento">
             <View style={styles.photosRow}>
               <PhotoSlot
@@ -485,7 +531,7 @@ export default function MeusDadosScreen() {
           </SectionCard>
         )}
 
-        <SectionCard iconName="person-outline" title="Informações do Usuário">
+        {activeTab === "dados" && <SectionCard iconName="person-outline" title="Informações do Usuário">
           <Controller
             control={userForm.control}
             name="name"
@@ -521,9 +567,9 @@ export default function MeusDadosScreen() {
               loading={savingUser}
             />
           </View>
-        </SectionCard>
+        </SectionCard>}
 
-        {isBars && (
+        {isBars && activeTab === "estabelecimento" && (
           <SectionCard iconName="storefront-outline" title="Dados do Estabelecimento">
             <Controller
               control={establishmentForm.control}
@@ -592,7 +638,7 @@ export default function MeusDadosScreen() {
           </SectionCard>
         )}
 
-        {isCasa && (
+        {isCasa && activeTab === "endereco" && (
           <SectionCard iconName="location-outline" title="Endereço">
             <Controller
               control={addressForm.control}
@@ -723,7 +769,7 @@ export default function MeusDadosScreen() {
           </SectionCard>
         )}
 
-        {isBars && (
+        {isBars && activeTab === "estabelecimento" && (
           <SectionCard iconName="person-circle-outline" title="Responsável pela Operação">
             <ReadOnlyField
               label="Nome do Responsável"
@@ -741,7 +787,7 @@ export default function MeusDadosScreen() {
           </SectionCard>
         )}
 
-        <View style={[styles.card, styles.dangerCard]}>
+        {activeTab === "conta" && <View style={[styles.card, styles.dangerCard]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="warning-outline" size={20} color={colors.error} />
             <Text style={[styles.sectionTitle, styles.dangerTitle]}>
@@ -765,7 +811,7 @@ export default function MeusDadosScreen() {
               Solicitar Exclusão da Conta
             </Text>
           </TouchableOpacity>
-        </View>
+        </View>}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -790,6 +836,33 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.semibold,
     color: colors.ink,
+  },
+  tabBar: {
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  tabBarContent: {
+    paddingHorizontal: spacing["8"],
+    paddingVertical: spacing["4"],
+    gap: spacing["3"],
+  },
+  tabItem: {
+    paddingHorizontal: spacing["6"],
+    paddingVertical: spacing["3"],
+    borderRadius: radii.full,
+    backgroundColor: colors.background,
+  },
+  tabItemActive: {
+    backgroundColor: colors.primary,
+  },
+  tabLabel: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.textSecondary,
+  },
+  tabLabelActive: {
+    color: colors.white,
   },
   loadingContainer: {
     flex: 1,
