@@ -79,29 +79,28 @@ jest.mock("react-native-toast-message", () => ({
 }));
 
 async function selectDate() {
+  DateTimePickerAndroid.open.mockImplementationOnce(({ onChange }: { onChange: (e: unknown, date?: Date) => void }) => {
+    onChange({}, new Date(2026, 5, 20));
+  });
   await act(async () => {
-    DateTimePickerAndroid.open.mockImplementationOnce(({ onChange }: { onChange: (e: unknown, d?: Date) => void }) => {
-      onChange({}, new Date(2026, 5, 20));
-    });
     fireEvent.press(screen.getByTestId("date-picker-button"));
   });
 }
 
-async function selectTime(testID: string, hours: number, minutes: number) {
+async function selectTime(testID: string, hours: number) {
   await act(async () => {
-    DateTimePickerAndroid.open.mockImplementationOnce(({ onChange }: { onChange: (e: unknown, d?: Date) => void }) => {
-      const d = new Date(2026, 5, 20, hours, minutes);
-      onChange({}, d);
-    });
-    fireEvent.press(screen.getByTestId(testID));
+    fireEvent.changeText(
+      screen.getByTestId(testID),
+      String(hours).padStart(2, "0")
+    );
   });
 }
 
 async function fillValidForm() {
   fireEvent.press(screen.getByText("Barista"));
   await selectDate();
-  await selectTime("time-inicio-button", 18, 0);
-  await selectTime("time-fim-button", 23, 0);
+  await selectTime("time-inicio-button", 17);
+  await selectTime("time-fim-button", 23);
   fireEvent.changeText(
     screen.getByPlaceholderText(/Preciso de 2 garçons/),
     "Evento corporativo no sábado, traje social exigido."
@@ -138,12 +137,12 @@ describe("CriarVagaScreen", () => {
     expect(screen.getByTestId("date-picker-button")).toBeTruthy();
   });
 
-  it("botão de data exibe placeholder quando sem valor", () => {
+  it("campo de data exibe placeholder quando sem valor", () => {
     render(<CriarVagaScreen />);
     expect(screen.getByText("Selecione a data")).toBeTruthy();
   });
 
-  it("ao pressionar botão de data, exibe a data selecionada formatada", async () => {
+  it("ao selecionar data via picker, exibe o valor formatado no campo", async () => {
     render(<CriarVagaScreen />);
     await selectDate();
     expect(screen.getByText("20/06/2026")).toBeTruthy();
@@ -155,22 +154,22 @@ describe("CriarVagaScreen", () => {
     expect(screen.getByTestId("time-fim-button")).toBeTruthy();
   });
 
-  it("botões de horário exibem placeholder HH:MM quando sem valor", () => {
+  it("campos de horário exibem placeholder 00 quando sem valor", () => {
     render(<CriarVagaScreen />);
-    const placeholders = screen.getAllByText("HH:MM");
+    const placeholders = screen.getAllByPlaceholderText("00");
     expect(placeholders).toHaveLength(2);
   });
 
-  it("ao selecionar horário de início, exibe o valor formatado", async () => {
+  it("ao digitar horário de início, exibe o valor no campo", async () => {
     render(<CriarVagaScreen />);
-    await selectTime("time-inicio-button", 18, 0);
-    expect(screen.getByText("18:00")).toBeTruthy();
+    await selectTime("time-inicio-button", 18);
+    expect(screen.getByDisplayValue("18")).toBeTruthy();
   });
 
-  it("ao selecionar horário de fim, exibe o valor formatado", async () => {
+  it("ao digitar horário de fim, exibe o valor no campo", async () => {
     render(<CriarVagaScreen />);
-    await selectTime("time-fim-button", 23, 0);
-    expect(screen.getByText("23:00")).toBeTruthy();
+    await selectTime("time-fim-button", 23);
+    expect(screen.getByDisplayValue("23")).toBeTruthy();
   });
 
   it("campo de endereço fica visível quando switch No estabelecimento está OFF", () => {
@@ -216,8 +215,8 @@ describe("CriarVagaScreen", () => {
     render(<CriarVagaScreen />);
     fireEvent.press(screen.getByText("Barista"));
     await selectDate();
-    await selectTime("time-inicio-button", 18, 0);
-    await selectTime("time-fim-button", 18, 0);
+    await selectTime("time-inicio-button", 18);
+    await selectTime("time-fim-button", 18);
     fireEvent.changeText(
       screen.getByPlaceholderText(/Preciso de 2 garçons/),
       "Evento corporativo no sábado, traje social exigido."
@@ -234,8 +233,8 @@ describe("CriarVagaScreen", () => {
     render(<CriarVagaScreen />);
     fireEvent.press(screen.getByText("Barista"));
     await selectDate();
-    await selectTime("time-inicio-button", 18, 0);
-    await selectTime("time-fim-button", 17, 0);
+    await selectTime("time-inicio-button", 18);
+    await selectTime("time-fim-button", 17);
     fireEvent.changeText(
       screen.getByPlaceholderText(/Preciso de 2 garçons/),
       "Evento corporativo no sábado, traje social exigido."
@@ -254,8 +253,8 @@ describe("CriarVagaScreen", () => {
     fireEvent(switchEl, "valueChange", false);
     fireEvent.press(screen.getByText("Barista"));
     await selectDate();
-    await selectTime("time-inicio-button", 18, 0);
-    await selectTime("time-fim-button", 23, 0);
+    await selectTime("time-inicio-button", 18);
+    await selectTime("time-fim-button", 23);
     fireEvent.changeText(
       screen.getByPlaceholderText(/Preciso de 2 garçons/),
       "Evento corporativo no sábado, traje social exigido."
@@ -279,8 +278,9 @@ describe("CriarVagaScreen", () => {
     expect(module).toBe("bars-restaurants");
     expect(payload.serviceType).toBe("Barista");
     expect(payload.date).toBe("2026-06-20");
-    expect(payload.startTime).toBe("2026-06-20T18:00:00.000Z");
+    expect(payload.startTime).toBe("2026-06-20T17:00:00.000Z");
     expect(payload.endTime).toBe("2026-06-20T23:00:00.000Z");
+    expect(payload.contractorId).toBeUndefined();
   });
 
   it("após sucesso chama toast.success e router.back", async () => {
@@ -327,6 +327,51 @@ describe("CriarVagaScreen", () => {
       expect(mockToastError).toHaveBeenCalledWith(
         "Erro ao publicar a vaga. Tente novamente."
       );
+    });
+  });
+
+  it("ao selecionar 1 servico exibe card de tarifa com valor hora e jornada minima", async () => {
+    render(<CriarVagaScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByText("Barista"));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("tarifa-info-card")).toBeTruthy();
+      expect(screen.getByText("R$ 25.00")).toBeTruthy();
+      expect(screen.getByText("6h")).toBeTruthy();
+    });
+  });
+
+  it("ao selecionar 2 servicos o card de tarifa nao e exibido", async () => {
+    render(<CriarVagaScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByText("Barista"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Barman/Bartender"));
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("tarifa-info-card")).toBeNull();
+    });
+  });
+
+  it("submeter com jornada menor que o minimo exibe erro de jornada minima", async () => {
+    render(<CriarVagaScreen />);
+    fireEvent.press(screen.getByText("Barista"));
+    await selectDate();
+    await selectTime("time-inicio-button", 18);
+    await selectTime("time-fim-button", 20);
+    fireEvent.changeText(
+      screen.getByPlaceholderText(/Preciso de 2 garçons/),
+      "Evento corporativo no sábado, traje social exigido."
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByText(/Publicar contratação/));
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText("Jornada minima para este servico e de 6h")
+      ).toBeTruthy();
     });
   });
 });

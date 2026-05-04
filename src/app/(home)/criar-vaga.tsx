@@ -11,14 +11,14 @@ import { useAuth } from "@/context/auth-context";
 import { vagasService } from "@/services/vagas.service";
 import { toast } from "@/utils/toast";
 import { SERVICES } from "@/utils/services";
+import { getTarifa, ModuloTarifas, Tarifa } from "@/utils/tarifas";
 import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
 import { yupResolver } from "@hookform/resolvers/yup";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { router, Stack } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -34,6 +34,38 @@ import { Ionicons } from "@expo/vector-icons";
 const minDate = new Date();
 const maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
+type TarifaInfoProps = {
+  tarifa: Tarifa;
+};
+
+function TarifaInfo({ tarifa }: TarifaInfoProps) {
+  return (
+    <View style={tarifaStyles.card} testID="tarifa-info-card">
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.label}>Valor por hora:</Text>
+        <Text style={tarifaStyles.value}>R$ {tarifa.valorHora.toFixed(2)}</Text>
+      </View>
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.label}>Jornada minima:</Text>
+        <Text style={tarifaStyles.value}>{tarifa.jornadaMinima}h</Text>
+      </View>
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.label}>Total minimo:</Text>
+        <Text style={tarifaStyles.value}>R$ {tarifa.valorTotal.toFixed(2)}</Text>
+      </View>
+      <View style={tarifaStyles.separator} />
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.labelSmall}>Taxa da plataforma (20%):</Text>
+        <Text style={tarifaStyles.valueSmall}>R$ {tarifa.taxaRetencao.toFixed(2)}</Text>
+      </View>
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.labelSmall}>Freelancer recebe:</Text>
+        <Text style={tarifaStyles.valueGreen}>R$ {tarifa.freelancerRecebe.toFixed(2)}</Text>
+      </View>
+    </View>
+  );
+}
+
 type DatePickerFieldProps = {
   value: string;
   error?: string;
@@ -42,25 +74,32 @@ type DatePickerFieldProps = {
 };
 
 function DatePickerField({ value, error, testID, onConfirm }: DatePickerFieldProps) {
-  const [show, setShow] = useState(false);
-  const [tempDate, setTempDate] = useState(new Date());
+  const [showIOS, setShowIOS] = useState(false);
+  const [pickerValue, setPickerValue] = useState<Date>(minDate);
+  const pendingDateRef = useRef<Date>(minDate);
 
-  function handlePress() {
-    const initial = value ? parseDisplayDate(value) : new Date();
+  function openPicker() {
+    const initial = value ? parseDisplayDate(value) : minDate;
+    pendingDateRef.current = initial;
+    setPickerValue(initial);
     if (Platform.OS === "android") {
       DateTimePickerAndroid.open({
-        value: initial,
         mode: "date",
+        value: initial,
         minimumDate: minDate,
         maximumDate: maxDate,
-        onChange: (_, date) => {
+        onChange: (_e, date) => {
           if (date) onConfirm(date);
         },
       });
     } else {
-      setTempDate(initial);
-      setShow(true);
+      setShowIOS((prev) => !prev);
     }
+  }
+
+  function handleConfirm() {
+    onConfirm(pendingDateRef.current);
+    setShowIOS(false);
   }
 
   return (
@@ -68,41 +107,39 @@ function DatePickerField({ value, error, testID, onConfirm }: DatePickerFieldPro
       <TouchableOpacity
         testID={testID}
         style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}
-        onPress={handlePress}
+        onPress={openPicker}
         activeOpacity={0.7}
       >
         <Ionicons name="calendar-outline" size={20} color={colors.muted} style={dateStyles.icon} />
-        <Text style={[dateStyles.text, !value && dateStyles.placeholder]}>
+        <Text style={[dateStyles.input, value ? dateStyles.text : dateStyles.placeholder]}>
           {value || "Selecione a data"}
         </Text>
       </TouchableOpacity>
-
       {error ? <Text style={dateStyles.error}>{error}</Text> : null}
 
-      {Platform.OS === "ios" && (
-        <Modal transparent animationType="slide" visible={show}>
-          <View style={dateStyles.overlay}>
-            <View style={dateStyles.sheet}>
-              <View style={dateStyles.toolbar}>
-                <TouchableOpacity onPress={() => setShow(false)}>
-                  <Text style={dateStyles.toolbarCancel}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { onConfirm(tempDate); setShow(false); }}>
-                  <Text style={dateStyles.toolbarConfirm}>Confirmar</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display="spinner"
-                minimumDate={minDate}
-                maximumDate={maxDate}
-                onChange={(_, date) => { if (date) setTempDate(date); }}
-                locale="pt-BR"
-              />
-            </View>
+      {Platform.OS === "ios" && showIOS && (
+        <View style={dateStyles.inlinePicker}>
+          <DateTimePicker
+            mode="date"
+            display="spinner"
+            value={pickerValue}
+            minimumDate={minDate}
+            maximumDate={maxDate}
+            locale="pt-BR"
+            style={{ height: 216, width: "100%" }}
+            onChange={(_e, date) => {
+              if (date) pendingDateRef.current = date;
+            }}
+          />
+          <View style={dateStyles.toolbar}>
+            <TouchableOpacity onPress={() => setShowIOS(false)}>
+              <Text style={dateStyles.toolbarCancel}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleConfirm}>
+              <Text style={dateStyles.toolbarConfirm}>Confirmar</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
+        </View>
       )}
     </View>
   );
@@ -117,72 +154,61 @@ type TimePickerFieldProps = {
 };
 
 function TimePickerField({ label, value, error, testID, onConfirm }: TimePickerFieldProps) {
-  const [show, setShow] = useState(false);
-  const [tempTime, setTempTime] = useState(new Date());
+  // raw holds only the hour digits the user is typing (max 2 chars)
+  const [raw, setRaw] = useState(() => (value ? value.split(":")[0] : ""));
+  const lastCommitted = useRef(value);
 
-  function handlePress() {
-    if (Platform.OS === "android") {
-      DateTimePickerAndroid.open({
-        value: tempTime,
-        mode: "time",
-        is24Hour: true,
-        onChange: (_, date) => {
-          if (date) {
-            const h = String(date.getHours()).padStart(2, "0");
-            const m = String(date.getMinutes()).padStart(2, "0");
-            onConfirm(`${h}:${m}`);
-          }
-        },
-      });
-    } else {
-      setShow(true);
+  // sync when parent resets the field externally
+  if (lastCommitted.current !== value) {
+    lastCommitted.current = value;
+    const synced = value ? value.split(":")[0] : "";
+    if (synced !== raw) setRaw(synced);
+  }
+
+  function handleChange(text: string) {
+    const digits = text.replace(/\D/g, "").slice(0, 2);
+    const h = parseInt(digits || "0", 10);
+    if (digits.length === 2 && h > 23) return;
+    setRaw(digits);
+    if (digits.length === 2) {
+      const committed = `${digits}:00`;
+      lastCommitted.current = committed;
+      onConfirm(committed);
+    } else if (digits.length === 0) {
+      lastCommitted.current = "";
+      onConfirm("");
     }
   }
 
-  function formatTime(date: Date): string {
-    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  function handleBlur() {
+    if (raw.length === 1) {
+      const padded = raw.padStart(2, "0");
+      const committed = `${padded}:00`;
+      setRaw(padded);
+      lastCommitted.current = committed;
+      onConfirm(committed);
+    }
   }
 
   return (
     <View style={dateStyles.wrapper}>
       <Text style={timeStyles.label}>{label}</Text>
-      <TouchableOpacity
-        testID={testID}
-        style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}
-        onPress={handlePress}
-        activeOpacity={0.7}
-      >
+      <View style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}>
         <Ionicons name="time-outline" size={20} color={colors.muted} style={dateStyles.icon} />
-        <Text style={[dateStyles.text, !value && dateStyles.placeholder]}>
-          {value || "HH:MM"}
-        </Text>
-      </TouchableOpacity>
-
+        <TextInput
+          testID={testID}
+          keyboardType="number-pad"
+          maxLength={2}
+          placeholder="00"
+          placeholderTextColor={colors.muted}
+          value={raw}
+          onChangeText={handleChange}
+          onBlur={handleBlur}
+          style={[dateStyles.input, { flex: 1 }]}
+        />
+        <Text style={[dateStyles.text, { marginRight: spacing["2"] }]}>:00</Text>
+      </View>
       {error ? <Text style={dateStyles.error}>{error}</Text> : null}
-
-      {Platform.OS === "ios" && (
-        <Modal transparent animationType="slide" visible={show}>
-          <View style={dateStyles.overlay}>
-            <View style={dateStyles.sheet}>
-              <View style={dateStyles.toolbar}>
-                <TouchableOpacity onPress={() => setShow(false)}>
-                  <Text style={dateStyles.toolbarCancel}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { onConfirm(formatTime(tempTime)); setShow(false); }}>
-                  <Text style={dateStyles.toolbarConfirm}>Confirmar</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={tempTime}
-                mode="time"
-                display="spinner"
-                locale="pt-BR"
-                onChange={(_, date) => { if (date) setTempTime(date); }}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
     </View>
   );
 }
@@ -220,6 +246,11 @@ export default function CriarVagaScreen() {
 
   const selectedServices = watch("selectedServices");
 
+  const tarifaAtual = useMemo<Tarifa | null>(() => {
+    if (!user?.module || selectedServices?.length !== 1) return null;
+    return getTarifa(user.module as ModuloTarifas, selectedServices[0]) ?? null;
+  }, [user?.module, selectedServices]);
+
   const toggleService = useCallback(
     (id: string) => {
       const current = selectedServices ?? [];
@@ -238,6 +269,18 @@ export default function CriarVagaScreen() {
     }
 
     if (!user?.module || !user?.contractorId) return;
+
+    if (tarifaAtual) {
+      const [inicioh, iniciom] = data.horarioInicio.split(":").map(Number);
+      const [fimh, fimm] = data.horarioFim.split(":").map(Number);
+      const duracaoHoras = (fimh * 60 + fimm - (inicioh * 60 + iniciom)) / 60;
+      if (duracaoHoras < tarifaAtual.jornadaMinima) {
+        setError("horarioFim", {
+          message: `Jornada minima para este servico e de ${tarifaAtual.jornadaMinima}h`,
+        });
+        return;
+      }
+    }
 
     const [day, month, year] = data.dataEvento.split("/");
     const dateISO = `${year}-${month}-${day}`;
@@ -260,10 +303,13 @@ export default function CriarVagaScreen() {
 
     try {
       setLoading(true);
+      console.log("[criar-vaga] enviando payload:", JSON.stringify(payload));
       await vagasService.create(user.module as "home-services" | "bars-restaurants", payload);
+      console.log("[criar-vaga] vaga criada com sucesso");
       toast.success("Vaga publicada com sucesso!");
       router.back();
-    } catch {
+    } catch (err) {
+      console.error("[criar-vaga] erro ao criar:", err);
       toast.error("Erro ao publicar a vaga. Tente novamente.");
     } finally {
       setLoading(false);
@@ -318,6 +364,7 @@ export default function CriarVagaScreen() {
                   );
                 })}
               </View>
+              {tarifaAtual && <TarifaInfo tarifa={tarifaAtual} />}
               {fieldState.error?.message && (
                 <Text style={styles.fieldError}>{fieldState.error.message}</Text>
               )}
@@ -452,6 +499,51 @@ export default function CriarVagaScreen() {
   );
 }
 
+const tarifaStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.background,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing["7"],
+    gap: spacing["4"],
+    marginTop: spacing["4"],
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  label: {
+    fontSize: fontSizes.base,
+    color: colors.ink,
+    fontWeight: fontWeights.medium,
+  },
+  value: {
+    fontSize: fontSizes.base,
+    color: colors.ink,
+    fontWeight: fontWeights.semibold,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing["2"],
+  },
+  labelSmall: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+  },
+  valueSmall: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+  },
+  valueGreen: {
+    fontSize: fontSizes.sm,
+    color: "#16A34A",
+    fontWeight: fontWeights.semibold,
+  },
+});
+
 const dateStyles = StyleSheet.create({
   wrapper: {
     gap: spacing["3"],
@@ -486,24 +578,21 @@ const dateStyles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.error,
   },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  sheet: {
+  inlinePicker: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: radii["2xl"],
-    borderTopRightRadius: radii["2xl"],
-    paddingBottom: spacing["16"],
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing["2"],
+    overflow: "hidden",
   },
   toolbar: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: spacing["8"],
     paddingVertical: spacing["7"],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   toolbarCancel: {
     fontSize: fontSizes.md,

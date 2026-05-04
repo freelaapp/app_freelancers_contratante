@@ -31,5 +31,9 @@ export function mapApiStatusToStep(apiStatus: string): number {
 
 export function formatVagaValue(value?: number): string {
   if (value == null) return "";
-  return `R$${value.toLocaleString("pt-BR")}`;
+  const cents = Math.round(value * 100);
+  const intPart = Math.floor(cents / 100).toString();
+  const decPart = (cents % 100).toString().padStart(2, "0");
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${intFormatted},${decPart}`;
 }

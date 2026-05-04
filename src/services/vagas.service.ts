@@ -15,10 +15,18 @@ export type CreateVagaPayload = {
 
 export const vagasService = {
   async listByContractor(module: ContractorModule, contractorId: string): Promise<VagaApi[]> {
-    const { data } = await api.get<VagaApi[]>(
-      `/v1/${module}/vacancies/contractors/${contractorId}`
-    );
-    return data;
+    try {
+      const { data } = await api.get<VagaApi[]>(
+        `/v1/${module}/vacancies/contractors/${contractorId}`
+      );
+      return Array.isArray(data) ? data : [];
+    } catch {
+      // fallback: endpoint alternativo documentado
+      const { data } = await api.get<VagaApi[]>(
+        `/v1/${module}/contractors/${contractorId}/vacancies`
+      );
+      return Array.isArray(data) ? data : [];
+    }
   },
 
   async getById(module: ContractorModule, id: string): Promise<VagaDetalheApi> {
