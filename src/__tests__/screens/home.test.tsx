@@ -174,15 +174,15 @@ describe("HomeScreen", () => {
       expect(screen.getAllByText("Barman para casamento").length).toBeGreaterThan(0);
     });
 
-    it('exibe seção "Minhas Vagas" quando há vagas', () => {
+    it('exibe seção "Vagas Abertas" quando há vagas com status aguardando', () => {
       setupHomeVagas({ loading: false, vagas: [VAGA_ABERTA_FIXTURE] });
 
       render(<HomeScreen />);
 
-      expect(screen.getByText("Minhas Vagas")).toBeTruthy();
+      expect(screen.getByText("Vagas Abertas")).toBeTruthy();
     });
 
-    it('exibe seção "Próximas Contratações" apenas com vagas confirmadas/aguardando', () => {
+    it('exibe seção "Próximas Contratações" apenas com vagas confirmadas', () => {
       setupHomeVagas({
         loading: false,
         vagas: [VAGA_CONFIRMADA_FIXTURE],
@@ -193,13 +193,23 @@ describe("HomeScreen", () => {
       expect(screen.getByText("Próximas Contratações")).toBeTruthy();
     });
 
-    it('não exibe seção "Próximas Contratações" quando não há vagas com status elegível', () => {
+    it('não exibe seção "Próximas Contratações" para vagas abertas', () => {
+      setupHomeVagas({ loading: false, vagas: [VAGA_ABERTA_FIXTURE] });
+
+      render(<HomeScreen />);
+
+      expect(screen.queryByText("Próximas Contratações")).toBeNull();
+    });
+
+    it('exibe seção "Histórico" para vagas finalizadas', () => {
       const vagaFinalizada = { ...VAGA_ABERTA_FIXTURE, status: "finished" };
       setupHomeVagas({ loading: false, vagas: [vagaFinalizada] });
 
       render(<HomeScreen />);
 
+      expect(screen.getByText("Histórico")).toBeTruthy();
       expect(screen.queryByText("Próximas Contratações")).toBeNull();
+      expect(screen.queryByText("Vagas Abertas")).toBeNull();
     });
 
     it("navega para a tela de detalhes ao pressionar um card de vaga", () => {

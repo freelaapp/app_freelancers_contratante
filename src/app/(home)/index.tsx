@@ -137,9 +137,9 @@ export default function HomeScreen() {
     router.push("/(home)/notificacoes");
   }, [router]);
 
-  const proximas = vagas.filter((v) =>
-    ["confirmado", "aguardando"].includes(mapApiStatus(v.status))
-  );
+  const proximas = vagas.filter((v) => mapApiStatus(v.status) === "confirmado");
+  const abertas = vagas.filter((v) => mapApiStatus(v.status) === "aguardando");
+  const finalizadas = vagas.filter((v) => mapApiStatus(v.status) === "finalizado");
 
   return (
     <View style={styles.container}>
@@ -186,12 +186,22 @@ export default function HomeScreen() {
                 onPressVaga={handleNavigateToVaga}
               />
             )}
-            <VagaSection
-              title="Minhas Vagas"
-              icon="flash"
-              vagas={vagas}
-              onPressVaga={handleNavigateToVaga}
-            />
+            {abertas.length > 0 && (
+              <VagaSection
+                title="Vagas Abertas"
+                icon="flash"
+                vagas={abertas}
+                onPressVaga={handleNavigateToVaga}
+              />
+            )}
+            {finalizadas.length > 0 && (
+              <VagaSection
+                title="Histórico"
+                icon="checkmark-circle-outline"
+                vagas={finalizadas}
+                onPressVaga={handleNavigateToVaga}
+              />
+            )}
           </>
         )}
       </ScrollView>
