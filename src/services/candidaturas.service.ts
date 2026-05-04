@@ -61,10 +61,12 @@ function extractEmbeddedRole(c: RawCandidacy): string | undefined {
   );
 }
 
+type AppModule = "bars-restaurants" | "home-services";
+
 export const candidaturasService = {
-  async listByVacancy(vacancyId: string): Promise<CandidatoApi[]> {
+  async listByVacancy(module: AppModule, vacancyId: string): Promise<CandidatoApi[]> {
     const { data } = await api.get<RawCandidacy[]>(
-      `/v1/bars-restaurants/candidacies/vacancies/${vacancyId}`
+      `/v1/${module}/candidacies/vacancies/${vacancyId}`
     );
     const rawList: unknown[] = Array.isArray(data) ? data : [];
     // API wraps each item in { props: {...} } — unwrap if present
@@ -108,11 +110,11 @@ export const candidaturasService = {
     return enriched;
   },
 
-  async accept(candidacyId: string): Promise<void> {
-    await api.patch("/v1/bars-restaurants/candidacies/accept", { candidacyId });
+  async accept(module: AppModule, candidacyId: string): Promise<void> {
+    await api.patch(`/v1/${module}/candidacies/accept`, { candidacyId });
   },
 
-  async reject(candidacyId: string): Promise<void> {
-    await api.patch("/v1/bars-restaurants/candidacies/reject", { candidacyId });
+  async reject(module: AppModule, candidacyId: string): Promise<void> {
+    await api.patch(`/v1/${module}/candidacies/reject`, { candidacyId });
   },
 };

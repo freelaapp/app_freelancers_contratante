@@ -173,6 +173,44 @@ beforeEach(() => {
 // ─── Testes ───────────────────────────────────────────────────────────────────
 
 describe("VagaDetailScreen", () => {
+  it("0a. listByVacancy é chamado com o módulo do usuário (bars-restaurants)", async () => {
+    await renderAndWait();
+    expect(mockListByVacancy).toHaveBeenCalledWith("bars-restaurants", "vaga-1");
+  });
+
+  it("0b. listByVacancy é chamado com módulo home-services quando usuário pertence a esse módulo", async () => {
+    const { useAuth } = require("@/context/auth-context");
+    useAuth.mockReturnValueOnce({
+      user: { module: "home-services", contractorId: "contractor-2" },
+    });
+    render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+    expect(mockListByVacancy).toHaveBeenCalledWith("home-services", "vaga-1");
+  });
+
+  it("0c. accept é chamado com módulo home-services quando usuário pertence a esse módulo", async () => {
+    const { useAuth } = require("@/context/auth-context");
+    useAuth.mockReturnValue({
+      user: { module: "home-services", contractorId: "contractor-2" },
+    });
+    mockListByVacancy.mockResolvedValue([
+      { id: "c-1", name: "João Silva", status: "pending" },
+    ]);
+    render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("btn-aceitar-c-1"));
+    });
+    expect(mockAccept).toHaveBeenCalledWith("home-services", "c-1");
+    useAuth.mockReturnValue({
+      user: { module: "bars-restaurants", contractorId: "contractor-1" },
+    });
+  });
+
   it("1. exibe loading indicator enquanto carrega dados", () => {
     mockGetById.mockImplementation(() => new Promise(() => {}));
     render(<VagaDetailScreen />);
@@ -297,7 +335,7 @@ describe("VagaDetailScreen", () => {
     });
   });
 
-  it("13. aceitar candidato chama candidaturasService.accept e avança stepAtual para 2", async () => {
+  it("13. aceitar candidato chama candidaturasService.accept com módulo e avança stepAtual para 2", async () => {
     mockListByVacancy.mockResolvedValue([
       { id: "c-1", name: "João Silva", status: "pending" },
     ]);
@@ -305,7 +343,7 @@ describe("VagaDetailScreen", () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId("btn-aceitar-c-1"));
     });
-    expect(mockAccept).toHaveBeenCalledWith("c-1");
+    expect(mockAccept).toHaveBeenCalledWith("bars-restaurants", "c-1");
     await waitFor(() => {
       expect(screen.getByText("Pagar")).toBeTruthy();
     });

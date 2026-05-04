@@ -385,7 +385,7 @@ export default function VagaDetailScreen() {
     try {
       const [vagaData, candidatosData] = await Promise.all([
         vagasService.getById(user.module, id),
-        candidaturasService.listByVacancy(id),
+        candidaturasService.listByVacancy(user.module, id),
       ]);
       setVaga(vagaData);
       setCandidatos(candidatosData);
@@ -416,8 +416,9 @@ export default function VagaDetailScreen() {
   const cta = getCtaConfig(stepAtual, temCandidatoAceito);
 
   async function handleAceitarCandidato(candidatoId: string) {
+    if (!user?.module) return;
     try {
-      await candidaturasService.accept(candidatoId);
+      await candidaturasService.accept(user.module, candidatoId);
       setCandidatos((prev) =>
         prev.map((c) =>
           c.id === candidatoId
@@ -437,8 +438,9 @@ export default function VagaDetailScreen() {
   }
 
   async function handleRecusarCandidato(candidatoId: string) {
+    if (!user?.module) return;
     try {
-      await candidaturasService.reject(candidatoId);
+      await candidaturasService.reject(user.module, candidatoId);
       setCandidatos((prev) =>
         prev.map((c) => (c.id === candidatoId ? { ...c, status: "rejected" as const } : c))
       );
