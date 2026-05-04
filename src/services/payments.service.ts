@@ -17,7 +17,7 @@ export const paymentsService = {
     const { data } = await api.post<PaymentResponse>("/v1/vacancies/jobs/payments", {
       vacancyId,
       value,
-      comment: "",
+      comment: "Pagamento da vaga",
     });
     return data;
   },

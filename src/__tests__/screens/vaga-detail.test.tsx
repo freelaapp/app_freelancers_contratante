@@ -293,7 +293,15 @@ describe("VagaDetailScreen", () => {
     });
   });
 
-  it("15. ao pressionar Pagar (step 2) abre modal PIX com createVacancyPayment", async () => {
+  it("15. ao pressionar Pagar (step 2) abre modal PIX com createVacancyPayment usando payment em centavos", async () => {
+    mockGetById.mockResolvedValue({
+      id: "vaga-1",
+      title: "Garçom para evento",
+      status: "OPEN",
+      date: "20/06/2026",
+      startTime: "18:00",
+      payment: 15185,
+    });
     mockListByVacancy.mockResolvedValue([
       { id: "c-1", name: "João Silva", status: "accepted" },
     ]);
@@ -305,10 +313,33 @@ describe("VagaDetailScreen", () => {
     await act(async () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
-    expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 0);
+    expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 15185);
     await waitFor(() => {
       expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
     });
+  });
+
+  it("15b. ao pressionar Pagar sem campo payment usa chargeAmountInCents como fallback", async () => {
+    mockGetById.mockResolvedValue({
+      id: "vaga-1",
+      title: "Garçom para evento",
+      status: "OPEN",
+      date: "20/06/2026",
+      startTime: "18:00",
+      chargeAmountInCents: 9900,
+    });
+    mockListByVacancy.mockResolvedValue([
+      { id: "c-1", name: "João Silva", status: "accepted" },
+    ]);
+    mockGetByVacancy.mockRejectedValue(new Error("no job"));
+    render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 9900);
   });
 
   it("16. botão Já paguei com status PAID avança para step 3", async () => {
@@ -367,6 +398,18 @@ describe("VagaDetailScreen", () => {
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith("Pagamento ainda não confirmado");
     });
+  });
+
+  it("18. candidato com status ACCEPTED (maiúsculo da API) não exibe botões aceitar/recusar", async () => {
+    mockListByVacancy.mockResolvedValue([
+      { id: "c-1", name: "Thiago Morgado", status: "ACCEPTED" },
+    ]);
+    mockGetByVacancy.mockRejectedValue(new Error("no job"));
+    render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("btn-aceitar-c-1")).toBeNull();
   });
 
   it("14. seção de candidatos permanece visível quando stepAtual >= 2", async () => {

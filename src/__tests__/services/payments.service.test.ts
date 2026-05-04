@@ -34,7 +34,7 @@ describe("paymentsService.createVacancyPayment", () => {
     expect(mockApi.post).toHaveBeenCalledWith("/v1/vacancies/jobs/payments", {
       vacancyId: "vaga-1",
       value: 150,
-      comment: "",
+      comment: "Pagamento da vaga",
     });
   });
 

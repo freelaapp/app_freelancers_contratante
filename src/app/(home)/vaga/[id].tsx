@@ -171,8 +171,9 @@ type CandidatoRowProps = {
 };
 
 function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecusar }: CandidatoRowProps) {
-  const isAceito = item.status === "accepted";
-  const isRecusado = item.status === "rejected";
+  const normalizedStatus = (item.status as string).toLowerCase();
+  const isAceito = normalizedStatus === "accepted";
+  const isRecusado = normalizedStatus === "rejected";
   const displayName = item.name ?? `Freelancer ${index + 1}`;
   const initials = item.name
     ? item.name
@@ -408,9 +409,14 @@ export default function VagaDetailScreen() {
       if (!vaga || !id) return;
       setPaymentLoading(true);
       try {
+        const chargeValue =
+          (vaga as Record<string, unknown>).payment as number | undefined
+          ?? (vaga as Record<string, unknown>).chargeAmountInCents as number | undefined
+          ?? (vaga as Record<string, unknown>).totalAmountInCents as number | undefined
+          ?? 0;
         const payment = await paymentsService.createVacancyPayment(
           id,
-          (vaga.value as number | undefined) ?? 0
+          chargeValue
         );
         setPaymentData(payment);
         setPaymentModalVisible(true);
