@@ -17,7 +17,8 @@ describe("jobsService.getByVacancy", () => {
     const result = await jobsService.getByVacancy("vacancy-1");
 
     expect(mockApi.get).toHaveBeenCalledWith(
-      "/v1/bars-restaurants/jobs/by-vacancy/vacancy-1"
+      "/v1/bars-restaurants/jobs/by-vacancy/vacancy-1",
+      { _suppressToast: true }
     );
     expect(result).toEqual(job);
   });

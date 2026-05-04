@@ -5,6 +5,10 @@ import { toast } from "@/utils/toast";
 declare module "axios" {
   interface InternalAxiosRequestConfig {
     _retry?: boolean;
+    _suppressToast?: boolean;
+  }
+  interface AxiosRequestConfig {
+    _suppressToast?: boolean;
   }
 }
 
@@ -151,7 +155,9 @@ api.interceptors.response.use(
     const fallbackMessage = status ? ERROR_MESSAGES[status] : undefined;
     const message = apiMessage ?? fallbackMessage ?? "Ocorreu um erro inesperado.";
 
-    toast.error(message);
+    if (!error.config?._suppressToast) {
+      toast.error(message);
+    }
 
     return Promise.reject(error);
   }

@@ -43,4 +43,8 @@ export const vagasService = {
     );
     return data;
   },
+
+  async delete(module: ContractorModule, id: string): Promise<void> {
+    await api.delete(`/v1/${module}/vacancies/${id}`);
+  },
 };

@@ -89,10 +89,7 @@ async function selectDate() {
 
 async function selectTime(testID: string, hours: number) {
   await act(async () => {
-    fireEvent.changeText(
-      screen.getByTestId(testID),
-      String(hours).padStart(2, "0")
-    );
+    fireEvent.press(screen.getByTestId(`${testID}-hour-btn-${hours}`));
   });
 }
 
@@ -148,28 +145,36 @@ describe("CriarVagaScreen", () => {
     expect(screen.getByText("20/06/2026")).toBeTruthy();
   });
 
-  it("renderiza botões de horário de início e fim", () => {
+  it("seletores de horário não aparecem sem data selecionada", () => {
     render(<CriarVagaScreen />);
+    expect(screen.queryByTestId("time-inicio-button")).toBeNull();
+    expect(screen.queryByTestId("time-fim-button")).toBeNull();
+  });
+
+  it("seletor de horário de início aparece após selecionar data", async () => {
+    render(<CriarVagaScreen />);
+    await selectDate();
     expect(screen.getByTestId("time-inicio-button")).toBeTruthy();
+  });
+
+  it("seletor de horário de fim não aparece antes de selecionar horário de início", async () => {
+    render(<CriarVagaScreen />);
+    await selectDate();
+    expect(screen.queryByTestId("time-fim-button")).toBeNull();
+  });
+
+  it("ao selecionar horário de início, seletor de fim aparece", async () => {
+    render(<CriarVagaScreen />);
+    await selectDate();
+    await selectTime("time-inicio-button", 17);
     expect(screen.getByTestId("time-fim-button")).toBeTruthy();
   });
 
-  it("campos de horário exibem placeholder 00 quando sem valor", () => {
+  it("ao selecionar horário de início, botão da hora fica marcado", async () => {
     render(<CriarVagaScreen />);
-    const placeholders = screen.getAllByPlaceholderText("00");
-    expect(placeholders).toHaveLength(2);
-  });
-
-  it("ao digitar horário de início, exibe o valor no campo", async () => {
-    render(<CriarVagaScreen />);
-    await selectTime("time-inicio-button", 18);
-    expect(screen.getByDisplayValue("18")).toBeTruthy();
-  });
-
-  it("ao digitar horário de fim, exibe o valor no campo", async () => {
-    render(<CriarVagaScreen />);
-    await selectTime("time-fim-button", 23);
-    expect(screen.getByDisplayValue("23")).toBeTruthy();
+    await selectDate();
+    await selectTime("time-inicio-button", 17);
+    expect(screen.getByTestId("time-inicio-button-hour-btn-17")).toBeTruthy();
   });
 
   it("campo de endereço fica visível quando switch No estabelecimento está OFF", () => {
@@ -211,30 +216,20 @@ describe("CriarVagaScreen", () => {
     });
   });
 
-  it("exibe erro quando horarioFim é igual ao horarioInicio", async () => {
+  it("seletor de fim não exibe horas menores ou iguais à hora de início", async () => {
     render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
     await selectDate();
     await selectTime("time-inicio-button", 18);
-    await selectTime("time-fim-button", 18);
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
-    await act(async () => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(screen.getByText("Horário de encerramento deve ser depois do início")).toBeTruthy();
-    });
+    expect(screen.queryByTestId("time-fim-button-hour-btn-18")).toBeNull();
+    expect(screen.queryByTestId("time-fim-button-hour-btn-17")).toBeNull();
+    expect(screen.getByTestId("time-fim-button-hour-btn-19")).toBeTruthy();
   });
 
-  it("exibe erro quando horarioFim é antes do horarioInicio", async () => {
+  it("submeter sem horário de fim exibe erro de campo obrigatório", async () => {
     render(<CriarVagaScreen />);
     fireEvent.press(screen.getByText("Barista"));
     await selectDate();
     await selectTime("time-inicio-button", 18);
-    await selectTime("time-fim-button", 17);
     fireEvent.changeText(
       screen.getByPlaceholderText(/Preciso de 2 garçons/),
       "Evento corporativo no sábado, traje social exigido."
@@ -243,7 +238,7 @@ describe("CriarVagaScreen", () => {
       fireEvent.press(screen.getByText(/Publicar contratação/));
     });
     await waitFor(() => {
-      expect(screen.getByText("Horário de encerramento deve ser depois do início")).toBeTruthy();
+      expect(screen.getByText("Horário de encerramento é obrigatório")).toBeTruthy();
     });
   });
 
@@ -284,6 +279,7 @@ describe("CriarVagaScreen", () => {
   });
 
   it("após sucesso chama toast.success e router.back", async () => {
+    jest.useFakeTimers();
     const routerMock = jest.requireMock("expo-router");
     render(<CriarVagaScreen />);
     await fillValidForm();
@@ -292,8 +288,12 @@ describe("CriarVagaScreen", () => {
     });
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith("Vaga publicada com sucesso!");
-      expect(routerMock.router.back).toHaveBeenCalled();
     });
+    await act(async () => {
+      jest.runAllTimers();
+    });
+    expect(routerMock.router.back).toHaveBeenCalled();
+    jest.useRealTimers();
   });
 
   it("exibe indicador de loading enquanto a vaga é criada", async () => {

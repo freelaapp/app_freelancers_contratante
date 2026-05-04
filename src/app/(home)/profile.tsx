@@ -251,6 +251,7 @@ export default function ProfileScreen() {
           icon="card-outline"
           title="Financeiro"
           subtitle="Gastos e histórico de pagamentos"
+          onPress={() => router.push("/(home)/financeiro")}
         />
         <MenuItem
           icon="settings-outline"

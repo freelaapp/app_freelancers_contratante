@@ -1,12 +1,14 @@
 import { BookingCard, HomeHeader, PrimaryButton, SectionHeader } from "@/components";
 import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { useNotifications } from "@/context/notifications-context";
 import { useHomeVagas } from "@/hooks/useHomeVagas";
+import { summaryService, ContractorSummary } from "@/services/summary.service";
 import { mapApiStatus, formatVagaValue } from "@/utils/vaga-status-map";
 import type { VagaApi } from "@/types/vagas";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -47,22 +49,30 @@ function resolveValue(item: Record<string, unknown>): number | undefined {
   return item.value as number | undefined;
 }
 
+function formatSaldo(s: ContractorSummary): string {
+  const cents = s.currentMonthSpent ?? s.totalSpent;
+  if (cents == null) return "R$ 0,00";
+  const val = cents / 100;
+  const intPart = Math.floor(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const decPart = Math.round((val % 1) * 100).toString().padStart(2, "0");
+  return `R$ ${intPart},${decPart}`;
+}
+
+function formatAvaliacao(s: ContractorSummary): string {
+  const r = s.averageRating ?? s.rating;
+  if (r == null) return "—";
+  return r.toFixed(1);
+}
+
 // ─── Subcomponentes definidos fora do render principal ────────────────────────
 
-type EmptyStateProps = {
-  onCreatePress: () => void;
-};
-
-function EmptyState({ onCreatePress }: EmptyStateProps) {
+function EmptyState() {
   return (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>Nenhuma vaga cadastrada</Text>
       <Text style={styles.emptySubtext}>
         Crie sua primeira vaga para começar a contratar.
       </Text>
-      <View style={styles.emptyButton}>
-        <PrimaryButton label="Criar minha primeira vaga" onPress={onCreatePress} />
-      </View>
     </View>
   );
 }
@@ -100,12 +110,15 @@ function VagaSection({ title, icon, vagas, onPressVaga }: VagaSectionProps) {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { hasUnread } = useNotifications();
   const router = useRouter();
   const { vagas, loading, refreshing, onRefresh, fetchVagas } = useHomeVagas();
+  const [summary, setSummary] = useState<ContractorSummary>({});
 
   useFocusEffect(
     useCallback(() => {
       fetchVagas();
+      summaryService.getContractorSummary().then(setSummary).catch(() => {});
     }, [fetchVagas])
   );
 
@@ -132,6 +145,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <HomeHeader
         userName={user?.name ?? "Usuário"}
+        saldo={formatSaldo(summary)}
+        vagas={summary.vacanciesCount ?? summary.totalVacancies ?? vagas.length}
+        avaliacao={formatAvaliacao(summary)}
+        hasNotifications={hasUnread}
         onNotifications={handleNotifications}
       />
       <ScrollView
@@ -158,7 +175,7 @@ export default function HomeScreen() {
             style={styles.loader}
           />
         ) : vagas.length === 0 ? (
-          <EmptyState onCreatePress={handleNavigateToCreateVaga} />
+          <EmptyState />
         ) : (
           <>
             {proximas.length > 0 && (
@@ -212,10 +229,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.base,
     color: colors.muted,
     textAlign: "center",
-  },
-  emptyButton: {
-    width: "100%",
-    marginTop: spacing["8"],
   },
   section: {
     marginTop: spacing["12"],

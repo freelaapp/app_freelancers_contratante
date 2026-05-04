@@ -4,7 +4,8 @@ import type { JobApi } from "@/types/vagas";
 export const jobsService = {
   async getByVacancy(vacancyId: string): Promise<JobApi> {
     const { data } = await api.get<JobApi>(
-      `/v1/bars-restaurants/jobs/by-vacancy/${vacancyId}`
+      `/v1/bars-restaurants/jobs/by-vacancy/${vacancyId}`,
+      { _suppressToast: true }
     );
     return data;
   },

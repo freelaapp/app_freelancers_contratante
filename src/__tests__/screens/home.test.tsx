@@ -28,6 +28,16 @@ jest.mock("@/context/auth-context", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+jest.mock("@/context/notifications-context", () => ({
+  useNotifications: () => ({ hasUnread: false }),
+}));
+
+jest.mock("@/services/summary.service", () => ({
+  summaryService: {
+    getContractorSummary: jest.fn().mockResolvedValue({}),
+  },
+}));
+
 // ─── Mock do hook useHomeVagas ────────────────────────────────────────────────
 
 const mockOnRefresh = jest.fn();
@@ -134,22 +144,12 @@ describe("HomeScreen", () => {
       ).toBeTruthy();
     });
 
-    it("exibe botão CTA no estado vazio", () => {
+    it("não exibe botão CTA duplicado no estado vazio", () => {
       setupHomeVagas({ loading: false, vagas: [] });
 
       render(<HomeScreen />);
 
-      expect(screen.getByText(/Criar minha primeira vaga/)).toBeTruthy();
-    });
-
-    it("navega para criar-vaga ao pressionar o CTA do estado vazio", () => {
-      setupHomeVagas({ loading: false, vagas: [] });
-
-      render(<HomeScreen />);
-
-      fireEvent.press(screen.getByText(/Criar minha primeira vaga/));
-
-      expect(mockRouterPush).toHaveBeenCalledWith("/(home)/criar-vaga");
+      expect(screen.queryByText(/Criar minha primeira vaga/)).toBeNull();
     });
   });
 

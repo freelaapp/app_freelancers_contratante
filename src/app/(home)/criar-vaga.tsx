@@ -31,6 +31,58 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+type HourSelectorProps = {
+  label: string;
+  selectedHour: number | null;
+  availableHours: number[];
+  onSelect: (hour: number) => void;
+  error?: string;
+  testID?: string;
+};
+
+function HourSelector({ label, selectedHour, availableHours, onSelect, error, testID }: HourSelectorProps) {
+  const btnPrefix = testID ? `${testID}-hour-btn` : "hour-btn";
+  return (
+    <View style={hourStyles.wrapper} testID={testID}>
+      <Text style={hourStyles.label}>{label}</Text>
+      <View style={hourStyles.grid}>
+        {availableHours.map((h) => {
+          const isSelected = selectedHour === h;
+          return (
+            <TouchableOpacity
+              key={h}
+              testID={`${btnPrefix}-${h}`}
+              style={[hourStyles.btn, isSelected ? hourStyles.btnSelected : hourStyles.btnDefault]}
+              onPress={() => onSelect(h)}
+              activeOpacity={0.7}
+            >
+              <Text style={[hourStyles.btnText, isSelected ? hourStyles.btnTextSelected : hourStyles.btnTextDefault]}>
+                {`${String(h).padStart(2, "0")}h`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {error ? <Text style={hourStyles.error}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function isToday(displayDate: string): boolean {
+  const [dd, mm, yyyy] = displayDate.split("/").map(Number);
+  const today = new Date();
+  return (
+    dd === today.getDate() &&
+    mm === today.getMonth() + 1 &&
+    yyyy === today.getFullYear()
+  );
+}
+
+function getAvailableHours(displayDate: string): number[] {
+  const minHour = isToday(displayDate) ? new Date().getHours() + 1 : 0;
+  return Array.from({ length: 24 }, (_, i) => i).filter((h) => h >= minHour);
+}
+
 const minDate = new Date();
 const maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
@@ -145,73 +197,6 @@ function DatePickerField({ value, error, testID, onConfirm }: DatePickerFieldPro
   );
 }
 
-type TimePickerFieldProps = {
-  label: string;
-  value: string;
-  error?: string;
-  testID?: string;
-  onConfirm: (time: string) => void;
-};
-
-function TimePickerField({ label, value, error, testID, onConfirm }: TimePickerFieldProps) {
-  // raw holds only the hour digits the user is typing (max 2 chars)
-  const [raw, setRaw] = useState(() => (value ? value.split(":")[0] : ""));
-  const lastCommitted = useRef(value);
-
-  // sync when parent resets the field externally
-  if (lastCommitted.current !== value) {
-    lastCommitted.current = value;
-    const synced = value ? value.split(":")[0] : "";
-    if (synced !== raw) setRaw(synced);
-  }
-
-  function handleChange(text: string) {
-    const digits = text.replace(/\D/g, "").slice(0, 2);
-    const h = parseInt(digits || "0", 10);
-    if (digits.length === 2 && h > 23) return;
-    setRaw(digits);
-    if (digits.length === 2) {
-      const committed = `${digits}:00`;
-      lastCommitted.current = committed;
-      onConfirm(committed);
-    } else if (digits.length === 0) {
-      lastCommitted.current = "";
-      onConfirm("");
-    }
-  }
-
-  function handleBlur() {
-    if (raw.length === 1) {
-      const padded = raw.padStart(2, "0");
-      const committed = `${padded}:00`;
-      setRaw(padded);
-      lastCommitted.current = committed;
-      onConfirm(committed);
-    }
-  }
-
-  return (
-    <View style={dateStyles.wrapper}>
-      <Text style={timeStyles.label}>{label}</Text>
-      <View style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}>
-        <Ionicons name="time-outline" size={20} color={colors.muted} style={dateStyles.icon} />
-        <TextInput
-          testID={testID}
-          keyboardType="number-pad"
-          maxLength={2}
-          placeholder="00"
-          placeholderTextColor={colors.muted}
-          value={raw}
-          onChangeText={handleChange}
-          onBlur={handleBlur}
-          style={[dateStyles.input, { flex: 1 }]}
-        />
-        <Text style={[dateStyles.text, { marginRight: spacing["2"] }]}>:00</Text>
-      </View>
-      {error ? <Text style={dateStyles.error}>{error}</Text> : null}
-    </View>
-  );
-}
 
 function parseDisplayDate(display: string): Date {
   const [day, month, year] = display.split("/").map(Number);
@@ -229,7 +214,7 @@ export default function CriarVagaScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
-  const { control, handleSubmit, setValue, watch, setError } = useForm<CriarVagaFormValues>({
+  const { control, handleSubmit, setValue, watch, setError, reset } = useForm<CriarVagaFormValues>({
     resolver: yupResolver(criarVagaSchema),
     defaultValues: {
       selectedServices: [],
@@ -243,8 +228,19 @@ export default function CriarVagaScreen() {
 
   const [noEstabelecimento, setNoEstabelecimento] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const selectedServices = watch("selectedServices");
+  const dataEvento = watch("dataEvento");
+  const horarioInicioVal = watch("horarioInicio");
+
+  const availableHours = useMemo(
+    () => (dataEvento ? getAvailableHours(dataEvento) : []),
+    [dataEvento]
+  );
+
+  const startHour = horarioInicioVal ? parseInt(horarioInicioVal.split(":")[0], 10) : -1;
+  const endAvailableHours = availableHours.filter((h) => h > startHour);
 
   const tarifaAtual = useMemo<Tarifa | null>(() => {
     if (!user?.module || selectedServices?.length !== 1) return null;
@@ -303,14 +299,19 @@ export default function CriarVagaScreen() {
 
     try {
       setLoading(true);
-      console.log("[criar-vaga] enviando payload:", JSON.stringify(payload));
       await vagasService.create(user.module as "home-services" | "bars-restaurants", payload);
-      console.log("[criar-vaga] vaga criada com sucesso");
       toast.success("Vaga publicada com sucesso!");
-      router.back();
-    } catch (err) {
-      console.error("[criar-vaga] erro ao criar:", err);
-      toast.error("Erro ao publicar a vaga. Tente novamente.");
+      reset();
+      setNoEstabelecimento(true);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        router.back();
+      }, 1500);
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao publicar a vaga. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -392,32 +393,42 @@ export default function CriarVagaScreen() {
 
         <CardContainer>
           <CardHeader icon="time-outline" title="Horário do evento" />
-          <Controller
-            control={control}
-            name="horarioInicio"
-            render={({ field: { value }, fieldState }) => (
-              <TimePickerField
-                testID="time-inicio-button"
-                label="Horário de início"
-                value={value}
-                error={fieldState.error?.message}
-                onConfirm={(time) => setValue("horarioInicio", time, { shouldValidate: true })}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="horarioFim"
-            render={({ field: { value }, fieldState }) => (
-              <TimePickerField
-                testID="time-fim-button"
-                label="Horário de encerramento"
-                value={value}
-                error={fieldState.error?.message}
-                onConfirm={(time) => setValue("horarioFim", time, { shouldValidate: true })}
-              />
-            )}
-          />
+          {dataEvento ? (
+            <Controller
+              control={control}
+              name="horarioInicio"
+              render={({ field: { value }, fieldState }) => (
+                <HourSelector
+                  testID="time-inicio-button"
+                  label="Horário de início"
+                  selectedHour={value ? parseInt(value.split(":")[0], 10) : null}
+                  availableHours={availableHours}
+                  onSelect={(h) =>
+                    setValue("horarioInicio", `${String(h).padStart(2, "0")}:00`, { shouldValidate: true })
+                  }
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          ) : null}
+          {horarioInicioVal ? (
+            <Controller
+              control={control}
+              name="horarioFim"
+              render={({ field: { value }, fieldState }) => (
+                <HourSelector
+                  testID="time-fim-button"
+                  label="Horário de encerramento"
+                  selectedHour={value ? parseInt(value.split(":")[0], 10) : null}
+                  availableHours={endAvailableHours}
+                  onSelect={(h) =>
+                    setValue("horarioFim", `${String(h).padStart(2, "0")}:00`, { shouldValidate: true })
+                  }
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          ) : null}
         </CardContainer>
 
         <CardContainer>
@@ -495,6 +506,15 @@ export default function CriarVagaScreen() {
           loading={loading}
         />
       </BottomActionBar>
+
+      {showSuccess && (
+        <View style={styles.successOverlay}>
+          <View style={styles.successCircle}>
+            <Ionicons name="checkmark" size={48} color={colors.primary} />
+          </View>
+          <Text style={styles.successText}>Vaga publicada!</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -610,6 +630,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.dark,
   },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing["8"],
+    zIndex: 100,
+  },
+  successCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successText: {
+    fontSize: fontSizes["2xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.white,
+  },
   scroll: {
     flex: 1,
     backgroundColor: colors.background,
@@ -675,10 +716,47 @@ const styles = StyleSheet.create({
   },
 });
 
-const timeStyles = StyleSheet.create({
+const hourStyles = StyleSheet.create({
+  wrapper: {
+    gap: spacing["3"],
+  },
   label: {
     fontSize: fontSizes.md,
     fontWeight: fontWeights.semibold,
     color: colors.ink,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing["3"],
+  },
+  btn: {
+    width: "22%",
+    paddingVertical: spacing["5"],
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    alignItems: "center",
+  },
+  btnDefault: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  btnSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  btnText: {
+    fontSize: fontSizes.base,
+    fontWeight: fontWeights.medium,
+  },
+  btnTextDefault: {
+    color: colors.ink,
+  },
+  btnTextSelected: {
+    color: colors.white,
+  },
+  error: {
+    fontSize: fontSizes.xs,
+    color: colors.error,
   },
 });

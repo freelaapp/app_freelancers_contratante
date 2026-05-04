@@ -7,6 +7,7 @@ import { StarRating } from "@/components/star-rating";
 import { StatusBadge } from "@/components/status-badge";
 import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { useNotifications } from "@/context/notifications-context";
 import { candidaturasService } from "@/services/candidaturas.service";
 import { feedbacksService } from "@/services/feedbacks.service";
 import { jobsService } from "@/services/jobs.service";
@@ -27,6 +28,34 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+function formatApiDate(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatApiTime(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mn = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mn}`;
+}
+
+function calcDuration(startIso?: string, endIso?: string): string {
+  if (!startIso || !endIso) return "—";
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return "—";
+  const hours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+  return hours > 0 ? `${hours}h` : "—";
+}
 
 const STEPS = [
   "Criar Vaga",
@@ -93,18 +122,20 @@ function InfoCard({ vaga }: InfoCardProps) {
           </View>
           <View>
             <Text style={styles.infoLabel}>Data e Horário</Text>
-            <Text style={styles.infoValueBold}>{vaga.date ?? "—"}</Text>
-            <Text style={styles.infoValueMuted}>{vaga.startTime ?? "—"}</Text>
+            <Text style={styles.infoValueBold}>{formatApiDate(vaga.date as string | undefined)}</Text>
+            <Text style={styles.infoValueMuted}>{formatApiTime(vaga.startTime as string | undefined)}</Text>
           </View>
         </View>
         <Divider orientation="vertical" />
         <View style={styles.infoCol}>
           <View style={styles.infoIconCircle}>
-            <Ionicons name="location-outline" size={18} color={colors.primary} />
+            <Ionicons name="time-outline" size={18} color={colors.primary} />
           </View>
           <View>
-            <Text style={styles.infoLabel}>Local</Text>
-            <Text style={styles.infoValueBold}>{vaga.location ?? "—"}</Text>
+            <Text style={styles.infoLabel}>Início</Text>
+            <Text style={styles.infoValueBold}>{formatApiTime(vaga.startTime as string | undefined)}</Text>
+            <Text style={[styles.infoLabel, { marginTop: spacing["3"] }]}>Término</Text>
+            <Text style={styles.infoValueBold}>{formatApiTime(vaga.endTime as string | undefined)}</Text>
           </View>
         </View>
       </View>
@@ -115,7 +146,7 @@ function InfoCard({ vaga }: InfoCardProps) {
         <View style={styles.infoBottomLeft}>
           <Ionicons name="hourglass-outline" size={15} color={colors.muted} />
           <Text style={styles.infoDuracao}>
-            {vaga.duration ? `Duração: ${vaga.duration}` : "Duração não informada"}
+            {`Duração: ${calcDuration(vaga.startTime as string | undefined, vaga.endTime as string | undefined)}`}
           </Text>
         </View>
         <Text style={styles.infoValor}>
@@ -128,15 +159,17 @@ function InfoCard({ vaga }: InfoCardProps) {
 
 type CandidatoRowProps = {
   item: CandidatoApi;
+  index: number;
   showDivider: boolean;
   onVerPerfil: () => void;
   onAceitar?: () => void;
   onRecusar?: () => void;
 };
 
-function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: CandidatoRowProps) {
+function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecusar }: CandidatoRowProps) {
   const isAceito = item.status === "accepted";
   const isRecusado = item.status === "rejected";
+  const displayName = item.name ?? `Freelancer ${index + 1}`;
   const initials = item.name
     ? item.name
         .split(" ")
@@ -144,15 +177,15 @@ function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: 
         .map((w) => w[0])
         .join("")
         .toUpperCase()
-    : "??";
+    : `${index + 1}`;
 
   return (
     <>
       {showDivider && <Divider />}
       <View style={styles.candidatoRow}>
-        <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} />
+        <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} imageUrl={item.avatarUrl as string | null | undefined} />
         <View style={styles.candidatoInfo}>
-          <Text style={styles.candidatoNome}>{item.name ?? "Candidato"}</Text>
+          <Text style={styles.candidatoNome}>{displayName}</Text>
           <Text style={styles.candidatoCargo}>{item.role ?? ""}</Text>
           {item.rating != null && (
             <View style={styles.candidatoMeta}>
@@ -253,6 +286,7 @@ export default function VagaDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
 
   const [loading, setLoading] = useState(true);
   const [vaga, setVaga] = useState<VagaDetalheApi | null>(null);
@@ -269,6 +303,19 @@ export default function VagaDetailScreen() {
   const [estrelas, setEstrelas] = useState(0);
   const [comentario, setComentario] = useState("");
   const [compareceu, setCompareceu] = useState<boolean | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+
+  function notifyStepChange(newStep: number, vagaTitle: string, vagaId: string) {
+    const stepLabel = STEPS[newStep];
+    if (!stepLabel) return;
+    addNotification({
+      vagaId,
+      vagaTitle,
+      title: `Atualização: ${vagaTitle}`,
+      body: `Status avançou para "${stepLabel}"`,
+    });
+  }
 
   const loadData = useCallback(async () => {
     if (!id || !user?.module) return;
@@ -287,6 +334,10 @@ export default function VagaDetailScreen() {
         setStepAtual(mapApiStatusToStep(jobData.status));
       } catch {
         // job pode não existir ainda para vagas abertas
+        // se há candidato aceito mas step ficou em 0/1, avança para step 2
+        setStepAtual((prev) =>
+          prev <= 1 && candidatosData.some((c) => c.status === "accepted") ? 2 : prev
+        );
       }
     } finally {
       setLoading(false);
@@ -303,23 +354,35 @@ export default function VagaDetailScreen() {
   const cta = getCtaConfig(stepAtual, temCandidatoAceito);
 
   async function handleAceitarCandidato(candidatoId: string) {
-    await candidaturasService.accept(candidatoId);
-    setCandidatos((prev) =>
-      prev.map((c) =>
-        c.id === candidatoId
-          ? { ...c, status: "accepted" as const }
-          : c.status === "accepted"
-          ? { ...c, status: "pending" as const }
-          : c
-      )
-    );
+    try {
+      await candidaturasService.accept(candidatoId);
+      setCandidatos((prev) =>
+        prev.map((c) =>
+          c.id === candidatoId
+            ? { ...c, status: "accepted" as const }
+            : c.status === "accepted"
+            ? { ...c, status: "pending" as const }
+            : c
+        )
+      );
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao aceitar candidato. Tente novamente.");
+    }
   }
 
   async function handleRecusarCandidato(candidatoId: string) {
-    await candidaturasService.reject(candidatoId);
-    setCandidatos((prev) =>
-      prev.map((c) => (c.id === candidatoId ? { ...c, status: "rejected" as const } : c))
-    );
+    try {
+      await candidaturasService.reject(candidatoId);
+      setCandidatos((prev) =>
+        prev.map((c) => (c.id === candidatoId ? { ...c, status: "rejected" as const } : c))
+      );
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao recusar candidato. Tente novamente.");
+    }
   }
 
   async function handleCta() {
@@ -339,7 +402,10 @@ export default function VagaDetailScreen() {
       setAvaliarVisible(true);
       return;
     }
-    if (cta.nextStep !== null) setStepAtual(cta.nextStep);
+    if (cta.nextStep !== null) {
+      setStepAtual(cta.nextStep);
+      notifyStepChange(cta.nextStep, vaga?.title ?? "", id ?? "");
+    }
   }
 
   async function handleConfirmCheckin() {
@@ -350,6 +416,7 @@ export default function VagaDetailScreen() {
       if (confirmed) {
         setCheckinCode(null);
         setStepAtual(4);
+        notifyStepChange(4, vaga?.title ?? "", id ?? "");
       } else {
         toast.error("O freelancer ainda não confirmou o check-in.");
       }
@@ -367,6 +434,7 @@ export default function VagaDetailScreen() {
       await jobsService.confirmCheckout(user.module, job.id);
       setCheckoutCode(null);
       setStepAtual(5);
+      notifyStepChange(5, vaga?.title ?? "", id ?? "");
       toast.success("Check-out confirmado!");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
@@ -395,6 +463,27 @@ export default function VagaDetailScreen() {
     router.back();
   }
 
+  async function handleDeleteVaga() {
+    setDeleteConfirmVisible(true);
+  }
+
+  async function confirmDelete() {
+    if (!user?.module || !id) return;
+    setDeleting(true);
+    try {
+      await vagasService.delete(user.module as "home-services" | "bars-restaurants", id);
+      toast.success("Vaga excluída com sucesso!");
+      setDeleteConfirmVisible(false);
+      router.back();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao excluir a vaga. Tente novamente.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
@@ -420,8 +509,17 @@ export default function VagaDetailScreen() {
         <View style={styles.statusBadge}>
           <Text style={styles.statusBadgeText}>{vaga.status}</Text>
         </View>
-        <Text style={styles.headerTitle}>{vaga.title}</Text>
-        <Text style={styles.headerSubtitle}>{vaga.location ?? ""}</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={[styles.headerTitle, { flex: 1 }]}>{vaga.title}</Text>
+          <TouchableOpacity
+            testID="btn-excluir-vaga"
+            style={styles.deleteTextBtn}
+            onPress={handleDeleteVaga}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.deleteTextBtnLabel}>Excluir vaga</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -458,8 +556,9 @@ export default function VagaDetailScreen() {
             ) : (
               candidatos.map((c, i) => (
                 <CandidatoRow
-                  key={c.id}
+                  key={c.id ?? `candidato-${i}`}
                   item={c}
+                  index={i}
                   showDivider={i > 0}
                   onVerPerfil={() => setSelectedCandidato(c)}
                   onAceitar={() => handleAceitarCandidato(c.id)}
@@ -474,9 +573,11 @@ export default function VagaDetailScreen() {
       </ScrollView>
 
       <BottomActionBar backgroundColor="#F0F0F0" style={styles.bottomBarGap}>
-        <TouchableOpacity style={styles.checkinBtn} activeOpacity={0.85} onPress={handleCta}>
-          <Text style={styles.checkinBtnText}>{cta.label}</Text>
-        </TouchableOpacity>
+        {stepAtual > 1 && (
+          <TouchableOpacity style={styles.checkinBtn} activeOpacity={0.85} onPress={handleCta}>
+            <Text style={styles.checkinBtnText}>{cta.label}</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={() => router.back()}>
           <Text style={styles.cancelBtnText}>Cancelar</Text>
         </TouchableOpacity>
@@ -557,7 +658,11 @@ export default function VagaDetailScreen() {
       <FreelancerProfileSheet
         visible={selectedCandidato !== null}
         onClose={() => setSelectedCandidato(null)}
-        nome={selectedCandidato?.name ?? ""}
+        nome={
+          selectedCandidato
+            ? (selectedCandidato.name ?? `Freelancer ${(candidatos.indexOf(selectedCandidato) + 1) || ""}`)
+            : ""
+        }
         iniciais={
           selectedCandidato?.name
             ? selectedCandidato.name
@@ -566,10 +671,44 @@ export default function VagaDetailScreen() {
                 .map((w) => w[0])
                 .join("")
                 .toUpperCase()
-            : "??"
+            : selectedCandidato
+            ? `${candidatos.indexOf(selectedCandidato) + 1}`
+            : ""
         }
+        avatarUrl={selectedCandidato?.avatarUrl as string | null | undefined}
         avaliacoes={[]}
       />
+
+      <CenteredModal
+        visible={deleteConfirmVisible}
+        onClose={() => setDeleteConfirmVisible(false)}
+        contentStyle={{ gap: spacing["8"] }}
+      >
+        <Text style={{ fontSize: fontSizes.lg, fontWeight: fontWeights.bold, color: colors.ink }}>
+          Excluir vaga
+        </Text>
+        <Text style={{ fontSize: fontSizes.base, color: colors.textSecondary }}>
+          Tem certeza que deseja excluir esta vaga? Esta ação não pode ser desfeita.
+        </Text>
+        <TouchableOpacity
+          style={[styles.checkinConfirmBtn, { backgroundColor: "#DC2626" }, deleting && { opacity: 0.7 }]}
+          onPress={confirmDelete}
+          disabled={deleting}
+          activeOpacity={0.85}
+        >
+          {deleting
+            ? <ActivityIndicator color={colors.white} size="small" />
+            : <Text style={styles.checkinConfirmBtnText}>Excluir</Text>
+          }
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.checkinConfirmBtn, { backgroundColor: colors.border }]}
+          onPress={() => setDeleteConfirmVisible(false)}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.checkinConfirmBtnText, { color: colors.ink }]}>Cancelar</Text>
+        </TouchableOpacity>
+      </CenteredModal>
     </View>
   );
 }
@@ -621,11 +760,23 @@ const styles = StyleSheet.create({
     fontSize: fontSizes["3xl"],
     fontWeight: fontWeights.bold,
     color: colors.dark,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing["2"],
   },
-  headerSubtitle: {
-    fontSize: fontSizes.md,
-    color: colors.inkButton,
+  deleteTextBtn: {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["6"],
+    paddingVertical: spacing["3"],
+    marginLeft: spacing["4"],
+  },
+  deleteTextBtnLabel: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: "#DC2626",
   },
 
   scroll: {

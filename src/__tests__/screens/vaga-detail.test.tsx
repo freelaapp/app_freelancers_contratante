@@ -25,6 +25,10 @@ jest.mock("@/context/auth-context", () => ({
   }),
 }));
 
+jest.mock("@/context/notifications-context", () => ({
+  useNotifications: () => ({ addNotification: jest.fn() }),
+}));
+
 // ─── Mocks de serviços ────────────────────────────────────────────────────────
 
 const mockGetById = jest.fn();
