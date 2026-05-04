@@ -22,6 +22,7 @@ type Props = {
   onClose: () => void;
   nome: string;
   iniciais: string;
+  avatarUrl?: string | null;
   mediaNota?: number;
   jobsRealizados?: number;
   avaliacoes?: Avaliacao[];
@@ -44,6 +45,7 @@ export function FreelancerProfileSheet({
   onClose,
   nome,
   iniciais,
+  avatarUrl,
   mediaNota,
   jobsRealizados,
   avaliacoes = [],
@@ -52,7 +54,7 @@ export function FreelancerProfileSheet({
     <CenteredModal visible={visible} onClose={onClose} contentStyle={{ maxHeight: "80%" }}>
       {/* Avatar + Nome */}
       <View style={styles.profileRow}>
-        <AvatarInitials initials={iniciais} size={56} />
+        <AvatarInitials initials={iniciais} size={56} imageUrl={avatarUrl} />
         <Text style={styles.nome}>{nome}</Text>
       </View>
 

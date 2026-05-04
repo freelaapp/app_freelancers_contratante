@@ -78,6 +78,7 @@ describe("AuthProvider — estado inicial", () => {
 
   it("deve restaurar sessão quando há token salvo", async () => {
     await tokenStore.set("fake-jwt-token", "fake-refresh-token");
+    await tokenStore.setUser({ id: "1", email: "usuario@freela.com", contractorId: "contractor-1" });
 
     let captured: ReturnType<typeof useAuth> | null = null;
     renderWithAuth((ctx) => { captured = ctx; });

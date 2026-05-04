@@ -1,15 +1,26 @@
 import { colors, fontWeights } from "@/constants/theme";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 type Props = {
   initials: string;
   size?: number;
   backgroundColor?: string;
+  imageUrl?: string | null;
 };
 
-export function AvatarInitials({ initials, size = 56, backgroundColor = colors.primary }: Props) {
+export function AvatarInitials({ initials, size = 56, backgroundColor = colors.primary, imageUrl }: Props) {
+  const containerStyle = [styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor }];
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={[containerStyle, { overflow: "hidden" }]}
+        resizeMode="cover"
+      />
+    );
+  }
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor }]}>
+    <View style={containerStyle}>
       <Text style={[styles.text, { fontSize: size * 0.32 }]}>{initials}</Text>
     </View>
   );

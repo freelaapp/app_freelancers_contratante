@@ -12,10 +12,14 @@ export const feedbacksService = {
     await api.post("/v1/bars-restaurants/contractors/jobs/feedbacks", payload);
   },
 
-  async listByContractor(contractorId: string): Promise<FeedbackApi[]> {
-    const { data } = await api.get<FeedbackApi[]>(
-      `/v1/bars-restaurants/contractors/${contractorId}/jobs/feedbacks`
-    );
-    return data;
+  async listByContractor(contractorId: string, module: "bars-restaurants" | "home-services" = "bars-restaurants"): Promise<FeedbackApi[]> {
+    try {
+      const { data } = await api.get<FeedbackApi[]>(
+        `/v1/${module}/contractors/${contractorId}/jobs/feedbacks`
+      );
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
   },
 };

@@ -8,7 +8,8 @@ import { contractorService } from "@/services/contractor.service";
 import { toast } from "@/utils/toast";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -94,6 +95,7 @@ function PhotoSlot({ uri, label, uploading, onPress }: PhotoSlotProps) {
 
 export default function ProfileScreen() {
   const { user, signOut, updateAvatar } = useAuth();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [facadeUri, setFacadeUri] = useState<string | null>(null);
@@ -260,16 +262,19 @@ export default function ProfileScreen() {
           title="Meus Dados"
           subtitle="Dados do estabelecimento"
           showDivider={false}
+          onPress={() => router.push("/(home)/meus-dados")}
         />
         <MenuItem
           icon="card-outline"
           title="Financeiro"
           subtitle="Gastos e histórico de pagamentos"
+          onPress={() => router.push("/(home)/financeiro")}
         />
         <MenuItem
           icon="settings-outline"
           title="Configurações"
           subtitle="Privacidade, notificações e conta"
+          onPress={() => router.push("/(home)/configuracoes")}
         />
         <MenuItem
           icon="help-circle-outline"

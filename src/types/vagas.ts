@@ -19,6 +19,7 @@ export type VagaDetalheApi = VagaApi;
 
 export type CandidatoApi = {
   id: string;
+  providerGlobalId?: string;
   freelancerId?: string;
   name?: string;
   role?: string;

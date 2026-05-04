@@ -18,15 +18,12 @@ import {
 
 function formatFeedbackDate(dateStr?: string): string {
   if (!dateStr) return "";
-  try {
-    return new Date(dateStr).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 type AvaliacaoCardProps = {
@@ -72,7 +69,7 @@ export default function AvaliacoesScreen() {
     if (!user) return;
     const contractorId = user.contractorId ?? user.id;
     feedbacksService
-      .listByContractor(contractorId)
+      .listByContractor(contractorId, user.module as "bars-restaurants" | "home-services")
       .then((feedbacks) => {
         const recv = feedbacks.filter(
           (f) => f.authorType !== "contractor"

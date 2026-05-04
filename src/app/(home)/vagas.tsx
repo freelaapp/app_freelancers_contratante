@@ -17,6 +17,34 @@ import {
   View,
 } from "react-native";
 
+function formatApiDate(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatApiTime(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mn = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mn}`;
+}
+
+function resolveValue(item: Record<string, unknown>): number | undefined {
+  const cents =
+    (item.chargeAmountInCents as number | undefined) ??
+    (item.payment as number | undefined) ??
+    (item.totalAmountInCents as number | undefined);
+  if (cents != null) return cents / 100;
+  return item.value as number | undefined;
+}
+
 const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
   todos: ["confirmado", "aguardando", "finalizado"],
   confirmados: ["confirmado"],
@@ -77,10 +105,10 @@ export default function VagasScreen() {
               <VagaCard
                 key={item.id}
                 title={item.title}
-                location={item.location ?? ""}
-                date={item.date ?? ""}
-                time={item.startTime ?? ""}
-                value={formatVagaValue(item.value as number | undefined)}
+                location={(item.location ?? item.address ?? "") as string}
+                date={formatApiDate(item.date as string | undefined)}
+                time={formatApiTime(item.startTime as string | undefined)}
+                value={formatVagaValue(resolveValue(item as Record<string, unknown>))}
                 status={mapApiStatus(item.status)}
                 onPress={() => router.push(`/(home)/vaga/${item.id}`)}
               />

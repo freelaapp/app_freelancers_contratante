@@ -5,6 +5,10 @@ import { toast } from "@/utils/toast";
 declare module "axios" {
   interface InternalAxiosRequestConfig {
     _retry?: boolean;
+    _suppressToast?: boolean;
+  }
+  interface AxiosRequestConfig {
+    _suppressToast?: boolean;
   }
 }
 
@@ -96,14 +100,6 @@ api.interceptors.response.use(
   async (error: AxiosError<ApiErrorData>) => {
     const status = error.response?.status;
 
-    console.log("[API ERROR]", {
-      url: error.config?.url,
-      method: error.config?.method,
-      status,
-      requestData: error.config?.data,
-      responseData: error.response?.data,
-    });
-
     if (status === 401) {
       const refreshToken = await tokenStore.getRefresh();
 
@@ -151,7 +147,16 @@ api.interceptors.response.use(
     const fallbackMessage = status ? ERROR_MESSAGES[status] : undefined;
     const message = apiMessage ?? fallbackMessage ?? "Ocorreu um erro inesperado.";
 
-    toast.error(message);
+    if (!error.config?._suppressToast) {
+      console.error("[API ERROR]", {
+        url: error.config?.url,
+        method: error.config?.method,
+        status,
+        requestData: error.config?.data,
+        responseData: error.response?.data,
+      });
+      toast.error(message);
+    }
 
     return Promise.reject(error);
   }

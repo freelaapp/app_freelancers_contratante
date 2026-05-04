@@ -7,18 +7,23 @@ import { StarRating } from "@/components/star-rating";
 import { StatusBadge } from "@/components/status-badge";
 import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { useNotifications } from "@/context/notifications-context";
 import { candidaturasService } from "@/services/candidaturas.service";
 import { feedbacksService } from "@/services/feedbacks.service";
 import { jobsService } from "@/services/jobs.service";
+import { paymentsService } from "@/services/payments.service";
+import type { PaymentResponse } from "@/services/payments.service";
 import { vagasService } from "@/services/vagas.service";
 import type { CandidatoApi, JobApi, VagaDetalheApi } from "@/types/vagas";
 import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
 import { toast } from "@/utils/toast";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Clipboard,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +32,34 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+function formatApiDate(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatApiTime(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mn = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mn}`;
+}
+
+function calcDuration(startIso?: string, endIso?: string): string {
+  if (!startIso || !endIso) return "—";
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return "—";
+  const hours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+  return hours > 0 ? `${hours}h` : "—";
+}
 
 const STEPS = [
   "Criar Vaga",
@@ -43,11 +76,12 @@ type CodeModalProps = {
   code: string | null;
   title: string;
   confirmLabel: string;
+  loading?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 };
 
-function CodeModal({ visible, code, title, confirmLabel, onClose, onConfirm }: CodeModalProps) {
+function CodeModal({ visible, code, title, confirmLabel, loading, onClose, onConfirm }: CodeModalProps) {
   return (
     <CenteredModal visible={visible} onClose={onClose} contentStyle={styles.checkinModal}>
       <TouchableOpacity style={styles.checkinClose} onPress={onClose} hitSlop={8}>
@@ -64,11 +98,15 @@ function CodeModal({ visible, code, title, confirmLabel, onClose, onConfirm }: C
         </Text>
       </View>
       <TouchableOpacity
-        style={styles.checkinConfirmBtn}
+        style={[styles.checkinConfirmBtn, loading && { opacity: 0.7 }]}
         activeOpacity={0.85}
         onPress={onConfirm}
+        disabled={loading}
       >
-        <Text style={styles.checkinConfirmBtnText}>{confirmLabel}</Text>
+        {loading
+          ? <ActivityIndicator color={colors.white} size="small" />
+          : <Text style={styles.checkinConfirmBtnText}>{confirmLabel}</Text>
+        }
       </TouchableOpacity>
     </CenteredModal>
   );
@@ -88,18 +126,20 @@ function InfoCard({ vaga }: InfoCardProps) {
           </View>
           <View>
             <Text style={styles.infoLabel}>Data e Horário</Text>
-            <Text style={styles.infoValueBold}>{vaga.date ?? "—"}</Text>
-            <Text style={styles.infoValueMuted}>{vaga.startTime ?? "—"}</Text>
+            <Text style={styles.infoValueBold}>{formatApiDate(vaga.date as string | undefined)}</Text>
+            <Text style={styles.infoValueMuted}>{formatApiTime(vaga.startTime as string | undefined)}</Text>
           </View>
         </View>
         <Divider orientation="vertical" />
         <View style={styles.infoCol}>
           <View style={styles.infoIconCircle}>
-            <Ionicons name="location-outline" size={18} color={colors.primary} />
+            <Ionicons name="time-outline" size={18} color={colors.primary} />
           </View>
           <View>
-            <Text style={styles.infoLabel}>Local</Text>
-            <Text style={styles.infoValueBold}>{vaga.location ?? "—"}</Text>
+            <Text style={styles.infoLabel}>Início</Text>
+            <Text style={styles.infoValueBold}>{formatApiTime(vaga.startTime as string | undefined)}</Text>
+            <Text style={[styles.infoLabel, { marginTop: spacing["3"] }]}>Término</Text>
+            <Text style={styles.infoValueBold}>{formatApiTime(vaga.endTime as string | undefined)}</Text>
           </View>
         </View>
       </View>
@@ -110,7 +150,7 @@ function InfoCard({ vaga }: InfoCardProps) {
         <View style={styles.infoBottomLeft}>
           <Ionicons name="hourglass-outline" size={15} color={colors.muted} />
           <Text style={styles.infoDuracao}>
-            {vaga.duration ? `Duração: ${vaga.duration}` : "Duração não informada"}
+            {`Duração: ${calcDuration(vaga.startTime as string | undefined, vaga.endTime as string | undefined)}`}
           </Text>
         </View>
         <Text style={styles.infoValor}>
@@ -123,15 +163,18 @@ function InfoCard({ vaga }: InfoCardProps) {
 
 type CandidatoRowProps = {
   item: CandidatoApi;
+  index: number;
   showDivider: boolean;
   onVerPerfil: () => void;
   onAceitar?: () => void;
   onRecusar?: () => void;
 };
 
-function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: CandidatoRowProps) {
-  const isAceito = item.status === "accepted";
-  const isRecusado = item.status === "rejected";
+function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecusar }: CandidatoRowProps) {
+  const normalizedStatus = (item.status as string).toLowerCase();
+  const isAceito = normalizedStatus === "accepted";
+  const isRecusado = normalizedStatus === "rejected";
+  const displayName = item.name ?? `Freelancer ${index + 1}`;
   const initials = item.name
     ? item.name
         .split(" ")
@@ -139,15 +182,15 @@ function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: 
         .map((w) => w[0])
         .join("")
         .toUpperCase()
-    : "??";
+    : `${index + 1}`;
 
   return (
     <>
       {showDivider && <Divider />}
       <View style={styles.candidatoRow}>
-        <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} />
+        <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} imageUrl={item.avatarUrl as string | null | undefined} />
         <View style={styles.candidatoInfo}>
-          <Text style={styles.candidatoNome}>{item.name ?? "Candidato"}</Text>
+          <Text style={styles.candidatoNome}>{displayName}</Text>
           <Text style={styles.candidatoCargo}>{item.role ?? ""}</Text>
           {item.rating != null && (
             <View style={styles.candidatoMeta}>
@@ -159,19 +202,27 @@ function CandidatoRow({ item, showDivider, onVerPerfil, onAceitar, onRecusar }: 
               </Text>
             </View>
           )}
+          {isAceito && (
+            <View style={styles.candidatoStatusRow}>
+              <StatusBadge status="aceito" label="Aceito" />
+            </View>
+          )}
+          {isRecusado && (
+            <View style={styles.candidatoStatusRow}>
+              <StatusBadge status="recusado" label="Recusado" />
+            </View>
+          )}
         </View>
         <View style={styles.candidatoActions}>
-          {isAceito && <StatusBadge status="aceito" label="Aceito" />}
-          {isRecusado && <StatusBadge status="recusado" label="Recusado" />}
+          {!isAceito && (
+            <TouchableOpacity testID={`btn-aceitar-${item.id}`} style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
+              <Ionicons name="person-add-outline" size={16} color="#16A34A" />
+            </TouchableOpacity>
+          )}
           {!isAceito && !isRecusado && (
-            <>
-              <TouchableOpacity style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
-                <Ionicons name="person-add-outline" size={16} color="#16A34A" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7} onPress={onRecusar}>
-                <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7} onPress={onRecusar}>
+              <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
+            </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.actionBtnGray} activeOpacity={0.7} onPress={onVerPerfil}>
             <Ionicons name="person-outline" size={16} color={colors.muted} />
@@ -235,7 +286,7 @@ type CtaConfig = { label: string; nextStep: number | null };
 function getCtaConfig(step: number, temCandidatoAceito: boolean): CtaConfig {
   if (step === 1 && !temCandidatoAceito) return { label: "Aceitar Candidato", nextStep: null };
   if (step === 1 && temCandidatoAceito) return { label: "Confirmar Seleção", nextStep: 2 };
-  if (step === 2) return { label: "Confirmar Pagamento", nextStep: 3 };
+  if (step === 2) return { label: "Pagar", nextStep: 3 };
   if (step === 3) return { label: "Check-in", nextStep: 4 };
   if (step === 4) return { label: "Check-out", nextStep: 5 };
   if (step === 5) return { label: "Confirmar Repasse", nextStep: 6 };
@@ -248,6 +299,7 @@ export default function VagaDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
 
   const [loading, setLoading] = useState(true);
   const [vaga, setVaga] = useState<VagaDetalheApi | null>(null);
@@ -258,10 +310,74 @@ export default function VagaDetailScreen() {
   const [selectedCandidato, setSelectedCandidato] = useState<CandidatoApi | null>(null);
   const [checkinCode, setCheckinCode] = useState<string | null>(null);
   const [checkoutCode, setCheckoutCode] = useState<string | null>(null);
+  const [checkinConfirming, setCheckinConfirming] = useState(false);
+  const [checkoutConfirming, setCheckoutConfirming] = useState(false);
   const [avaliarVisible, setAvaliarVisible] = useState(false);
   const [estrelas, setEstrelas] = useState(0);
   const [comentario, setComentario] = useState("");
   const [compareceu, setCompareceu] = useState<boolean | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentData, setPaymentData] = useState<PaymentResponse | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentConfirming, setPaymentConfirming] = useState(false);
+  const [paymentPolling, setPaymentPolling] = useState(false);
+
+  const paymentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const paymentIdRef = useRef<string>("");
+  const paymentCreatedAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!paymentModalVisible) {
+      if (paymentPollRef.current) {
+        clearInterval(paymentPollRef.current);
+        paymentPollRef.current = null;
+      }
+      return;
+    }
+
+    if (paymentPollRef.current) return;
+
+    paymentPollRef.current = setInterval(async () => {
+      try {
+        const updated = await paymentsService.getVacancyPayment(id ?? "", true);
+        if (
+          updated.id === paymentIdRef.current &&
+          updated.status === "COMPLETED" &&
+          Date.now() - paymentCreatedAtRef.current > 8000
+        ) {
+          clearInterval(paymentPollRef.current!);
+          paymentPollRef.current = null;
+          setPaymentModalVisible(false);
+          setStepAtual(3);
+          notifyStepChange(3, vaga?.title ?? "", id ?? "");
+          toast.success("Pagamento confirmado!");
+        }
+      } catch {
+        // ignore errors during polling
+      }
+    }, 5000);
+
+    return () => {
+      if (paymentPollRef.current) {
+        clearInterval(paymentPollRef.current);
+        paymentPollRef.current = null;
+      }
+    };
+  }, [paymentModalVisible, id]);
+
+  function notifyStepChange(newStep: number, vagaTitle: string, vagaId: string) {
+    const stepLabel = STEPS[newStep];
+    if (!stepLabel) return;
+    addNotification({
+      vagaId,
+      vagaTitle,
+      title: `Atualização: ${vagaTitle}`,
+      body: `Status avançou para "${stepLabel}"`,
+    });
+  }
 
   const loadData = useCallback(async () => {
     if (!id || !user?.module) return;
@@ -280,11 +396,15 @@ export default function VagaDetailScreen() {
         setStepAtual(mapApiStatusToStep(jobData.status));
       } catch {
         // job pode não existir ainda para vagas abertas
+        // se há candidato aceito mas step ficou em 0/1, avança para step 2
+        setStepAtual((prev) =>
+          prev <= 1 && candidatosData.some((c) => c.status === "accepted") ? 2 : prev
+        );
       }
     } finally {
       setLoading(false);
     }
-  }, [id, user]);
+  }, [id, user?.module, user?.contractorId]);
 
   useEffect(() => {
     loadData();
@@ -292,30 +412,101 @@ export default function VagaDetailScreen() {
 
   const temCandidatoAceito = candidatos.some((c) => c.status === "accepted");
   const totalAceitos = candidatos.filter((c) => c.status === "accepted").length;
-  const mostrarCandidatos = stepAtual <= 1;
   const cta = getCtaConfig(stepAtual, temCandidatoAceito);
 
   async function handleAceitarCandidato(candidatoId: string) {
-    await candidaturasService.accept(candidatoId);
-    setCandidatos((prev) =>
-      prev.map((c) =>
-        c.id === candidatoId
-          ? { ...c, status: "accepted" as const }
-          : c.status === "accepted"
-          ? { ...c, status: "pending" as const }
-          : c
-      )
-    );
+    try {
+      await candidaturasService.accept(candidatoId);
+      setCandidatos((prev) =>
+        prev.map((c) =>
+          c.id === candidatoId
+            ? { ...c, status: "accepted" as const }
+            : c.status === "accepted"
+            ? { ...c, status: "pending" as const }
+            : c
+        )
+      );
+      setStepAtual(2);
+      notifyStepChange(2, vaga?.title ?? "", id ?? "");
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao aceitar candidato. Tente novamente.");
+    }
   }
 
   async function handleRecusarCandidato(candidatoId: string) {
-    await candidaturasService.reject(candidatoId);
-    setCandidatos((prev) =>
-      prev.map((c) => (c.id === candidatoId ? { ...c, status: "rejected" as const } : c))
-    );
+    try {
+      await candidaturasService.reject(candidatoId);
+      setCandidatos((prev) =>
+        prev.map((c) => (c.id === candidatoId ? { ...c, status: "rejected" as const } : c))
+      );
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao recusar candidato. Tente novamente.");
+    }
   }
 
   async function handleCta() {
+    if (stepAtual === 2) {
+      if (!vaga || !id) return;
+      setPaymentLoading(true);
+      try {
+        const raw = vaga as Record<string, unknown>;
+        const chargeValue =
+          (raw.payment as number | undefined) ??
+          (raw.chargeAmountInCents as number | undefined) ??
+          (raw.totalAmountInCents as number | undefined) ??
+          (raw.hourlyRateInCents as number | undefined) ??
+          (typeof raw.value === "number" && raw.value > 0 ? Math.round(raw.value * 100) : undefined) ??
+          0;
+
+        if (chargeValue === 0) {
+          toast.error("Valor da vaga não encontrado. Recarregue a tela.");
+          setPaymentLoading(false);
+          return;
+        }
+
+        const payment = await paymentsService.createVacancyPayment(
+          id,
+          chargeValue
+        );
+        setPaymentData(payment);
+        setPaymentModalVisible(true);
+        paymentIdRef.current = payment.id;
+        paymentCreatedAtRef.current = Date.now();
+
+        if (!payment.qrCodeImage && !payment.brCode) {
+          setPaymentPolling(true);
+          let attempts = 0;
+          const pollPayment = async (): Promise<void> => {
+            if (attempts >= 5) {
+              setPaymentPolling(false);
+              return;
+            }
+            attempts++;
+            try {
+              const updated = await paymentsService.getVacancyPayment(id ?? "");
+              setPaymentData(updated);
+              if (updated.qrCodeImage || updated.brCode) {
+                setPaymentPolling(false);
+                return;
+              }
+            } catch {
+              // ignore polling errors
+            }
+            setTimeout(pollPayment, 2000);
+          };
+          setTimeout(pollPayment, 2000);
+        }
+      } catch {
+        // api.ts interceptor já exibe o toast de erro
+      } finally {
+        setPaymentLoading(false);
+      }
+      return;
+    }
     if (stepAtual === 3) {
       if (!job) return;
       const code = await jobsService.generateCheckinCode(job.id);
@@ -332,7 +523,70 @@ export default function VagaDetailScreen() {
       setAvaliarVisible(true);
       return;
     }
-    if (cta.nextStep !== null) setStepAtual(cta.nextStep);
+    if (cta.nextStep !== null) {
+      setStepAtual(cta.nextStep);
+      notifyStepChange(cta.nextStep, vaga?.title ?? "", id ?? "");
+    }
+  }
+
+  async function handleConfirmarPagamento() {
+    if (!id) return;
+    setPaymentConfirming(true);
+    try {
+      const payment = await paymentsService.getVacancyPayment(id);
+      if (payment.status !== "PENDING") {
+        setPaymentModalVisible(false);
+        setPaymentData(null);
+        setStepAtual(3);
+        notifyStepChange(3, vaga?.title ?? "", id ?? "");
+      } else {
+        toast.error("Pagamento ainda não confirmado");
+      }
+    } catch {
+      // api.ts interceptor já exibe o toast de erro
+    } finally {
+      setPaymentConfirming(false);
+    }
+  }
+
+  async function handleConfirmCheckin() {
+    if (!job || !user?.module) return;
+    setCheckinConfirming(true);
+    try {
+      const confirmed = await jobsService.getCheckinStatus(user.module, job.id);
+      if (confirmed) {
+        setCheckinCode(null);
+        setStepAtual(4);
+        notifyStepChange(4, vaga?.title ?? "", id ?? "");
+      } else {
+        toast.error("O freelancer ainda não confirmou o check-in.");
+      }
+    } catch {
+      toast.error("Erro ao verificar check-in. Tente novamente.");
+    } finally {
+      setCheckinConfirming(false);
+    }
+  }
+
+  async function handleConfirmCheckout() {
+    if (!job || !user?.module) return;
+    setCheckoutConfirming(true);
+    try {
+      await jobsService.confirmCheckout(user.module, job.id);
+      setCheckoutCode(null);
+      setStepAtual(5);
+      notifyStepChange(5, vaga?.title ?? "", id ?? "");
+      toast.success("Check-out confirmado!");
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        toast.error("O freelancer ainda não confirmou o check-out.");
+      } else {
+        toast.error("Erro ao confirmar check-out. Tente novamente.");
+      }
+    } finally {
+      setCheckoutConfirming(false);
+    }
   }
 
   async function handleConfirmarAvaliacao() {
@@ -348,6 +602,27 @@ export default function VagaDetailScreen() {
     setComentario("");
     setCompareceu(null);
     router.back();
+  }
+
+  async function handleDeleteVaga() {
+    setDeleteConfirmVisible(true);
+  }
+
+  async function confirmDelete() {
+    if (!user?.module || !id) return;
+    setDeleting(true);
+    try {
+      await vagasService.delete(user.module as "home-services" | "bars-restaurants", id);
+      toast.success("Vaga excluída com sucesso!");
+      setDeleteConfirmVisible(false);
+      router.back();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao excluir a vaga. Tente novamente.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -375,8 +650,17 @@ export default function VagaDetailScreen() {
         <View style={styles.statusBadge}>
           <Text style={styles.statusBadgeText}>{vaga.status}</Text>
         </View>
-        <Text style={styles.headerTitle}>{vaga.title}</Text>
-        <Text style={styles.headerSubtitle}>{vaga.location ?? ""}</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={[styles.headerTitle, { flex: 1 }]}>{vaga.title}</Text>
+          <TouchableOpacity
+            testID="btn-excluir-vaga"
+            style={styles.deleteTextBtn}
+            onPress={handleDeleteVaga}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.deleteTextBtnLabel}>Excluir vaga</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -400,8 +684,7 @@ export default function VagaDetailScreen() {
           </View>
         ) : null}
 
-        {mostrarCandidatos && (
-          <View style={styles.card}>
+        <View style={styles.card}>
             <View style={styles.candidatosHeader}>
               <Text style={styles.cardLabel}>Candidatos ({candidatos.length})</Text>
               {totalAceitos > 0 && (
@@ -413,8 +696,9 @@ export default function VagaDetailScreen() {
             ) : (
               candidatos.map((c, i) => (
                 <CandidatoRow
-                  key={c.id}
+                  key={c.id ?? `candidato-${i}`}
                   item={c}
+                  index={i}
                   showDivider={i > 0}
                   onVerPerfil={() => setSelectedCandidato(c)}
                   onAceitar={() => handleAceitarCandidato(c.id)}
@@ -423,15 +707,24 @@ export default function VagaDetailScreen() {
               ))
             )}
           </View>
-        )}
 
         <StatusCard stepAtual={stepAtual} />
       </ScrollView>
 
       <BottomActionBar backgroundColor="#F0F0F0" style={styles.bottomBarGap}>
-        <TouchableOpacity style={styles.checkinBtn} activeOpacity={0.85} onPress={handleCta}>
-          <Text style={styles.checkinBtnText}>{cta.label}</Text>
-        </TouchableOpacity>
+        {stepAtual > 1 && (
+          <TouchableOpacity
+            style={[styles.checkinBtn, paymentLoading && { opacity: 0.7 }]}
+            activeOpacity={0.85}
+            onPress={handleCta}
+            disabled={paymentLoading}
+          >
+            {paymentLoading
+              ? <ActivityIndicator color={colors.dark} size="small" />
+              : <Text style={styles.checkinBtnText}>{cta.label}</Text>
+            }
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={() => router.back()}>
           <Text style={styles.cancelBtnText}>Cancelar</Text>
         </TouchableOpacity>
@@ -442,8 +735,9 @@ export default function VagaDetailScreen() {
         code={checkinCode}
         title="Código de Check-in"
         confirmLabel="Freelancer confirmou o código"
+        loading={checkinConfirming}
         onClose={() => setCheckinCode(null)}
-        onConfirm={() => { setCheckinCode(null); setStepAtual(4); }}
+        onConfirm={handleConfirmCheckin}
       />
 
       <CodeModal
@@ -451,8 +745,9 @@ export default function VagaDetailScreen() {
         code={checkoutCode}
         title="Código de Check-out"
         confirmLabel="Freelancer confirmou o código"
+        loading={checkoutConfirming}
         onClose={() => setCheckoutCode(null)}
-        onConfirm={() => { setCheckoutCode(null); setStepAtual(5); }}
+        onConfirm={handleConfirmCheckout}
       />
 
       <CenteredModal
@@ -507,10 +802,95 @@ export default function VagaDetailScreen() {
         </TouchableOpacity>
       </CenteredModal>
 
+      <CenteredModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        contentStyle={styles.pixModal}
+      >
+        <TouchableOpacity style={styles.checkinClose} onPress={() => setPaymentModalVisible(false)} hitSlop={8}>
+          <Ionicons name="close" size={22} color={colors.ink} />
+        </TouchableOpacity>
+
+        <Text style={styles.pixTitle}>Pagamento via PIX</Text>
+
+        {paymentData && (
+          <Text style={styles.pixValue}>
+            {formatVagaValue(paymentData.value)}
+          </Text>
+        )}
+
+        {paymentPolling ? (
+          <View style={styles.pixPollingWrapper}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.pixPollingText}>Gerando QR Code...</Text>
+          </View>
+        ) : (
+          <>
+            {paymentData?.qrCodeImage ? (
+              <View style={styles.pixQrWrapper}>
+                <Image
+                  source={{ uri: `data:image/png;base64,${paymentData.qrCodeImage}` }}
+                  style={styles.pixQrImage}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : (
+              <View style={styles.pixQrFallback}>
+                <Ionicons name="qr-code-outline" size={60} color={colors.muted} />
+                <Text style={styles.pixFallbackText}>QR Code indisponível</Text>
+                <Text style={styles.pixFallbackText}>Use a chave PIX abaixo para pagar manualmente</Text>
+              </View>
+            )}
+
+            {paymentData?.brCode ? (
+              <View style={styles.pixBrCodeBox}>
+                <Text style={styles.pixOrLabel}>ou</Text>
+                <TextInput
+                  style={styles.pixBrCodeInput}
+                  value={paymentData.brCode}
+                  editable={false}
+                  multiline
+                  selectTextOnFocus
+                />
+                <TouchableOpacity
+                  style={styles.pixCopyBtn}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    Clipboard.setString(paymentData.brCode ?? "");
+                    toast.success("Chave PIX copiada!");
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                  <Text style={styles.pixCopyBtnText}>Copiar chave PIX</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.pixFallbackText}>Chave PIX não disponível. Contate o suporte.</Text>
+            )}
+          </>
+        )}
+
+        <TouchableOpacity
+          style={[styles.checkinConfirmBtn, paymentConfirming && { opacity: 0.7 }]}
+          activeOpacity={0.85}
+          onPress={handleConfirmarPagamento}
+          disabled={paymentConfirming}
+        >
+          {paymentConfirming
+            ? <ActivityIndicator color={colors.white} size="small" />
+            : <Text style={styles.checkinConfirmBtnText}>Já paguei</Text>
+          }
+        </TouchableOpacity>
+      </CenteredModal>
+
       <FreelancerProfileSheet
         visible={selectedCandidato !== null}
         onClose={() => setSelectedCandidato(null)}
-        nome={selectedCandidato?.name ?? ""}
+        nome={
+          selectedCandidato
+            ? (selectedCandidato.name ?? `Freelancer ${(candidatos.indexOf(selectedCandidato) + 1) || ""}`)
+            : ""
+        }
         iniciais={
           selectedCandidato?.name
             ? selectedCandidato.name
@@ -519,10 +899,44 @@ export default function VagaDetailScreen() {
                 .map((w) => w[0])
                 .join("")
                 .toUpperCase()
-            : "??"
+            : selectedCandidato
+            ? `${candidatos.indexOf(selectedCandidato) + 1}`
+            : ""
         }
+        avatarUrl={selectedCandidato?.avatarUrl as string | null | undefined}
         avaliacoes={[]}
       />
+
+      <CenteredModal
+        visible={deleteConfirmVisible}
+        onClose={() => setDeleteConfirmVisible(false)}
+        contentStyle={{ gap: spacing["8"] }}
+      >
+        <Text style={{ fontSize: fontSizes.lg, fontWeight: fontWeights.bold, color: colors.ink }}>
+          Excluir vaga
+        </Text>
+        <Text style={{ fontSize: fontSizes.base, color: colors.textSecondary }}>
+          Tem certeza que deseja excluir esta vaga? Esta ação não pode ser desfeita.
+        </Text>
+        <TouchableOpacity
+          style={[styles.checkinConfirmBtn, { backgroundColor: "#DC2626" }, deleting && { opacity: 0.7 }]}
+          onPress={confirmDelete}
+          disabled={deleting}
+          activeOpacity={0.85}
+        >
+          {deleting
+            ? <ActivityIndicator color={colors.white} size="small" />
+            : <Text style={styles.checkinConfirmBtnText}>Excluir</Text>
+          }
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.checkinConfirmBtn, { backgroundColor: colors.border }]}
+          onPress={() => setDeleteConfirmVisible(false)}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.checkinConfirmBtnText, { color: colors.ink }]}>Cancelar</Text>
+        </TouchableOpacity>
+      </CenteredModal>
     </View>
   );
 }
@@ -574,11 +988,23 @@ const styles = StyleSheet.create({
     fontSize: fontSizes["3xl"],
     fontWeight: fontWeights.bold,
     color: colors.dark,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing["2"],
   },
-  headerSubtitle: {
-    fontSize: fontSizes.md,
-    color: colors.inkButton,
+  deleteTextBtn: {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["6"],
+    paddingVertical: spacing["3"],
+    marginLeft: spacing["4"],
+  },
+  deleteTextBtnLabel: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: "#DC2626",
   },
 
   scroll: {
@@ -706,6 +1132,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing["3"],
     flexShrink: 0,
+  },
+  candidatoStatusRow: {
+    marginTop: spacing["3"],
   },
   actionBtnGreen: {
     width: 32,
@@ -899,5 +1328,86 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.bold,
     color: colors.dark,
+  },
+
+  pixModal: {
+    gap: spacing["8"],
+  },
+  pixTitle: {
+    fontSize: fontSizes["2xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  pixValue: {
+    fontSize: fontSizes["3xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.primary,
+    textAlign: "center",
+  },
+  pixQrWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pixQrImage: {
+    width: 200,
+    height: 200,
+  },
+  pixBrCodeBox: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: radii.lg,
+    padding: spacing["8"],
+    gap: spacing["6"],
+  },
+  pixBrCodeText: {
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+    lineHeight: 18,
+  },
+  pixCopyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["4"],
+    alignSelf: "flex-start",
+  },
+  pixCopyBtnText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.primary,
+  },
+  pixPollingWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing["6"],
+    paddingVertical: spacing["10"],
+  },
+  pixPollingText: {
+    fontSize: fontSizes.md,
+    color: colors.muted,
+  },
+  pixQrFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing["4"],
+    paddingVertical: spacing["8"],
+  },
+  pixFallbackText: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  pixOrLabel: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  pixBrCodeInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: spacing["8"],
+    fontSize: fontSizes.xs,
+    color: colors.ink,
+    backgroundColor: colors.white,
   },
 });

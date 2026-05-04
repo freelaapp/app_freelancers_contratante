@@ -7,37 +7,245 @@ import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
 import { ServiceChip } from "@/components/service-chip";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
-import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
+import { useAuth } from "@/context/auth-context";
+import { vagasService } from "@/services/vagas.service";
+import { toast } from "@/utils/toast";
 import { SERVICES } from "@/utils/services";
+import { getTarifa, ModuloTarifas, Tarifa } from "@/utils/tarifas";
+import { criarVagaSchema, CriarVagaFormValues } from "@/validation/criar-vaga.schema";
 import { yupResolver } from "@hookform/resolvers/yup";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { router, Stack } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+
+type HourSelectorProps = {
+  label: string;
+  selectedHour: number | null;
+  availableHours: number[];
+  onSelect: (hour: number) => void;
+  error?: string;
+  testID?: string;
+};
+
+function HourSelector({ label, selectedHour, availableHours, onSelect, error, testID }: HourSelectorProps) {
+  const btnPrefix = testID ? `${testID}-hour-btn` : "hour-btn";
+  return (
+    <View style={hourStyles.wrapper} testID={testID}>
+      <Text style={hourStyles.label}>{label}</Text>
+      <View style={hourStyles.grid}>
+        {availableHours.map((h) => {
+          const isSelected = selectedHour === h;
+          return (
+            <TouchableOpacity
+              key={h}
+              testID={`${btnPrefix}-${h}`}
+              style={[hourStyles.btn, isSelected ? hourStyles.btnSelected : hourStyles.btnDefault]}
+              onPress={() => onSelect(h)}
+              activeOpacity={0.7}
+            >
+              <Text style={[hourStyles.btnText, isSelected ? hourStyles.btnTextSelected : hourStyles.btnTextDefault]}>
+                {`${String(h).padStart(2, "0")}h`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {error ? <Text style={hourStyles.error}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function isToday(displayDate: string): boolean {
+  const [dd, mm, yyyy] = displayDate.split("/").map(Number);
+  const today = new Date();
+  return (
+    dd === today.getDate() &&
+    mm === today.getMonth() + 1 &&
+    yyyy === today.getFullYear()
+  );
+}
+
+function getAvailableHours(displayDate: string): number[] {
+  const minHour = isToday(displayDate) ? new Date().getHours() + 1 : 0;
+  return Array.from({ length: 24 }, (_, i) => i).filter((h) => h >= minHour);
+}
+
+const minDate = new Date();
+const maxDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+type TarifaInfoProps = {
+  tarifa: Tarifa;
+};
+
+function TarifaInfo({ tarifa }: TarifaInfoProps) {
+  return (
+    <View style={tarifaStyles.card} testID="tarifa-info-card">
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.label}>Valor por hora:</Text>
+        <Text style={tarifaStyles.value}>R$ {tarifa.valorHora.toFixed(2)}</Text>
+      </View>
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.label}>Jornada minima:</Text>
+        <Text style={tarifaStyles.value}>{tarifa.jornadaMinima}h</Text>
+      </View>
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.label}>Total minimo:</Text>
+        <Text style={tarifaStyles.value}>R$ {tarifa.valorTotal.toFixed(2)}</Text>
+      </View>
+      <View style={tarifaStyles.separator} />
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.labelSmall}>Taxa da plataforma (20%):</Text>
+        <Text style={tarifaStyles.valueSmall}>R$ {tarifa.taxaRetencao.toFixed(2)}</Text>
+      </View>
+      <View style={tarifaStyles.row}>
+        <Text style={tarifaStyles.labelSmall}>Freelancer recebe:</Text>
+        <Text style={tarifaStyles.valueGreen}>R$ {tarifa.freelancerRecebe.toFixed(2)}</Text>
+      </View>
+    </View>
+  );
+}
+
+type DatePickerFieldProps = {
+  value: string;
+  error?: string;
+  testID?: string;
+  onConfirm: (date: Date) => void;
+};
+
+function DatePickerField({ value, error, testID, onConfirm }: DatePickerFieldProps) {
+  const [showIOS, setShowIOS] = useState(false);
+  const [pickerValue, setPickerValue] = useState<Date>(minDate);
+  const pendingDateRef = useRef<Date>(minDate);
+
+  function openPicker() {
+    const initial = value ? parseDisplayDate(value) : minDate;
+    pendingDateRef.current = initial;
+    setPickerValue(initial);
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        mode: "date",
+        value: initial,
+        minimumDate: minDate,
+        maximumDate: maxDate,
+        onChange: (_e, date) => {
+          if (date) onConfirm(date);
+        },
+      });
+    } else {
+      setShowIOS((prev) => !prev);
+    }
+  }
+
+  function handleConfirm() {
+    onConfirm(pendingDateRef.current);
+    setShowIOS(false);
+  }
+
+  return (
+    <View style={dateStyles.wrapper}>
+      <TouchableOpacity
+        testID={testID}
+        style={[dateStyles.container, error ? dateStyles.containerError : dateStyles.containerDefault]}
+        onPress={openPicker}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="calendar-outline" size={20} color={colors.muted} style={dateStyles.icon} />
+        <Text style={[dateStyles.input, value ? dateStyles.text : dateStyles.placeholder]}>
+          {value || "Selecione a data"}
+        </Text>
+      </TouchableOpacity>
+      {error ? <Text style={dateStyles.error}>{error}</Text> : null}
+
+      {Platform.OS === "ios" && showIOS && (
+        <View style={dateStyles.inlinePicker}>
+          <DateTimePicker
+            mode="date"
+            display="spinner"
+            value={pickerValue}
+            minimumDate={minDate}
+            maximumDate={maxDate}
+            locale="pt-BR"
+            style={{ height: 216, width: "100%" }}
+            onChange={(_e, date) => {
+              if (date) pendingDateRef.current = date;
+            }}
+          />
+          <View style={dateStyles.toolbar}>
+            <TouchableOpacity onPress={() => setShowIOS(false)}>
+              <Text style={dateStyles.toolbarCancel}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleConfirm}>
+              <Text style={dateStyles.toolbarConfirm}>Confirmar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+
+function parseDisplayDate(display: string): Date {
+  const [day, month, year] = display.split("/").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDateDisplay(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
 
 export default function CriarVagaScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
-  const { control, handleSubmit, setValue, watch } = useForm<CriarVagaFormValues>({
+  const { control, handleSubmit, setValue, watch, setError, reset } = useForm<CriarVagaFormValues>({
     resolver: yupResolver(criarVagaSchema),
     defaultValues: {
       selectedServices: [],
       dataEvento: "",
+      horarioInicio: "",
+      horarioFim: "",
+      endereco: "",
       descricao: "",
     },
   });
 
   const [noEstabelecimento, setNoEstabelecimento] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const selectedServices = watch("selectedServices");
+  const dataEvento = watch("dataEvento");
+  const horarioInicioVal = watch("horarioInicio");
+
+  const availableHours = useMemo(
+    () => (dataEvento ? getAvailableHours(dataEvento) : []),
+    [dataEvento]
+  );
+
+  const startHour = horarioInicioVal ? parseInt(horarioInicioVal.split(":")[0], 10) : -1;
+  const endAvailableHours = availableHours.filter((h) => h > startHour);
+
+  const tarifaAtual = useMemo<Tarifa | null>(() => {
+    if (!user?.module || selectedServices?.length !== 1) return null;
+    return getTarifa(user.module as ModuloTarifas, selectedServices[0]) ?? null;
+  }, [user?.module, selectedServices]);
 
   const toggleService = useCallback(
     (id: string) => {
@@ -50,8 +258,63 @@ export default function CriarVagaScreen() {
     [selectedServices, setValue]
   );
 
-  function handlePublish(data: CriarVagaFormValues) {
-    router.back();
+  async function handlePublish(data: CriarVagaFormValues) {
+    if (!noEstabelecimento && !data.endereco?.trim()) {
+      setError("endereco", { message: "Endereço é obrigatório" });
+      return;
+    }
+
+    if (!user?.module || !user?.contractorId) return;
+
+    if (tarifaAtual) {
+      const [inicioh, iniciom] = data.horarioInicio.split(":").map(Number);
+      const [fimh, fimm] = data.horarioFim.split(":").map(Number);
+      const duracaoHoras = (fimh * 60 + fimm - (inicioh * 60 + iniciom)) / 60;
+      if (duracaoHoras < tarifaAtual.jornadaMinima) {
+        setError("horarioFim", {
+          message: `Jornada minima para este servico e de ${tarifaAtual.jornadaMinima}h`,
+        });
+        return;
+      }
+    }
+
+    const [day, month, year] = data.dataEvento.split("/");
+    const dateISO = `${year}-${month}-${day}`;
+
+    const toISO = (date: string, time: string) => `${date}T${time}:00.000Z`;
+
+    const serviceType = SERVICES.find((s) => s.id === data.selectedServices[0])?.label ?? "";
+
+    const address = noEstabelecimento ? undefined : data.endereco;
+
+    const payload = {
+      title: serviceType,
+      description: data.descricao,
+      serviceType,
+      date: dateISO,
+      startTime: toISO(dateISO, data.horarioInicio),
+      endTime: toISO(dateISO, data.horarioFim),
+      address,
+    };
+
+    try {
+      setLoading(true);
+      await vagasService.create(user.module as "home-services" | "bars-restaurants", payload);
+      toast.success("Vaga publicada com sucesso!");
+      reset();
+      setNoEstabelecimento(true);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        router.back();
+      }, 1500);
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      toast.error(apiMessage ?? "Erro ao publicar a vaga. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -102,6 +365,7 @@ export default function CriarVagaScreen() {
                   );
                 })}
               </View>
+              {tarifaAtual && <TarifaInfo tarifa={tarifaAtual} />}
               {fieldState.error?.message && (
                 <Text style={styles.fieldError}>{fieldState.error.message}</Text>
               )}
@@ -114,19 +378,57 @@ export default function CriarVagaScreen() {
           <Controller
             control={control}
             name="dataEvento"
-            render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
-                placeholder="dd/mm/aaaa"
-                keyboardType="numeric"
-                icon="calendar-outline"
+            render={({ field: { value }, fieldState }) => (
+              <DatePickerField
+                testID="date-picker-button"
                 value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
                 error={fieldState.error?.message}
-                maxLength={10}
+                onConfirm={(date) =>
+                  setValue("dataEvento", formatDateDisplay(date), { shouldValidate: true })
+                }
               />
             )}
           />
+        </CardContainer>
+
+        <CardContainer>
+          <CardHeader icon="time-outline" title="Horário do evento" />
+          {dataEvento ? (
+            <Controller
+              control={control}
+              name="horarioInicio"
+              render={({ field: { value }, fieldState }) => (
+                <HourSelector
+                  testID="time-inicio-button"
+                  label="Horário de início"
+                  selectedHour={value ? parseInt(value.split(":")[0], 10) : null}
+                  availableHours={availableHours}
+                  onSelect={(h) =>
+                    setValue("horarioInicio", `${String(h).padStart(2, "0")}:00`, { shouldValidate: true })
+                  }
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          ) : null}
+          {horarioInicioVal ? (
+            <Controller
+              control={control}
+              name="horarioFim"
+              render={({ field: { value }, fieldState }) => (
+                <HourSelector
+                  testID="time-fim-button"
+                  label="Horário de encerramento"
+                  selectedHour={value ? parseInt(value.split(":")[0], 10) : null}
+                  availableHours={endAvailableHours}
+                  onSelect={(h) =>
+                    setValue("horarioFim", `${String(h).padStart(2, "0")}:00`, { shouldValidate: true })
+                  }
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          ) : null}
         </CardContainer>
 
         <CardContainer>
@@ -134,12 +436,29 @@ export default function CriarVagaScreen() {
           <View style={styles.toggleRow}>
             <Text style={styles.toggleLabel}>No seu estabelecimento?</Text>
             <Switch
+              testID="toggle-estabelecimento"
               value={noEstabelecimento}
               onValueChange={setNoEstabelecimento}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.white}
             />
           </View>
+          {!noEstabelecimento && (
+            <Controller
+              control={control}
+              name="endereco"
+              render={({ field: { onChange, onBlur, value }, fieldState }) => (
+                <Input
+                  placeholder="Rua, número, bairro..."
+                  icon="location-outline"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          )}
         </CardContainer>
 
         <CardContainer>
@@ -181,16 +500,156 @@ export default function CriarVagaScreen() {
       </ScrollView>
 
       <BottomActionBar backgroundColor={colors.white} showTopBorder>
-        <PrimaryButton label="Publicar contratação →" onPress={handleSubmit(handlePublish)} />
+        <PrimaryButton
+          label="Publicar contratação →"
+          onPress={handleSubmit(handlePublish)}
+          loading={loading}
+        />
       </BottomActionBar>
+
+      {showSuccess && (
+        <View style={styles.successOverlay}>
+          <View style={styles.successCircle}>
+            <Ionicons name="checkmark" size={48} color={colors.primary} />
+          </View>
+          <Text style={styles.successText}>Vaga publicada!</Text>
+        </View>
+      )}
     </View>
   );
 }
+
+const tarifaStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.background,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing["7"],
+    gap: spacing["4"],
+    marginTop: spacing["4"],
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  label: {
+    fontSize: fontSizes.base,
+    color: colors.ink,
+    fontWeight: fontWeights.medium,
+  },
+  value: {
+    fontSize: fontSizes.base,
+    color: colors.ink,
+    fontWeight: fontWeights.semibold,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing["2"],
+  },
+  labelSmall: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+  },
+  valueSmall: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+  },
+  valueGreen: {
+    fontSize: fontSizes.sm,
+    color: "#16A34A",
+    fontWeight: fontWeights.semibold,
+  },
+});
+
+const dateStyles = StyleSheet.create({
+  wrapper: {
+    gap: spacing["3"],
+  },
+  container: {
+    height: 52,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing["7"],
+  },
+  containerDefault: {
+    borderColor: colors.border,
+  },
+  containerError: {
+    borderColor: colors.error,
+  },
+  icon: {
+    marginRight: spacing["5"],
+  },
+  text: {
+    flex: 1,
+    fontSize: fontSizes.md,
+    color: colors.ink,
+  },
+  placeholder: {
+    color: colors.muted,
+  },
+  error: {
+    fontSize: fontSizes.xs,
+    color: colors.error,
+  },
+  inlinePicker: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing["2"],
+    overflow: "hidden",
+  },
+  toolbar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing["8"],
+    paddingVertical: spacing["7"],
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  toolbarCancel: {
+    fontSize: fontSizes.md,
+    color: colors.muted,
+  },
+  toolbarConfirm: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.primary,
+  },
+});
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.dark,
+  },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing["8"],
+    zIndex: 100,
+  },
+  successCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successText: {
+    fontSize: fontSizes["2xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.white,
   },
   scroll: {
     flex: 1,
@@ -254,5 +713,50 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.error,
     marginTop: spacing["3"],
+  },
+});
+
+const hourStyles = StyleSheet.create({
+  wrapper: {
+    gap: spacing["3"],
+  },
+  label: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing["3"],
+  },
+  btn: {
+    width: "22%",
+    paddingVertical: spacing["5"],
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    alignItems: "center",
+  },
+  btnDefault: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  btnSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  btnText: {
+    fontSize: fontSizes.base,
+    fontWeight: fontWeights.medium,
+  },
+  btnTextDefault: {
+    color: colors.ink,
+  },
+  btnTextSelected: {
+    color: colors.white,
+  },
+  error: {
+    fontSize: fontSizes.xs,
+    color: colors.error,
   },
 });

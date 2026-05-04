@@ -112,6 +112,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing["7"],
+    shadowColor: colors.primary,
+    shadowOpacity: 0,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
   },
   containerDefault: {
     borderColor: colors.border,
@@ -121,11 +125,7 @@ const styles = StyleSheet.create({
   },
   containerFocused: {
     borderColor: colors.primary,
-    shadowColor: colors.primary,
     shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 2,
   },
   icon: {
     marginRight: spacing["5"],

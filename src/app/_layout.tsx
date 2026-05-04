@@ -1,5 +1,6 @@
 import { AppSplash } from "@/components/app-splash";
 import { AuthProvider, useAuth } from "@/context/auth-context";
+import { NotificationsProvider } from "@/context/notifications-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
@@ -56,7 +57,9 @@ export default function RootLayout() {
   return (
     <>
       <AuthProvider>
-        <RootNavigator />
+        <NotificationsProvider>
+          <RootNavigator />
+        </NotificationsProvider>
       </AuthProvider>
       <ToastWithInsets />
     </>

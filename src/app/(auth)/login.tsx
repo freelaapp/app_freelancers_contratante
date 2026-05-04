@@ -1,3 +1,6 @@
+import { Input } from "@/components/input";
+import { useAuth } from "@/context/auth-context";
+import { LoginFormValues, loginSchema } from "@/validation/login.schema";
 import { Ionicons } from "@expo/vector-icons";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
@@ -15,9 +18,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/context/auth-context";
-import { Input } from "@/components/input";
-import { loginSchema, LoginFormValues } from "@/validation/login.schema";
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
@@ -142,20 +142,23 @@ export default function LoginScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        <TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
-          <Text style={styles.googleIcon}>G</Text>
-          <Text style={styles.googleButtonText}>Entrar com Google</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.appleButton} activeOpacity={0.85}>
-          <Ionicons
-            name="logo-apple"
-            size={22}
-            color="#fff"
-            style={styles.appleIcon}
-          />
-          <Text style={styles.appleButtonText}>Entrar com Apple</Text>
-        </TouchableOpacity>
+        {
+          Platform.OS !== "ios" ?
+            <TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleButtonText}>Entrar com Google</Text>
+            </TouchableOpacity>
+            :
+            <TouchableOpacity style={styles.appleButton} activeOpacity={0.85}>
+              <Ionicons
+                name="logo-apple"
+                size={22}
+                color="#fff"
+                style={styles.appleIcon}
+              />
+              <Text style={styles.appleButtonText}>Entrar com Apple</Text>
+            </TouchableOpacity>
+        }
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Ainda não tem cadastro? </Text>

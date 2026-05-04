@@ -4,7 +4,8 @@ import type { JobApi } from "@/types/vagas";
 export const jobsService = {
   async getByVacancy(vacancyId: string): Promise<JobApi> {
     const { data } = await api.get<JobApi>(
-      `/v1/bars-restaurants/jobs/by-vacancy/${vacancyId}`
+      `/v1/bars-restaurants/jobs/by-vacancy/${vacancyId}`,
+      { _suppressToast: true }
     );
     return data;
   },
@@ -23,5 +24,25 @@ export const jobsService = {
       { jobId }
     );
     return typeof data === "string" ? data : data.code;
+  },
+
+  async getCheckinStatus(module: string, jobId: string): Promise<boolean> {
+    try {
+      const { data } = await api.get<Record<string, unknown>>(
+        `/v1/${module}/contractors/jobs/${jobId}/check-ins/status`
+      );
+      return !!(
+        data?.checkInExists ||
+        data?.confirmed ||
+        data?.status === "confirmed" ||
+        data?.checkedIn
+      );
+    } catch {
+      return false;
+    }
+  },
+
+  async confirmCheckout(module: string, jobId: string): Promise<void> {
+    await api.post(`/v1/${module}/contractors/jobs/check-outs`, { jobId });
   },
 };

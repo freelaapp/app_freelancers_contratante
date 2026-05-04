@@ -14,6 +14,8 @@ export default function HomeLayout() {
       <Tabs.Screen name="profile" />
       <Tabs.Screen name="notificacoes" options={{ href: null }} />
       <Tabs.Screen name="vaga/[id]" options={{ href: null }} />
+      <Tabs.Screen name="meus-dados" options={{ href: null }} />
+      <Tabs.Screen name="financeiro" options={{ href: null }} />
     </Tabs>
   );
 }

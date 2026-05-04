@@ -31,6 +31,18 @@ export const contractorService = {
   getBarsById: (id: string): Promise<AxiosResponse<BarsContractor>> =>
     api.get(`/v1/bars-restaurants/contractors/${id}`),
 
+  updateCasa: (payload: Partial<CasaContractorPayload>): Promise<AxiosResponse<CasaContractor>> =>
+    api.put("/v1/freela-em-casa/contractors", payload),
+
+  updateBars: (payload: {
+    companyName?: string;
+    document?: string;
+    segment?: string;
+    cityId?: string;
+    complement?: string;
+  }): Promise<AxiosResponse<BarsContractor>> =>
+    api.put("/v1/bars-restaurants/contractors", payload),
+
   updateBarsImages: (images: {
     establishmentFacadeImage?: string;
     establishmentInteriorImage?: string;
