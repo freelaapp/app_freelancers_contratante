@@ -247,4 +247,30 @@ describe("VagaDetailScreen", () => {
       expect(mockToastError).toHaveBeenCalledWith("O freelancer ainda não confirmou o check-out.");
     });
   });
+
+  it("13. aceitar candidato chama candidaturasService.accept e avança stepAtual para 2", async () => {
+    mockListByVacancy.mockResolvedValue([
+      { id: "c-1", name: "João Silva", status: "pending" },
+    ]);
+    await renderAndWait();
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("btn-aceitar-c-1"));
+    });
+    expect(mockAccept).toHaveBeenCalledWith("c-1");
+    await waitFor(() => {
+      expect(screen.getByText("Confirmar Pagamento")).toBeTruthy();
+    });
+  });
+
+  it("14. seção de candidatos permanece visível quando stepAtual >= 2", async () => {
+    mockListByVacancy.mockResolvedValue([
+      { id: "c-1", name: "Maria", status: "accepted" },
+    ]);
+    mockGetByVacancy.mockResolvedValueOnce({ id: "job-1", status: "active" });
+    render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+    expect(screen.getByText(/Candidatos/)).toBeTruthy();
+  });
 });

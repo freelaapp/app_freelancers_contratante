@@ -203,7 +203,7 @@ function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecu
           {isRecusado && <StatusBadge status="recusado" label="Recusado" />}
           {!isAceito && !isRecusado && (
             <>
-              <TouchableOpacity style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
+              <TouchableOpacity testID={`btn-aceitar-${item.id}`} style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
                 <Ionicons name="person-add-outline" size={16} color="#16A34A" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7} onPress={onRecusar}>
@@ -350,7 +350,6 @@ export default function VagaDetailScreen() {
 
   const temCandidatoAceito = candidatos.some((c) => c.status === "accepted");
   const totalAceitos = candidatos.filter((c) => c.status === "accepted").length;
-  const mostrarCandidatos = stepAtual <= 1;
   const cta = getCtaConfig(stepAtual, temCandidatoAceito);
 
   async function handleAceitarCandidato(candidatoId: string) {
@@ -365,6 +364,8 @@ export default function VagaDetailScreen() {
             : c
         )
       );
+      setStepAtual(2);
+      notifyStepChange(2, vaga?.title ?? "", id ?? "");
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
@@ -543,8 +544,7 @@ export default function VagaDetailScreen() {
           </View>
         ) : null}
 
-        {mostrarCandidatos && (
-          <View style={styles.card}>
+        <View style={styles.card}>
             <View style={styles.candidatosHeader}>
               <Text style={styles.cardLabel}>Candidatos ({candidatos.length})</Text>
               {totalAceitos > 0 && (
@@ -567,7 +567,6 @@ export default function VagaDetailScreen() {
               ))
             )}
           </View>
-        )}
 
         <StatusCard stepAtual={stepAtual} />
       </ScrollView>
