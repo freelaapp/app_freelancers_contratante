@@ -257,6 +257,7 @@ export default function ProfileScreen() {
           icon="settings-outline"
           title="Configurações"
           subtitle="Privacidade, notificações e conta"
+          onPress={() => router.push("/(home)/configuracoes")}
         />
         <MenuItem
           icon="help-circle-outline"
