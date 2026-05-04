@@ -19,7 +19,7 @@ import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
 import { toast } from "@/utils/toast";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Clipboard,
@@ -325,6 +325,43 @@ export default function VagaDetailScreen() {
   const [paymentConfirming, setPaymentConfirming] = useState(false);
   const [paymentPolling, setPaymentPolling] = useState(false);
 
+  const paymentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!paymentModalVisible) {
+      if (paymentPollRef.current) {
+        clearInterval(paymentPollRef.current);
+        paymentPollRef.current = null;
+      }
+      return;
+    }
+
+    if (paymentPollRef.current) return;
+
+    paymentPollRef.current = setInterval(async () => {
+      try {
+        const updated = await paymentsService.getVacancyPayment(id ?? "", true);
+        if (updated.status !== "PENDING") {
+          clearInterval(paymentPollRef.current!);
+          paymentPollRef.current = null;
+          setPaymentModalVisible(false);
+          setStepAtual(3);
+          notifyStepChange(3, vaga?.title ?? "", id ?? "");
+          toast.success("Pagamento confirmado!");
+        }
+      } catch {
+        // ignore errors during polling
+      }
+    }, 5000);
+
+    return () => {
+      if (paymentPollRef.current) {
+        clearInterval(paymentPollRef.current);
+        paymentPollRef.current = null;
+      }
+    };
+  }, [paymentModalVisible, id]);
+
   function notifyStepChange(newStep: number, vagaTitle: string, vagaId: string) {
     const stepLabel = STEPS[newStep];
     if (!stepLabel) return;
@@ -410,11 +447,21 @@ export default function VagaDetailScreen() {
       if (!vaga || !id) return;
       setPaymentLoading(true);
       try {
+        const raw = vaga as Record<string, unknown>;
         const chargeValue =
-          (vaga as Record<string, unknown>).payment as number | undefined
-          ?? (vaga as Record<string, unknown>).chargeAmountInCents as number | undefined
-          ?? (vaga as Record<string, unknown>).totalAmountInCents as number | undefined
-          ?? 0;
+          (raw.payment as number | undefined) ??
+          (raw.chargeAmountInCents as number | undefined) ??
+          (raw.totalAmountInCents as number | undefined) ??
+          (raw.hourlyRateInCents as number | undefined) ??
+          (typeof raw.value === "number" && raw.value > 0 ? Math.round(raw.value * 100) : undefined) ??
+          0;
+
+        if (chargeValue === 0) {
+          toast.error("Valor da vaga não encontrado. Recarregue a tela.");
+          setPaymentLoading(false);
+          return;
+        }
+
         const payment = await paymentsService.createVacancyPayment(
           id,
           chargeValue

@@ -22,8 +22,10 @@ export const paymentsService = {
     return data;
   },
 
-  async getVacancyPayment(vacancyId: string): Promise<PaymentResponse> {
-    const { data } = await api.get<PaymentResponse>(`/v1/vacancies/${vacancyId}/jobs/payments`);
+  async getVacancyPayment(vacancyId: string, suppressToast?: boolean): Promise<PaymentResponse> {
+    const { data } = await api.get<PaymentResponse>(`/v1/vacancies/${vacancyId}/jobs/payments`, {
+      ...(suppressToast ? { _suppressToast: true } : {}),
+    });
     return data;
   },
 };

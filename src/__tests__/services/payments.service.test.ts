@@ -60,7 +60,7 @@ describe("paymentsService.getVacancyPayment", () => {
 
     await paymentsService.getVacancyPayment("vaga-1");
 
-    expect(mockApi.get).toHaveBeenCalledWith("/v1/vacancies/vaga-1/jobs/payments");
+    expect(mockApi.get).toHaveBeenCalledWith("/v1/vacancies/vaga-1/jobs/payments", expect.any(Object));
   });
 
   it("deve retornar o PaymentResponse do body da resposta", async () => {
