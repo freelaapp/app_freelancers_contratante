@@ -100,14 +100,6 @@ api.interceptors.response.use(
   async (error: AxiosError<ApiErrorData>) => {
     const status = error.response?.status;
 
-    console.log("[API ERROR]", {
-      url: error.config?.url,
-      method: error.config?.method,
-      status,
-      requestData: error.config?.data,
-      responseData: error.response?.data,
-    });
-
     if (status === 401) {
       const refreshToken = await tokenStore.getRefresh();
 
@@ -156,6 +148,13 @@ api.interceptors.response.use(
     const message = apiMessage ?? fallbackMessage ?? "Ocorreu um erro inesperado.";
 
     if (!error.config?._suppressToast) {
+      console.error("[API ERROR]", {
+        url: error.config?.url,
+        method: error.config?.method,
+        status,
+        requestData: error.config?.data,
+        responseData: error.response?.data,
+      });
       toast.error(message);
     }
 

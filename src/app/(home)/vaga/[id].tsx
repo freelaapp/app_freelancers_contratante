@@ -359,7 +359,7 @@ export default function VagaDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, user]);
+  }, [id, user?.module, user?.contractorId]);
 
   useEffect(() => {
     loadData();
