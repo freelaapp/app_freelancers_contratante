@@ -417,6 +417,17 @@ describe("VagaDetailScreen", () => {
   it("19. polling automático fecha modal e avança para step 3 quando status COMPLETED", async () => {
     jest.useFakeTimers();
     mockGetById.mockResolvedValue({ id: "vaga-1", title: "Garçom para evento", status: "OPEN", payment: 15185 });
+    mockCreateVacancyPayment.mockResolvedValue({
+      id: "pay-1",
+      status: "PENDING",
+      value: 150,
+      correlationId: "corr-1",
+      paymentLinkUrl: null,
+      qrCodeImage: null,
+      brCode: "00020101021226",
+      createdAt: "2026-05-04T10:00:00.000Z",
+      updatedAt: "2026-05-04T10:00:00.000Z",
+    });
     mockGetVacancyPayment.mockResolvedValue({
       id: "pay-1",
       status: "COMPLETED",
@@ -442,8 +453,9 @@ describe("VagaDetailScreen", () => {
     await waitFor(() => {
       expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
     });
+    // advance past the 8s minimum delay + 5s interval = 13s total
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(13000);
     });
     await waitFor(() => {
       expect(mockGetVacancyPayment).toHaveBeenCalled();

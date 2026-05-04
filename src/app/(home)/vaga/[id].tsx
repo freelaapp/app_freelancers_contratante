@@ -326,6 +326,8 @@ export default function VagaDetailScreen() {
   const [paymentPolling, setPaymentPolling] = useState(false);
 
   const paymentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const paymentIdRef = useRef<string>("");
+  const paymentCreatedAtRef = useRef<number>(0);
 
   useEffect(() => {
     if (!paymentModalVisible) {
@@ -341,7 +343,11 @@ export default function VagaDetailScreen() {
     paymentPollRef.current = setInterval(async () => {
       try {
         const updated = await paymentsService.getVacancyPayment(id ?? "", true);
-        if (updated.status !== "PENDING") {
+        if (
+          updated.id === paymentIdRef.current &&
+          updated.status === "COMPLETED" &&
+          Date.now() - paymentCreatedAtRef.current > 8000
+        ) {
           clearInterval(paymentPollRef.current!);
           paymentPollRef.current = null;
           setPaymentModalVisible(false);
@@ -468,6 +474,8 @@ export default function VagaDetailScreen() {
         );
         setPaymentData(payment);
         setPaymentModalVisible(true);
+        paymentIdRef.current = payment.id;
+        paymentCreatedAtRef.current = Date.now();
 
         if (!payment.qrCodeImage && !payment.brCode) {
           setPaymentPolling(true);
@@ -480,8 +488,8 @@ export default function VagaDetailScreen() {
             attempts++;
             try {
               const updated = await paymentsService.getVacancyPayment(id ?? "");
+              setPaymentData(updated);
               if (updated.qrCodeImage || updated.brCode) {
-                setPaymentData(updated);
                 setPaymentPolling(false);
                 return;
               }
@@ -830,6 +838,7 @@ export default function VagaDetailScreen() {
               <View style={styles.pixQrFallback}>
                 <Ionicons name="qr-code-outline" size={60} color={colors.muted} />
                 <Text style={styles.pixFallbackText}>QR Code indisponível</Text>
+                <Text style={styles.pixFallbackText}>Use a chave PIX abaixo para pagar manualmente</Text>
               </View>
             )}
 
@@ -856,7 +865,7 @@ export default function VagaDetailScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <Text style={styles.pixFallbackText}>Chave PIX não disponível</Text>
+              <Text style={styles.pixFallbackText}>Chave PIX não disponível. Contate o suporte.</Text>
             )}
           </>
         )}
