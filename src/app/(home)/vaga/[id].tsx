@@ -11,6 +11,8 @@ import { useNotifications } from "@/context/notifications-context";
 import { candidaturasService } from "@/services/candidaturas.service";
 import { feedbacksService } from "@/services/feedbacks.service";
 import { jobsService } from "@/services/jobs.service";
+import { paymentsService } from "@/services/payments.service";
+import type { PaymentResponse } from "@/services/payments.service";
 import { vagasService } from "@/services/vagas.service";
 import type { CandidatoApi, JobApi, VagaDetalheApi } from "@/types/vagas";
 import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
@@ -20,6 +22,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Clipboard,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -197,19 +201,27 @@ function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecu
               </Text>
             </View>
           )}
+          {isAceito && (
+            <View style={styles.candidatoStatusRow}>
+              <StatusBadge status="aceito" label="Aceito" />
+            </View>
+          )}
+          {isRecusado && (
+            <View style={styles.candidatoStatusRow}>
+              <StatusBadge status="recusado" label="Recusado" />
+            </View>
+          )}
         </View>
         <View style={styles.candidatoActions}>
-          {isAceito && <StatusBadge status="aceito" label="Aceito" />}
-          {isRecusado && <StatusBadge status="recusado" label="Recusado" />}
+          {!isAceito && (
+            <TouchableOpacity testID={`btn-aceitar-${item.id}`} style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
+              <Ionicons name="person-add-outline" size={16} color="#16A34A" />
+            </TouchableOpacity>
+          )}
           {!isAceito && !isRecusado && (
-            <>
-              <TouchableOpacity testID={`btn-aceitar-${item.id}`} style={styles.actionBtnGreen} activeOpacity={0.7} onPress={onAceitar}>
-                <Ionicons name="person-add-outline" size={16} color="#16A34A" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7} onPress={onRecusar}>
-                <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity style={styles.actionBtnRed} activeOpacity={0.7} onPress={onRecusar}>
+              <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
+            </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.actionBtnGray} activeOpacity={0.7} onPress={onVerPerfil}>
             <Ionicons name="person-outline" size={16} color={colors.muted} />
@@ -273,7 +285,7 @@ type CtaConfig = { label: string; nextStep: number | null };
 function getCtaConfig(step: number, temCandidatoAceito: boolean): CtaConfig {
   if (step === 1 && !temCandidatoAceito) return { label: "Aceitar Candidato", nextStep: null };
   if (step === 1 && temCandidatoAceito) return { label: "Confirmar Seleção", nextStep: 2 };
-  if (step === 2) return { label: "Confirmar Pagamento", nextStep: 3 };
+  if (step === 2) return { label: "Pagar", nextStep: 3 };
   if (step === 3) return { label: "Check-in", nextStep: 4 };
   if (step === 4) return { label: "Check-out", nextStep: 5 };
   if (step === 5) return { label: "Confirmar Repasse", nextStep: 6 };
@@ -305,6 +317,11 @@ export default function VagaDetailScreen() {
   const [compareceu, setCompareceu] = useState<boolean | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentData, setPaymentData] = useState<PaymentResponse | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentConfirming, setPaymentConfirming] = useState(false);
 
   function notifyStepChange(newStep: number, vagaTitle: string, vagaId: string) {
     const stepLabel = STEPS[newStep];
@@ -387,6 +404,23 @@ export default function VagaDetailScreen() {
   }
 
   async function handleCta() {
+    if (stepAtual === 2) {
+      if (!vaga || !id) return;
+      setPaymentLoading(true);
+      try {
+        const payment = await paymentsService.createVacancyPayment(
+          id,
+          (vaga.value as number | undefined) ?? 0
+        );
+        setPaymentData(payment);
+        setPaymentModalVisible(true);
+      } catch {
+        // api.ts interceptor já exibe o toast de erro
+      } finally {
+        setPaymentLoading(false);
+      }
+      return;
+    }
     if (stepAtual === 3) {
       if (!job) return;
       const code = await jobsService.generateCheckinCode(job.id);
@@ -406,6 +440,26 @@ export default function VagaDetailScreen() {
     if (cta.nextStep !== null) {
       setStepAtual(cta.nextStep);
       notifyStepChange(cta.nextStep, vaga?.title ?? "", id ?? "");
+    }
+  }
+
+  async function handleConfirmarPagamento() {
+    if (!id) return;
+    setPaymentConfirming(true);
+    try {
+      const payment = await paymentsService.getVacancyPayment(id);
+      if (payment.status !== "PENDING") {
+        setPaymentModalVisible(false);
+        setPaymentData(null);
+        setStepAtual(3);
+        notifyStepChange(3, vaga?.title ?? "", id ?? "");
+      } else {
+        toast.error("Pagamento ainda não confirmado");
+      }
+    } catch {
+      // api.ts interceptor já exibe o toast de erro
+    } finally {
+      setPaymentConfirming(false);
     }
   }
 
@@ -573,8 +627,16 @@ export default function VagaDetailScreen() {
 
       <BottomActionBar backgroundColor="#F0F0F0" style={styles.bottomBarGap}>
         {stepAtual > 1 && (
-          <TouchableOpacity style={styles.checkinBtn} activeOpacity={0.85} onPress={handleCta}>
-            <Text style={styles.checkinBtnText}>{cta.label}</Text>
+          <TouchableOpacity
+            style={[styles.checkinBtn, paymentLoading && { opacity: 0.7 }]}
+            activeOpacity={0.85}
+            onPress={handleCta}
+            disabled={paymentLoading}
+          >
+            {paymentLoading
+              ? <ActivityIndicator color={colors.dark} size="small" />
+              : <Text style={styles.checkinBtnText}>{cta.label}</Text>
+            }
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={() => router.back()}>
@@ -651,6 +713,65 @@ export default function VagaDetailScreen() {
           activeOpacity={0.85}
         >
           <Text style={styles.avaliarConfirmarBtnText}>Confirmar</Text>
+        </TouchableOpacity>
+      </CenteredModal>
+
+      <CenteredModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        contentStyle={styles.pixModal}
+      >
+        <TouchableOpacity style={styles.checkinClose} onPress={() => setPaymentModalVisible(false)} hitSlop={8}>
+          <Ionicons name="close" size={22} color={colors.ink} />
+        </TouchableOpacity>
+
+        <Text style={styles.pixTitle}>Pagamento via PIX</Text>
+
+        {paymentData && (
+          <Text style={styles.pixValue}>
+            {formatVagaValue(paymentData.value)}
+          </Text>
+        )}
+
+        {paymentData?.qrCodeImage ? (
+          <View style={styles.pixQrWrapper}>
+            <Image
+              source={{ uri: `data:image/png;base64,${paymentData.qrCodeImage}` }}
+              style={styles.pixQrImage}
+              resizeMode="contain"
+            />
+          </View>
+        ) : null}
+
+        {paymentData?.brCode ? (
+          <View style={styles.pixBrCodeBox}>
+            <Text style={styles.pixBrCodeText} numberOfLines={3} selectable>
+              {paymentData.brCode}
+            </Text>
+            <TouchableOpacity
+              style={styles.pixCopyBtn}
+              activeOpacity={0.7}
+              onPress={() => {
+                Clipboard.setString(paymentData.brCode ?? "");
+                toast.success("Chave PIX copiada!");
+              }}
+            >
+              <Ionicons name="copy-outline" size={16} color={colors.primary} />
+              <Text style={styles.pixCopyBtnText}>Copiar chave PIX</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.checkinConfirmBtn, paymentConfirming && { opacity: 0.7 }]}
+          activeOpacity={0.85}
+          onPress={handleConfirmarPagamento}
+          disabled={paymentConfirming}
+        >
+          {paymentConfirming
+            ? <ActivityIndicator color={colors.white} size="small" />
+            : <Text style={styles.checkinConfirmBtnText}>Já paguei</Text>
+          }
         </TouchableOpacity>
       </CenteredModal>
 
@@ -904,6 +1025,9 @@ const styles = StyleSheet.create({
     gap: spacing["3"],
     flexShrink: 0,
   },
+  candidatoStatusRow: {
+    marginTop: spacing["3"],
+  },
   actionBtnGreen: {
     width: 32,
     height: 32,
@@ -1096,5 +1220,51 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.bold,
     color: colors.dark,
+  },
+
+  pixModal: {
+    gap: spacing["8"],
+  },
+  pixTitle: {
+    fontSize: fontSizes["2xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  pixValue: {
+    fontSize: fontSizes["3xl"],
+    fontWeight: fontWeights.bold,
+    color: colors.primary,
+    textAlign: "center",
+  },
+  pixQrWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pixQrImage: {
+    width: 200,
+    height: 200,
+  },
+  pixBrCodeBox: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: radii.lg,
+    padding: spacing["8"],
+    gap: spacing["6"],
+  },
+  pixBrCodeText: {
+    fontSize: fontSizes.sm,
+    color: colors.ink,
+    lineHeight: 18,
+  },
+  pixCopyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["4"],
+    alignSelf: "flex-start",
+  },
+  pixCopyBtnText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.primary,
   },
 });
