@@ -35,6 +35,7 @@ const mockGetById = jest.fn();
 jest.mock("@/services/vagas.service", () => ({
   vagasService: {
     getById: (...args: unknown[]) => mockGetById(...args),
+    delete: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -89,6 +90,37 @@ jest.mock("@/services/payments.service", () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const BASE_VAGA = {
+  id: "vaga-1",
+  title: "Garçom para evento",
+  status: "OPEN",
+  date: "2026-06-20T00:00:00.000Z",
+  startTime: "2026-06-20T18:00:00.000Z",
+  payment: 15185,
+};
+
+const BASE_PAYMENT_PENDING = {
+  id: "pay-1",
+  status: "PENDING",
+  value: 150,
+  correlationId: "corr-1",
+  paymentLinkUrl: null,
+  qrCodeImage: null,
+  brCode: "00020101021226",
+  createdAt: "2026-05-04T10:00:00.000Z",
+  updatedAt: "2026-05-04T10:00:00.000Z",
+};
+
+const BASE_PAYMENT_PAID = {
+  ...BASE_PAYMENT_PENDING,
+  status: "PAID",
+};
+
+const BASE_PAYMENT_COMPLETED = {
+  ...BASE_PAYMENT_PENDING,
+  status: "COMPLETED",
+};
+
 async function renderAndWait() {
   render(<VagaDetailScreen />);
   await waitFor(() => {
@@ -111,45 +143,31 @@ async function renderWithJobAtStep(step: number) {
   });
 }
 
+async function renderAtPaymentStep() {
+  mockGetById.mockResolvedValue({ ...BASE_VAGA });
+  mockListByVacancy.mockResolvedValue([
+    { id: "c-1", name: "João Silva", status: "accepted" },
+  ]);
+  mockGetByVacancy.mockRejectedValue(new Error("no job"));
+  render(<VagaDetailScreen />);
+  await waitFor(() => {
+    expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+  });
+}
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockGetById.mockResolvedValue({
-    id: "vaga-1",
-    title: "Garçom para evento",
-    status: "OPEN",
-    date: "20/06/2026",
-    startTime: "18:00",
-  });
+  mockGetById.mockResolvedValue({ ...BASE_VAGA });
   mockListByVacancy.mockResolvedValue([]);
   mockGetByVacancy.mockRejectedValue(new Error("no job"));
   mockGenerateCheckinCode.mockResolvedValue("123456");
   mockGenerateCheckoutCode.mockResolvedValue("789012");
   mockGetCheckinStatus.mockResolvedValue(true);
   mockConfirmCheckout.mockResolvedValue(undefined);
-  mockCreateVacancyPayment.mockResolvedValue({
-    id: "pay-1",
-    status: "PENDING",
-    value: 150,
-    correlationId: "corr-1",
-    paymentLinkUrl: null,
-    qrCodeImage: null,
-    brCode: "00020101021226",
-    createdAt: "2026-05-04T10:00:00.000Z",
-    updatedAt: "2026-05-04T10:00:00.000Z",
-  });
-  mockGetVacancyPayment.mockResolvedValue({
-    id: "pay-1",
-    status: "PAID",
-    value: 150,
-    correlationId: "corr-1",
-    paymentLinkUrl: null,
-    qrCodeImage: null,
-    brCode: "00020101021226",
-    createdAt: "2026-05-04T10:00:00.000Z",
-    updatedAt: "2026-05-04T10:00:00.000Z",
-  });
+  mockCreateVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_PENDING });
+  mockGetVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_PAID });
 });
 
 // ─── Testes ───────────────────────────────────────────────────────────────────
@@ -293,23 +311,20 @@ describe("VagaDetailScreen", () => {
     });
   });
 
-  it("15. ao pressionar Pagar (step 2) abre modal PIX com createVacancyPayment usando payment em centavos", async () => {
-    mockGetById.mockResolvedValue({
-      id: "vaga-1",
-      title: "Garçom para evento",
-      status: "OPEN",
-      date: "20/06/2026",
-      startTime: "18:00",
-      payment: 15185,
-    });
+  it("14. seção de candidatos permanece visível quando stepAtual >= 2", async () => {
     mockListByVacancy.mockResolvedValue([
-      { id: "c-1", name: "João Silva", status: "accepted" },
+      { id: "c-1", name: "Maria", status: "accepted" },
     ]);
-    mockGetByVacancy.mockRejectedValue(new Error("no job"));
+    mockGetByVacancy.mockResolvedValueOnce({ id: "job-1", status: "active" });
     render(<VagaDetailScreen />);
     await waitFor(() => {
       expect(screen.queryByText("Garçom para evento")).toBeTruthy();
     });
+    expect(screen.getByText(/Candidatos/)).toBeTruthy();
+  });
+
+  it("15. ao pressionar Pagar (step 2) abre modal PIX com createVacancyPayment usando payment em centavos", async () => {
+    await renderAtPaymentStep();
     await act(async () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
@@ -324,8 +339,6 @@ describe("VagaDetailScreen", () => {
       id: "vaga-1",
       title: "Garçom para evento",
       status: "OPEN",
-      date: "20/06/2026",
-      startTime: "18:00",
       chargeAmountInCents: 9900,
     });
     mockListByVacancy.mockResolvedValue([
@@ -342,8 +355,13 @@ describe("VagaDetailScreen", () => {
     expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 9900);
   });
 
-  it("16. botão Já paguei com status PAID avança para step 3", async () => {
-    mockGetById.mockResolvedValue({ id: "vaga-1", title: "Garçom para evento", status: "OPEN", payment: 15185 });
+  it("15c. ao pressionar Pagar sem campos em centavos usa value (reais) convertido para centavos", async () => {
+    mockGetById.mockResolvedValue({
+      id: "vaga-1",
+      title: "Garçom para evento",
+      status: "OPEN",
+      value: 151.85,
+    });
     mockListByVacancy.mockResolvedValue([
       { id: "c-1", name: "João Silva", status: "accepted" },
     ]);
@@ -352,6 +370,94 @@ describe("VagaDetailScreen", () => {
     await waitFor(() => {
       expect(screen.queryByText("Garçom para evento")).toBeTruthy();
     });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 15185);
+  });
+
+  it("15d. quando chargeValue resulta em 0 exibe toast.error e NÃO abre modal", async () => {
+    mockGetById.mockResolvedValue({
+      id: "vaga-1",
+      title: "Garçom para evento",
+      status: "OPEN",
+    });
+    mockListByVacancy.mockResolvedValue([
+      { id: "c-1", name: "João Silva", status: "accepted" },
+    ]);
+    mockGetByVacancy.mockRejectedValue(new Error("no job"));
+    render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    expect(mockCreateVacancyPayment).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith("Valor da vaga não encontrado. Recarregue a tela.");
+    expect(screen.queryByText("Pagamento via PIX")).toBeNull();
+  });
+
+  it("15e. quando API retorna brCode sem qrCodeImage modal abre sem spinner (brCode disponível imediatamente)", async () => {
+    mockCreateVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      brCode: "00020101021226",
+      qrCodeImage: null,
+    });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
+    });
+    expect(screen.queryByText("Gerando QR Code...")).toBeNull();
+  });
+
+  it("15f. quando API retorna sem qrCodeImage e sem brCode exibe spinner Gerando QR Code", async () => {
+    mockCreateVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      brCode: null,
+      qrCodeImage: null,
+    });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
+      expect(screen.getByText("Gerando QR Code...")).toBeTruthy();
+    });
+  });
+
+  it("15g. spinner some e brCode é exibido quando polling retorna com dados", async () => {
+    mockCreateVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      brCode: null,
+      qrCodeImage: null,
+    });
+    mockGetVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      brCode: "00020101021226",
+      qrCodeImage: null,
+    });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Gerando QR Code...")).toBeTruthy();
+    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText("Gerando QR Code...")).toBeNull();
+      },
+      { timeout: 5000 }
+    );
+  });
+
+  it("16. botão Já paguei com status PAID avança para step 3", async () => {
+    await renderAtPaymentStep();
     await act(async () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
@@ -367,27 +473,26 @@ describe("VagaDetailScreen", () => {
     });
   });
 
-  it("17. botão Já paguei com status PENDING exibe toast de erro", async () => {
-    mockGetById.mockResolvedValue({ id: "vaga-1", title: "Garçom para evento", status: "OPEN", payment: 15185 });
-    mockGetVacancyPayment.mockResolvedValue({
-      id: "pay-1",
-      status: "PENDING",
-      value: 150,
-      correlationId: "corr-1",
-      paymentLinkUrl: null,
-      qrCodeImage: null,
-      brCode: "00020101021226",
-      createdAt: "2026-05-04T10:00:00.000Z",
-      updatedAt: "2026-05-04T10:00:00.000Z",
+  it("16b. botão Já paguei com status COMPLETED também avança para step 3", async () => {
+    mockGetVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_COMPLETED });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
     });
-    mockListByVacancy.mockResolvedValue([
-      { id: "c-1", name: "João Silva", status: "accepted" },
-    ]);
-    mockGetByVacancy.mockRejectedValue(new Error("no job"));
-    render(<VagaDetailScreen />);
     await waitFor(() => {
-      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+      expect(screen.getByText("Já paguei")).toBeTruthy();
     });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Já paguei"));
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Pagamento via PIX")).toBeNull();
+    });
+  });
+
+  it("17. botão Já paguei com status PENDING exibe toast de erro", async () => {
+    mockGetVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_PENDING });
+    await renderAtPaymentStep();
     await act(async () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
@@ -399,6 +504,74 @@ describe("VagaDetailScreen", () => {
     });
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith("Pagamento ainda não confirmado");
+    });
+    expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
+  });
+
+  it("17b. botão Já paguei com status FAILED exibe toast de erro e NÃO avança step", async () => {
+    mockGetVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      status: "FAILED",
+    });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Já paguei")).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Já paguei"));
+    });
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Pagamento ainda não confirmado");
+    });
+    expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
+  });
+
+  it("17c. botão Já paguei com status EXPIRED exibe toast de erro e NÃO avança step", async () => {
+    mockGetVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      status: "EXPIRED",
+    });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Já paguei")).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Já paguei"));
+    });
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Pagamento ainda não confirmado");
+    });
+    expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
+  });
+
+  it("17d. ao fechar modal PIX paymentPolling é resetado para false", async () => {
+    mockCreateVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      brCode: null,
+      qrCodeImage: null,
+    });
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Gerando QR Code...")).toBeTruthy();
+    });
+    await act(async () => {
+      const closeButtons = screen.UNSAFE_queryAllByType(require("react-native").TouchableOpacity);
+      const closeBtn = closeButtons.find((btn) =>
+        btn.props.hitSlop === 8 && btn.props.onPress
+      );
+      if (closeBtn) closeBtn.props.onPress();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Pagamento via PIX")).toBeNull();
     });
   });
 
@@ -415,65 +588,43 @@ describe("VagaDetailScreen", () => {
   });
 
   it("19. polling automático fecha modal e avança para step 3 quando status COMPLETED", async () => {
+    const fakeNow = Date.now();
     jest.useFakeTimers();
-    mockGetById.mockResolvedValue({ id: "vaga-1", title: "Garçom para evento", status: "OPEN", payment: 15185 });
-    mockCreateVacancyPayment.mockResolvedValue({
-      id: "pay-1",
-      status: "PENDING",
-      value: 150,
-      correlationId: "corr-1",
-      paymentLinkUrl: null,
-      qrCodeImage: null,
-      brCode: "00020101021226",
-      createdAt: "2026-05-04T10:00:00.000Z",
-      updatedAt: "2026-05-04T10:00:00.000Z",
-    });
-    mockGetVacancyPayment.mockResolvedValue({
-      id: "pay-1",
-      status: "COMPLETED",
-      value: 150,
-      correlationId: "corr-1",
-      paymentLinkUrl: null,
-      qrCodeImage: null,
-      brCode: "00020101021226",
-      createdAt: "2026-05-04T10:00:00.000Z",
-      updatedAt: "2026-05-04T10:00:00.000Z",
-    });
+    jest.setSystemTime(fakeNow);
+
+    mockGetById.mockResolvedValue({ ...BASE_VAGA });
+    mockCreateVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_PENDING });
+    mockGetVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_COMPLETED });
     mockListByVacancy.mockResolvedValue([
       { id: "c-1", name: "João Silva", status: "accepted" },
     ]);
     mockGetByVacancy.mockRejectedValue(new Error("no job"));
+
     render(<VagaDetailScreen />);
     await waitFor(() => {
       expect(screen.queryByText("Garçom para evento")).toBeTruthy();
     });
+
     await act(async () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
+
     await waitFor(() => {
       expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
     });
-    // advance past the 8s minimum delay + 5s interval = 13s total
+
+    // Avança o system time em 9s (acima do guard de 8s) e dispara o interval de 5s
     await act(async () => {
-      jest.advanceTimersByTime(13000);
+      jest.setSystemTime(fakeNow + 9000);
+      jest.advanceTimersByTime(9000);
     });
+
     await waitFor(() => {
       expect(mockGetVacancyPayment).toHaveBeenCalled();
       expect(screen.queryByText("Pagamento via PIX")).toBeNull();
       expect(mockToastSuccess).toHaveBeenCalledWith("Pagamento confirmado!");
     });
-    jest.useRealTimers();
-  });
 
-  it("14. seção de candidatos permanece visível quando stepAtual >= 2", async () => {
-    mockListByVacancy.mockResolvedValue([
-      { id: "c-1", name: "Maria", status: "accepted" },
-    ]);
-    mockGetByVacancy.mockResolvedValueOnce({ id: "job-1", status: "active" });
-    render(<VagaDetailScreen />);
-    await waitFor(() => {
-      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
-    });
-    expect(screen.getByText(/Candidatos/)).toBeTruthy();
+    jest.useRealTimers();
   });
 });

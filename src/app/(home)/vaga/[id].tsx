@@ -335,6 +335,7 @@ export default function VagaDetailScreen() {
         clearInterval(paymentPollRef.current);
         paymentPollRef.current = null;
       }
+      setPaymentPolling(false);
       return;
     }
 
@@ -455,10 +456,10 @@ export default function VagaDetailScreen() {
       try {
         const raw = vaga as Record<string, unknown>;
         const chargeValue =
-          (raw.payment as number | undefined) ??
-          (raw.chargeAmountInCents as number | undefined) ??
-          (raw.totalAmountInCents as number | undefined) ??
-          (raw.hourlyRateInCents as number | undefined) ??
+          (typeof raw.payment === "number" && raw.payment > 0 ? raw.payment : undefined) ??
+          (typeof raw.chargeAmountInCents === "number" && raw.chargeAmountInCents > 0 ? raw.chargeAmountInCents : undefined) ??
+          (typeof raw.totalAmountInCents === "number" && raw.totalAmountInCents > 0 ? raw.totalAmountInCents : undefined) ??
+          (typeof raw.hourlyRateInCents === "number" && raw.hourlyRateInCents > 0 ? raw.hourlyRateInCents : undefined) ??
           (typeof raw.value === "number" && raw.value > 0 ? Math.round(raw.value * 100) : undefined) ??
           0;
 
@@ -472,13 +473,15 @@ export default function VagaDetailScreen() {
           id,
           chargeValue
         );
+
+        const hasQrData = Boolean(payment.qrCodeImage || payment.brCode);
         setPaymentData(payment);
+        setPaymentPolling(!hasQrData);
         setPaymentModalVisible(true);
         paymentIdRef.current = payment.id;
         paymentCreatedAtRef.current = Date.now();
 
-        if (!payment.qrCodeImage && !payment.brCode) {
-          setPaymentPolling(true);
+        if (!hasQrData) {
           let attempts = 0;
           const pollPayment = async (): Promise<void> => {
             if (attempts >= 5) {
@@ -534,9 +537,11 @@ export default function VagaDetailScreen() {
     setPaymentConfirming(true);
     try {
       const payment = await paymentsService.getVacancyPayment(id);
-      if (payment.status !== "PENDING") {
+      const isCompleted = payment.status === "COMPLETED" || payment.status === "PAID";
+      if (isCompleted) {
         setPaymentModalVisible(false);
         setPaymentData(null);
+        setPaymentPolling(false);
         setStepAtual(3);
         notifyStepChange(3, vaga?.title ?? "", id ?? "");
       } else {
