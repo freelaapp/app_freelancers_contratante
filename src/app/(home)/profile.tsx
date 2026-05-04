@@ -54,18 +54,35 @@ type PhotoSlotProps = {
 };
 
 function PhotoSlot({ uri, label, uploading, onPress }: PhotoSlotProps) {
+  const [imageLoading, setImageLoading] = useState(false);
+  const prevUri = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (uri && uri !== prevUri.current) {
+      setImageLoading(true);
+      prevUri.current = uri;
+    }
+  }, [uri]);
+
   return (
     <TouchableOpacity style={styles.photoSlot} onPress={onPress} activeOpacity={0.7} disabled={uploading}>
       {uploading ? (
         <ActivityIndicator color={colors.primary} />
       ) : uri ? (
-        <Image
-          source={{ uri }}
-          style={{ flex: 1, alignSelf: "stretch" }}
-          resizeMode="cover"
-          onLoad={() => console.log(`[PROFILE] imagem carregou: ${uri}`)}
-          onError={(e) => console.warn(`[PROFILE] erro ao carregar imagem: ${uri}`, e.nativeEvent)}
-        />
+        <>
+          <Image
+            source={{ uri }}
+            style={{ flex: 1, alignSelf: "stretch" }}
+            resizeMode="cover"
+            onLoadEnd={() => setImageLoading(false)}
+            onError={() => setImageLoading(false)}
+          />
+          {imageLoading && (
+            <View style={styles.imageLoadingOverlay}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          )}
+        </>
       ) : (
         <>
           <Ionicons name="image-outline" size={28} color={colors.primary} />
@@ -341,6 +358,16 @@ const styles = StyleSheet.create({
     gap: spacing["3"],
     backgroundColor: "rgba(245, 166, 35, 0.05)",
     overflow: "hidden",
+  },
+  imageLoadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background,
+    justifyContent: "center",
+    alignItems: "center",
   },
   photoLabel: {
     fontSize: fontSizes.base,
