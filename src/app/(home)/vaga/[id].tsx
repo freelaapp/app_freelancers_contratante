@@ -323,6 +323,7 @@ export default function VagaDetailScreen() {
   const [paymentData, setPaymentData] = useState<PaymentResponse | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentConfirming, setPaymentConfirming] = useState(false);
+  const [paymentPolling, setPaymentPolling] = useState(false);
 
   function notifyStepChange(newStep: number, vagaTitle: string, vagaId: string) {
     const stepLabel = STEPS[newStep];
@@ -420,6 +421,30 @@ export default function VagaDetailScreen() {
         );
         setPaymentData(payment);
         setPaymentModalVisible(true);
+
+        if (!payment.qrCodeImage && !payment.brCode) {
+          setPaymentPolling(true);
+          let attempts = 0;
+          const pollPayment = async (): Promise<void> => {
+            if (attempts >= 5) {
+              setPaymentPolling(false);
+              return;
+            }
+            attempts++;
+            try {
+              const updated = await paymentsService.getVacancyPayment(id ?? "");
+              if (updated.qrCodeImage || updated.brCode) {
+                setPaymentData(updated);
+                setPaymentPolling(false);
+                return;
+              }
+            } catch {
+              // ignore polling errors
+            }
+            setTimeout(pollPayment, 2000);
+          };
+          setTimeout(pollPayment, 2000);
+        }
       } catch {
         // api.ts interceptor já exibe o toast de erro
       } finally {
@@ -739,34 +764,55 @@ export default function VagaDetailScreen() {
           </Text>
         )}
 
-        {paymentData?.qrCodeImage ? (
-          <View style={styles.pixQrWrapper}>
-            <Image
-              source={{ uri: `data:image/png;base64,${paymentData.qrCodeImage}` }}
-              style={styles.pixQrImage}
-              resizeMode="contain"
-            />
+        {paymentPolling ? (
+          <View style={styles.pixPollingWrapper}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.pixPollingText}>Gerando QR Code...</Text>
           </View>
-        ) : null}
+        ) : (
+          <>
+            {paymentData?.qrCodeImage ? (
+              <View style={styles.pixQrWrapper}>
+                <Image
+                  source={{ uri: `data:image/png;base64,${paymentData.qrCodeImage}` }}
+                  style={styles.pixQrImage}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : (
+              <View style={styles.pixQrFallback}>
+                <Ionicons name="qr-code-outline" size={60} color={colors.muted} />
+                <Text style={styles.pixFallbackText}>QR Code indisponível</Text>
+              </View>
+            )}
 
-        {paymentData?.brCode ? (
-          <View style={styles.pixBrCodeBox}>
-            <Text style={styles.pixBrCodeText} numberOfLines={3} selectable>
-              {paymentData.brCode}
-            </Text>
-            <TouchableOpacity
-              style={styles.pixCopyBtn}
-              activeOpacity={0.7}
-              onPress={() => {
-                Clipboard.setString(paymentData.brCode ?? "");
-                toast.success("Chave PIX copiada!");
-              }}
-            >
-              <Ionicons name="copy-outline" size={16} color={colors.primary} />
-              <Text style={styles.pixCopyBtnText}>Copiar chave PIX</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
+            {paymentData?.brCode ? (
+              <View style={styles.pixBrCodeBox}>
+                <Text style={styles.pixOrLabel}>ou</Text>
+                <TextInput
+                  style={styles.pixBrCodeInput}
+                  value={paymentData.brCode}
+                  editable={false}
+                  multiline
+                  selectTextOnFocus
+                />
+                <TouchableOpacity
+                  style={styles.pixCopyBtn}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    Clipboard.setString(paymentData.brCode ?? "");
+                    toast.success("Chave PIX copiada!");
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                  <Text style={styles.pixCopyBtnText}>Copiar chave PIX</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.pixFallbackText}>Chave PIX não disponível</Text>
+            )}
+          </>
+        )}
 
         <TouchableOpacity
           style={[styles.checkinConfirmBtn, paymentConfirming && { opacity: 0.7 }]}
@@ -1272,5 +1318,40 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: fontWeights.semibold,
     color: colors.primary,
+  },
+  pixPollingWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing["6"],
+    paddingVertical: spacing["10"],
+  },
+  pixPollingText: {
+    fontSize: fontSizes.md,
+    color: colors.muted,
+  },
+  pixQrFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing["4"],
+    paddingVertical: spacing["8"],
+  },
+  pixFallbackText: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  pixOrLabel: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  pixBrCodeInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: spacing["8"],
+    fontSize: fontSizes.xs,
+    color: colors.ink,
+    backgroundColor: colors.white,
   },
 });
