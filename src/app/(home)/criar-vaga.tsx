@@ -19,6 +19,7 @@ import { router, Stack } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  Animated,
   Platform,
   ScrollView,
   StyleSheet,
@@ -30,6 +31,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+
+type Step = 0 | 1 | 2;
+
+const STEP_NAMES: Record<Step, string> = {
+  0: "Servico",
+  1: "Quando e onde",
+  2: "Detalhes",
+};
 
 type HourSelectorProps = {
   label: string;
@@ -214,7 +223,7 @@ export default function CriarVagaScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
-  const { control, handleSubmit, setValue, watch, setError, reset } = useForm<CriarVagaFormValues>({
+  const { control, handleSubmit, setValue, watch, setError, trigger, reset, formState } = useForm<CriarVagaFormValues>({
     resolver: yupResolver(criarVagaSchema),
     defaultValues: {
       selectedServices: [],
@@ -229,10 +238,14 @@ export default function CriarVagaScreen() {
   const [noEstabelecimento, setNoEstabelecimento] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [currentStep, setCurrentStep] = useState<Step>(0);
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const selectedServices = watch("selectedServices");
   const dataEvento = watch("dataEvento");
   const horarioInicioVal = watch("horarioInicio");
+  const horarioFimVal = watch("horarioFim");
 
   const availableHours = useMemo(
     () => (dataEvento ? getAvailableHours(dataEvento) : []),
@@ -257,6 +270,40 @@ export default function CriarVagaScreen() {
     },
     [selectedServices, setValue]
   );
+
+  function animateToStep(next: Step, direction: "forward" | "backward") {
+    const startX = direction === "forward" ? 400 : -400;
+    slideAnim.setValue(startX);
+    setCurrentStep(next);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+  }
+
+  async function handleNext() {
+    if (currentStep === 0) {
+      const valid = await trigger("selectedServices");
+      if (!valid) return;
+      animateToStep(1, "forward");
+    } else if (currentStep === 1) {
+      const fields: (keyof CriarVagaFormValues)[] = ["dataEvento", "horarioInicio", "horarioFim"];
+      if (!noEstabelecimento) fields.push("endereco");
+      const valid = await trigger(fields);
+      if (!valid) return;
+      animateToStep(2, "forward");
+    }
+  }
+
+  function handleBack() {
+    if (currentStep === 1) {
+      animateToStep(0, "backward");
+    } else if (currentStep === 2) {
+      animateToStep(1, "backward");
+    }
+  }
 
   async function handlePublish(data: CriarVagaFormValues) {
     if (!noEstabelecimento && !data.endereco?.trim()) {
@@ -303,6 +350,7 @@ export default function CriarVagaScreen() {
       toast.success("Vaga publicada com sucesso!");
       reset();
       setNoEstabelecimento(true);
+      setCurrentStep(0);
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
@@ -317,62 +365,70 @@ export default function CriarVagaScreen() {
     }
   }
 
-  return (
-    <View style={styles.screen}>
-      <Stack.Screen options={{ headerShown: false }} />
+  function renderProgressBar() {
+    return (
+      <View style={progressStyles.wrapper} testID="progress-bar">
+        <View style={progressStyles.segments}>
+          {([0, 1, 2] as Step[]).map((step) => (
+            <View
+              key={step}
+              style={[
+                progressStyles.segment,
+                currentStep >= step ? progressStyles.segmentActive : progressStyles.segmentInactive,
+              ]}
+            />
+          ))}
+        </View>
+        <Text style={progressStyles.label}>
+          {`Passo ${currentStep + 1} de 3 — ${STEP_NAMES[currentStep]}`}
+        </Text>
+      </View>
+    );
+  }
 
-      <PageHeader
-        badge="Freela para Empresas"
-        title="Nova contratação"
-        subtitle="Monte seu evento selecionando os serviços que precisa"
-        rounded
+  function renderStep0() {
+    return (
+      <Controller
+        control={control}
+        name="selectedServices"
+        render={({ fieldState }) => (
+          <CardContainer>
+            <Text style={styles.sectionTitle}>Serviços necessários</Text>
+            <Text style={styles.sectionSubtitle}>
+              Selecione os profissionais
+            </Text>
+            <View style={styles.chipsGrid}>
+              {Array.from({ length: Math.ceil(SERVICES.length / 2) }, (_, i) => {
+                const row = SERVICES.slice(i * 2, i * 2 + 2);
+                return (
+                  <View key={i} style={styles.chipsRow}>
+                    {row.map((service) => (
+                      <ServiceChip
+                        key={service.id}
+                        emoji={service.emoji}
+                        label={service.label}
+                        selected={(selectedServices ?? []).includes(service.id)}
+                        onPress={() => toggleService(service.id)}
+                      />
+                    ))}
+                    {row.length === 1 && <View style={styles.chipPlaceholder} />}
+                  </View>
+                );
+              })}
+            </View>
+            {tarifaAtual && <TarifaInfo tarifa={tarifaAtual} />}
+            {fieldState.error?.message && (
+              <Text style={styles.fieldError}>{fieldState.error.message}</Text>
+            )}
+          </CardContainer>
+        )}
       />
+    );
+  }
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom, 16) + 80 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Controller
-          control={control}
-          name="selectedServices"
-          render={({ fieldState }) => (
-            <CardContainer>
-              <Text style={styles.sectionTitle}>Serviços necessários</Text>
-              <Text style={styles.sectionSubtitle}>
-                Selecione os profissionais
-              </Text>
-              <View style={styles.chipsGrid}>
-                {Array.from({ length: Math.ceil(SERVICES.length / 2) }, (_, i) => {
-                  const row = SERVICES.slice(i * 2, i * 2 + 2);
-                  return (
-                    <View key={i} style={styles.chipsRow}>
-                      {row.map((service) => (
-                        <ServiceChip
-                          key={service.id}
-                          emoji={service.emoji}
-                          label={service.label}
-                          selected={(selectedServices ?? []).includes(service.id)}
-                          onPress={() => toggleService(service.id)}
-                        />
-                      ))}
-                      {row.length === 1 && <View style={styles.chipPlaceholder} />}
-                    </View>
-                  );
-                })}
-              </View>
-              {tarifaAtual && <TarifaInfo tarifa={tarifaAtual} />}
-              {fieldState.error?.message && (
-                <Text style={styles.fieldError}>{fieldState.error.message}</Text>
-              )}
-            </CardContainer>
-          )}
-        />
-
+  function renderStep1() {
+    return (
+      <>
         <CardContainer>
           <CardHeader icon="calendar-outline" title="Data do evento" />
           <Controller
@@ -460,6 +516,60 @@ export default function CriarVagaScreen() {
             />
           )}
         </CardContainer>
+      </>
+    );
+  }
+
+  function renderStep2() {
+    const servicoLabel =
+      selectedServices && selectedServices.length > 0
+        ? selectedServices
+            .map((id) => SERVICES.find((s) => s.id === id)?.label ?? id)
+            .join(", ")
+        : "Nenhum";
+    const localLabel = noEstabelecimento ? "No estabelecimento" : watch("endereco") || "Nao informado";
+
+    return (
+      <>
+        <CardContainer>
+          <View style={resumeStyles.header}>
+            <Ionicons name="list-outline" size={18} color={colors.primary} />
+            <Text style={resumeStyles.headerText}>Resumo da contratacao</Text>
+          </View>
+          <View style={resumeStyles.row}>
+            <Text style={resumeStyles.rowLabel}>Servico</Text>
+            <Text style={resumeStyles.rowValue} testID="resumo-servico">{servicoLabel}</Text>
+          </View>
+          <View style={resumeStyles.divider} />
+          <View style={resumeStyles.row}>
+            <Text style={resumeStyles.rowLabel}>Data</Text>
+            <Text style={resumeStyles.rowValue} testID="resumo-data">{dataEvento || "Nao informada"}</Text>
+          </View>
+          <View style={resumeStyles.divider} />
+          <View style={resumeStyles.row}>
+            <Text style={resumeStyles.rowLabel}>Horario</Text>
+            <Text style={resumeStyles.rowValue} testID="resumo-horario">
+              {horarioInicioVal && horarioFimVal
+                ? `${horarioInicioVal} - ${horarioFimVal}`
+                : "Nao informado"}
+            </Text>
+          </View>
+          <View style={resumeStyles.divider} />
+          <View style={resumeStyles.row}>
+            <Text style={resumeStyles.rowLabel}>Local</Text>
+            <Text style={resumeStyles.rowValue} testID="resumo-local">{localLabel}</Text>
+          </View>
+          {formState.errors.horarioFim?.message && (
+            <Text style={styles.fieldError} testID="resumo-erro-horario">
+              {formState.errors.horarioFim.message}
+            </Text>
+          )}
+          {formState.errors.endereco?.message && (
+            <Text style={styles.fieldError} testID="resumo-erro-endereco">
+              {formState.errors.endereco.message}
+            </Text>
+          )}
+        </CardContainer>
 
         <CardContainer>
           <CardHeader icon="document-text-outline" title="Descrição da vaga" />
@@ -497,14 +607,70 @@ export default function CriarVagaScreen() {
           title="Contratação"
           body="Você pode criar vagas 1 hora antes do início a 3 meses antes do início."
         />
+      </>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <PageHeader
+        badge="Freela para Empresas"
+        title="Nova contratação"
+        subtitle="Monte seu evento selecionando os serviços que precisa"
+        rounded
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 80 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {renderProgressBar()}
+
+        <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
+          <View style={styles.stepContent}>
+            {currentStep === 0 && renderStep0()}
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+          </View>
+        </Animated.View>
       </ScrollView>
 
       <BottomActionBar backgroundColor={colors.white} showTopBorder>
-        <PrimaryButton
-          label="Publicar contratação →"
-          onPress={handleSubmit(handlePublish)}
-          loading={loading}
-        />
+        <View style={styles.actionRow}>
+          {currentStep > 0 && (
+            <TouchableOpacity
+              testID="btn-voltar"
+              onPress={handleBack}
+              style={styles.backButton}
+            >
+              <Text style={styles.backButtonText}>← Voltar</Text>
+            </TouchableOpacity>
+          )}
+          {currentStep < 2 ? (
+            <View style={styles.nextButtonWrapper}>
+              <PrimaryButton
+                label="Proximo →"
+                onPress={handleNext}
+                loading={false}
+              />
+            </View>
+          ) : (
+            <View style={styles.nextButtonWrapper}>
+              <PrimaryButton
+                label="Publicar contratação →"
+                onPress={handleSubmit(handlePublish)}
+                loading={loading}
+              />
+            </View>
+          )}
+        </View>
       </BottomActionBar>
 
       {showSuccess && (
@@ -518,6 +684,69 @@ export default function CriarVagaScreen() {
     </View>
   );
 }
+
+const progressStyles = StyleSheet.create({
+  wrapper: {
+    gap: spacing["4"],
+    marginBottom: spacing["4"],
+  },
+  segments: {
+    flexDirection: "row",
+    gap: spacing["3"],
+  },
+  segment: {
+    flex: 1,
+    height: 4,
+    borderRadius: radii.full,
+  },
+  segmentActive: {
+    backgroundColor: colors.primary,
+  },
+  segmentInactive: {
+    backgroundColor: colors.border,
+  },
+  label: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    fontWeight: fontWeights.medium,
+  },
+});
+
+const resumeStyles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["3"],
+    marginBottom: spacing["5"],
+  },
+  headerText: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingVertical: spacing["4"],
+  },
+  rowLabel: {
+    fontSize: fontSizes.base,
+    color: colors.muted,
+    flex: 1,
+  },
+  rowValue: {
+    fontSize: fontSizes.base,
+    color: colors.ink,
+    fontWeight: fontWeights.medium,
+    flex: 2,
+    textAlign: "right",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+  },
+});
 
 const tarifaStyles = StyleSheet.create({
   card: {
@@ -660,6 +889,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing["8"],
     paddingTop: spacing["8"],
   },
+  stepContent: {
+    gap: spacing["6"],
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: fontWeights.semibold,
@@ -713,6 +945,23 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.error,
     marginTop: spacing["3"],
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["8"],
+  },
+  backButton: {
+    paddingVertical: spacing["8"],
+    paddingHorizontal: spacing["4"],
+  },
+  backButtonText: {
+    fontSize: fontSizes.md,
+    color: colors.muted,
+    fontWeight: fontWeights.medium,
+  },
+  nextButtonWrapper: {
+    flex: 1,
   },
 });
 

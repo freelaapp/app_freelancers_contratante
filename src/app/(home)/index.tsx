@@ -49,6 +49,16 @@ function resolveValue(item: Record<string, unknown>): number | undefined {
   return item.value as number | undefined;
 }
 
+function isHojeOuFuturo(dateField?: string): boolean {
+  if (!dateField) return true;
+  const d = new Date(dateField);
+  if (isNaN(d.getTime())) return true;
+  const hoje = new Date();
+  const vagaDay = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const hojeDay = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  return vagaDay >= hojeDay;
+}
+
 function formatSaldo(s: ContractorSummary): string {
   const cents = s.currentMonthSpent ?? s.totalSpent;
   if (cents == null) return "R$ 0,00";
@@ -137,9 +147,10 @@ export default function HomeScreen() {
     router.push("/(home)/notificacoes");
   }, [router]);
 
-  const proximas = vagas.filter((v) => mapApiStatus(v.status) === "confirmado");
-  const abertas = vagas.filter((v) => mapApiStatus(v.status) === "aguardando");
-  const finalizadas = vagas.filter((v) => mapApiStatus(v.status) === "finalizado");
+  const vagasHome = vagas.filter((v) => isHojeOuFuturo(v.date as string | undefined));
+  const proximas = vagasHome.filter((v) => mapApiStatus(v.status) === "confirmado");
+  const abertas = vagasHome.filter((v) => mapApiStatus(v.status) === "aguardando");
+  const finalizadas = vagasHome.filter((v) => mapApiStatus(v.status) === "finalizado");
 
   return (
     <View style={styles.container}>
@@ -174,7 +185,7 @@ export default function HomeScreen() {
             color={colors.primary}
             style={styles.loader}
           />
-        ) : vagas.length === 0 ? (
+        ) : vagasHome.length === 0 ? (
           <EmptyState />
         ) : (
           <>

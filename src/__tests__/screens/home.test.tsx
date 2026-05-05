@@ -274,6 +274,66 @@ describe("HomeScreen", () => {
     });
   });
 
+  describe("Filtro de data — home só exibe vagas de hoje ou futuras", () => {
+    it("oculta vaga com data no passado (ontem)", () => {
+      const ontem = new Date();
+      ontem.setUTCDate(ontem.getUTCDate() - 1);
+      const vagaPassada = {
+        ...VAGA_ABERTA_FIXTURE,
+        id: "vaga-passada",
+        title: "Vaga de ontem",
+        date: ontem.toISOString(),
+      };
+      setupHomeVagas({ loading: false, vagas: [vagaPassada] });
+
+      render(<HomeScreen />);
+
+      expect(screen.queryByText("Vaga de ontem")).toBeNull();
+    });
+
+    it("exibe vaga com data de hoje", () => {
+      const hoje = new Date();
+      const vagaHoje = {
+        ...VAGA_ABERTA_FIXTURE,
+        id: "vaga-hoje",
+        title: "Vaga de hoje",
+        date: new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())).toISOString(),
+      };
+      setupHomeVagas({ loading: false, vagas: [vagaHoje] });
+
+      render(<HomeScreen />);
+
+      expect(screen.getAllByText("Vaga de hoje").length).toBeGreaterThan(0);
+    });
+
+    it("exibe vaga com data no futuro", () => {
+      const amanha = new Date();
+      amanha.setUTCDate(amanha.getUTCDate() + 1);
+      const vagaFutura = {
+        ...VAGA_ABERTA_FIXTURE,
+        id: "vaga-futura",
+        title: "Vaga de amanhã",
+        date: amanha.toISOString(),
+      };
+      setupHomeVagas({ loading: false, vagas: [vagaFutura] });
+
+      render(<HomeScreen />);
+
+      expect(screen.getAllByText("Vaga de amanhã").length).toBeGreaterThan(0);
+    });
+
+    it("exibe estado vazio quando todas as vagas são do passado", () => {
+      const ontem = new Date();
+      ontem.setUTCDate(ontem.getUTCDate() - 1);
+      const vagaPassada = { ...VAGA_ABERTA_FIXTURE, date: ontem.toISOString() };
+      setupHomeVagas({ loading: false, vagas: [vagaPassada] });
+
+      render(<HomeScreen />);
+
+      expect(screen.getByText("Nenhuma vaga cadastrada")).toBeTruthy();
+    });
+  });
+
   describe("Pull-to-refresh", () => {
     it("passa a prop onRefresh para o RefreshControl", () => {
       setupHomeVagas({ loading: false, vagas: [VAGA_ABERTA_FIXTURE] });
