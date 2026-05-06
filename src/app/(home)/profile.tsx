@@ -5,11 +5,13 @@ import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/co
 import { useAuth } from "@/context/auth-context";
 import { authService } from "@/services/auth.service";
 import { contractorService } from "@/services/contractor.service";
+import type { BarsContractor } from "@/types/api";
 import { toast } from "@/utils/toast";
+import { debug } from "@/utils/debug";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -112,14 +114,15 @@ export default function ProfileScreen() {
   }, [user?.avatarUrl]);
 
   useEffect(() => {
-    console.log("[PROFILE] user contexto:", JSON.stringify({ module: user?.module, contractorId: user?.contractorId }, null, 2));
+    debug.log("PROFILE", "user contexto", { module: user?.module, contractorId: user?.contractorId });
     if (!isBars || !user?.contractorId) return;
     contractorService.getBarsById(user.contractorId).then((res) => {
-      const data = (res.data as any).props ?? res.data;
-      console.log("[PROFILE] dados contractor banco:", JSON.stringify(data, null, 2));
+      const responseData = res.data as unknown as { props?: BarsContractor };
+      const data = responseData.props ?? res.data;
+      debug.log("PROFILE", "dados contractor banco", data);
       setFacadeUri(data.establishmentFacadeImage ?? null);
       setInteriorUri(data.establishmentInteriorImage ?? null);
-    }).catch((err) => console.warn("[PROFILE] erro getBarsById:", err));
+    }).catch((err) => debug.warn("PROFILE", "erro getBarsById", err));
 
     if (!user?.avatarUrl) {
       authService.getProfile().then((res) => {
@@ -189,8 +192,9 @@ export default function ProfileScreen() {
           : { establishmentInteriorImage: uri };
 
       const res = await contractorService.updateBarsImages(payload);
-      const data = (res.data as any).props ?? res.data;
-      console.log(`[PROFILE] upload ${type} resposta banco:`, JSON.stringify(data, null, 2));
+      const responseData = res.data as unknown as { props?: BarsContractor };
+      const data = responseData.props ?? res.data;
+      debug.log("PROFILE", `upload ${type} resposta banco`, data);
       setUri(uri);
     } catch {
       Alert.alert("Erro", "Não foi possível enviar a imagem. Tente novamente.");

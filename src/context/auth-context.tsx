@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { authService } from "@/services/auth.service";
 import { tokenStore } from "@/services/token-store";
 import { registerUnauthorizedHandler, unregisterUnauthorizedHandler } from "@/services/api";
+import { debug } from "@/utils/debug";
 
 type User = {
   id: string;
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token && storedUser) {
           // se tem module mas não tem contractorId, sessão está desatualizada — força novo login
           if (storedUser.module && !storedUser.contractorId) {
-            console.warn("[AUTH] sessão desatualizada: contractorId ausente — limpando para novo login");
+            debug.warn("AUTH", "sessao desatualizada: contractorId ausente");
             await tokenStore.clear();
           } else {
             setUser(storedUser);
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const loginRes = await authService.login(email, password);
       const { accessToken, refreshToken, user: apiUser, onboarding, context } = loginRes.data;
-      console.log("[AUTH] login response:", JSON.stringify({ user: apiUser, onboarding, context }, null, 2));
+      debug.log("AUTH", "login response", { onboarding, context });
 
       await tokenStore.set(accessToken, refreshToken);
 
@@ -104,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatarUrl,
       };
 
-      console.log("[AUTH] contexto resolvido:", JSON.stringify({ module: resolvedModule, contractorId }, null, 2));
+      debug.log("AUTH", "contexto resolvido", { module: resolvedModule, contractorId });
       await tokenStore.setUser(newUser);
       setUser(newUser);
     } finally {

@@ -8,6 +8,7 @@ export { CardHeader } from "./card-header";
 export { CompactHeader } from "./compact-header";
 export { CustomTabBar } from "./custom-tab-bar";
 export { Divider } from "./divider";
+export { ErrorBoundary } from "./error-boundary";
 export { FilterChipBar } from "./filter-chip-bar";
 export { HomeHeader } from "./home-header";
 export { InfoBox } from "./info-box";

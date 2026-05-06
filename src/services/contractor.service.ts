@@ -8,6 +8,12 @@ import {
 import { AxiosResponse } from "axios";
 import { api } from "./api";
 
+type ImagePart = {
+  uri: string;
+  name: string;
+  type: string;
+};
+
 export const contractorService = {
   createCasa: (
     payload: CasaContractorPayload
@@ -47,18 +53,18 @@ export const contractorService = {
     establishmentFacadeImage?: string;
     establishmentInteriorImage?: string;
   }): Promise<AxiosResponse<BarsContractor>> => {
-    const form = new FormData();
+    const form = new FormData() as unknown as Record<string, ImagePart | string>;
     if (images.establishmentFacadeImage) {
       const uri = images.establishmentFacadeImage;
       const ext = uri.split(".").pop()?.toLowerCase() ?? "jpg";
       const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-      form.append("establishmentFacadeImage", { uri, name: `facade.${ext}`, type: mime } as any);
+      form["establishmentFacadeImage"] = { uri, name: `facade.${ext}`, type: mime } as ImagePart;
     }
     if (images.establishmentInteriorImage) {
       const uri = images.establishmentInteriorImage;
       const ext = uri.split(".").pop()?.toLowerCase() ?? "jpg";
       const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-      form.append("establishmentInteriorImage", { uri, name: `interior.${ext}`, type: mime } as any);
+      form["establishmentInteriorImage"] = { uri, name: `interior.${ext}`, type: mime } as ImagePart;
     }
     return api.put("/v1/bars-restaurants/contractors", form, {
       headers: { "Content-Type": "multipart/form-data" },

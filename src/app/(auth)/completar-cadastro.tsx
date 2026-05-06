@@ -2,6 +2,7 @@ import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/them
 import { CompactHeader } from "@/components/compact-header";
 import { Input } from "@/components/input";
 import { MaskedInput } from "@/components/masked-input";
+import { debug } from "@/utils/debug";
 
 const CPF_MASK = [
   /\d/,
@@ -232,9 +233,9 @@ export default function CompletarCadastroScreen() {
           latitude,
           longitude,
         };
-        console.log("[ONBOARDING] payload home-services:", JSON.stringify(casaPayload, null, 2));
+        debug.log("ONBOARDING", "payload home-services", casaPayload);
         const casaRes = await contractorService.createCasa(casaPayload);
-        console.log("[ONBOARDING] resposta home-services:", JSON.stringify(casaRes.data, null, 2));
+        debug.log("ONBOARDING", "resposta home-services", casaRes.data);
         completeProfile("home-services", casaRes.data.id);
         toast.success("Freela em Casa cadastrado com sucesso!", `Bem-vindo, ${user?.name ?? ""}!`);
       } else {
@@ -256,16 +257,16 @@ export default function CompletarCadastroScreen() {
           companyName: nomeEstabelecimento || undefined,
           segment: ramoEstabelecimento || undefined,
         };
-        console.log("[ONBOARDING] payload bars-restaurants:", JSON.stringify(barsPayload, null, 2));
+        debug.log("ONBOARDING", "payload bars-restaurants", barsPayload);
         const barsRes = await contractorService.createBars(barsPayload);
-        console.log("[ONBOARDING] resposta bars-restaurants:", JSON.stringify(barsRes.data, null, 2));
+        debug.log("ONBOARDING", "resposta bars-restaurants", barsRes.data);
 
         if (foto1 || foto2) {
           const imgRes = await contractorService.updateBarsImages({
             establishmentFacadeImage: foto1 || undefined,
             establishmentInteriorImage: foto2 || undefined,
           });
-          console.log("[ONBOARDING] upload imagens bars-restaurants:", JSON.stringify(imgRes.data, null, 2));
+          debug.log("ONBOARDING", "upload imagens bars-restaurants", imgRes.data);
         }
 
         completeProfile("bars-restaurants", barsRes.data.id);

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { BookingCard, HomeHeader, PrimaryButton, SectionHeader } from "@/components";
 import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
@@ -79,7 +80,7 @@ function EmptyState() {
 
 type VagaSectionProps = {
   title: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   vagas: VagaApi[];
   onPressVaga: (id: string) => void;
 };

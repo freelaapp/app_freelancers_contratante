@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { vagasService } from "@/services/vagas.service";
 import { toast } from "@/utils/toast";
 import { useAuth } from "@/context/auth-context";
+import { debug } from "@/utils/debug";
 import type { VagaApi } from "@/types/vagas";
 
 type UseHomeVagasResult = {
@@ -25,20 +26,20 @@ export function useHomeVagas(): UseHomeVagasResult {
     }
 
     if (!user?.contractorId) {
-      console.warn("[useHomeVagas] contractorId ausente — user:", JSON.stringify(user));
+      debug.warn("useHomeVagas", "contractorId ausente");
       setLoading(false);
       toast.error("Perfil incompleto. Faça login novamente.");
       return;
     }
 
-    console.log("[useHomeVagas] buscando vagas:", { module: user.module, contractorId: user.contractorId });
+    debug.log("useHomeVagas", "buscando vagas", { module: user.module, contractorId: user.contractorId });
 
     try {
       const data = await vagasService.listByContractor(user.module, user.contractorId);
-      console.log("[useHomeVagas] vagas recebidas:", JSON.stringify(data));
+      debug.log("useHomeVagas", "vagas recebidas", data);
       setVagas(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("[useHomeVagas] erro ao buscar vagas:", err);
+      debug.error("useHomeVagas", "erro ao buscar vagas", err);
       toast.error("Não foi possível carregar as vagas. Tente novamente.");
     } finally {
       setLoading(false);

@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { tokenStore } from "./token-store";
 import { toast } from "@/utils/toast";
+import { debug } from "@/utils/debug";
 
 declare module "axios" {
   interface InternalAxiosRequestConfig {
@@ -148,7 +149,7 @@ api.interceptors.response.use(
     const message = apiMessage ?? fallbackMessage ?? "Ocorreu um erro inesperado.";
 
     if (!error.config?._suppressToast) {
-      console.error("[API ERROR]", {
+      debug.error("API", "erro na requisicao", {
         url: error.config?.url,
         method: error.config?.method,
         status,
