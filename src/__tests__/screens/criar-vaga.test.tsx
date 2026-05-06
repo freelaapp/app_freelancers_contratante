@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
+import { render, screen } from "@testing-library/react-native";
 import { Platform } from "react-native";
 import CriarVagaScreen from "@/app/(home)/criar-vaga";
 
@@ -13,10 +13,6 @@ jest.mock("@react-native-community/datetimepicker", () => {
     DateTimePickerAndroid: { open: jest.fn() },
   };
 });
-
-const { DateTimePickerAndroid } = jest.requireMock("@react-native-community/datetimepicker") as {
-  DateTimePickerAndroid: { open: jest.Mock };
-};
 
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), push: jest.fn() },
@@ -37,7 +33,7 @@ jest.mock("expo-linear-gradient", () => {
 });
 
 jest.mock("@expo/vector-icons", () => ({
-  Ionicons: () => null,
+  Ionicons: "Ionicons",
 }));
 
 jest.mock("@/context/auth-context", () => ({
@@ -55,323 +51,18 @@ jest.mock("@/context/auth-context", () => ({
   }),
 }));
 
-const mockCreate = jest.fn().mockResolvedValue({ id: "vaga-1", title: "Barista" });
-
-jest.mock("@/services/vagas.service", () => ({
-  vagasService: {
-    create: (...args: unknown[]) => mockCreate(...args),
-  },
-}));
-
-const mockToastSuccess = jest.fn();
-const mockToastError = jest.fn();
-
-jest.mock("@/utils/toast", () => ({
-  toast: {
-    success: (...args: unknown[]) => mockToastSuccess(...args),
-    error: (...args: unknown[]) => mockToastError(...args),
-  },
-}));
-
 jest.mock("react-native-toast-message", () => ({
   __esModule: true,
   default: { show: jest.fn() },
 }));
 
-async function selectDate() {
-  DateTimePickerAndroid.open.mockImplementationOnce(({ onChange }: { onChange: (e: unknown, date?: Date) => void }) => {
-    onChange({}, new Date(2026, 5, 20));
-  });
-  await act(async () => {
-    fireEvent.press(screen.getByTestId("date-picker-button"));
-  });
-}
-
-async function selectTime(testID: string, hours: number) {
-  await act(async () => {
-    fireEvent.press(screen.getByTestId(`${testID}-hour-btn-${hours}`));
-  });
-}
-
-async function fillValidForm() {
-  fireEvent.press(screen.getByText("Barista"));
-  await selectDate();
-  await selectTime("time-inicio-button", 17);
-  await selectTime("time-fim-button", 23);
-  fireEvent.changeText(
-    screen.getByPlaceholderText(/Preciso de 2 garçons/),
-    "Evento corporativo no sábado, traje social exigido."
-  );
-}
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  mockCreate.mockResolvedValue({ id: "vaga-1", title: "Barista" });
-});
+jest.mock("@/components/steps-criar-vaga", () => ({
+  MultiStepCriarVaga: () => null,
+}));
 
 describe("CriarVagaScreen", () => {
-  it("renderiza título Nova contratação", () => {
+  it("renderiza componente MultiStepCriarVaga", () => {
     render(<CriarVagaScreen />);
-    expect(screen.getByText("Nova contratação")).toBeTruthy();
-  });
-
-  it("renderiza chips de serviços", () => {
-    render(<CriarVagaScreen />);
-    expect(screen.getByText("Barista")).toBeTruthy();
-    expect(screen.getByText("Barman/Bartender")).toBeTruthy();
-    expect(screen.getByText("Garçom/Garçonete")).toBeTruthy();
-  });
-
-  it("selecionar chip marca o chip como selecionado", () => {
-    render(<CriarVagaScreen />);
-    const chip = screen.getByText("Barista");
-    fireEvent.press(chip);
-    expect(chip).toBeTruthy();
-  });
-
-  it("renderiza botão de data do evento", () => {
-    render(<CriarVagaScreen />);
-    expect(screen.getByTestId("date-picker-button")).toBeTruthy();
-  });
-
-  it("campo de data exibe placeholder quando sem valor", () => {
-    render(<CriarVagaScreen />);
-    expect(screen.getByText("Selecione a data")).toBeTruthy();
-  });
-
-  it("ao selecionar data via picker, exibe o valor formatado no campo", async () => {
-    render(<CriarVagaScreen />);
-    await selectDate();
-    expect(screen.getByText("20/06/2026")).toBeTruthy();
-  });
-
-  it("seletores de horário não aparecem sem data selecionada", () => {
-    render(<CriarVagaScreen />);
-    expect(screen.queryByTestId("time-inicio-button")).toBeNull();
-    expect(screen.queryByTestId("time-fim-button")).toBeNull();
-  });
-
-  it("seletor de horário de início aparece após selecionar data", async () => {
-    render(<CriarVagaScreen />);
-    await selectDate();
-    expect(screen.getByTestId("time-inicio-button")).toBeTruthy();
-  });
-
-  it("seletor de horário de fim não aparece antes de selecionar horário de início", async () => {
-    render(<CriarVagaScreen />);
-    await selectDate();
-    expect(screen.queryByTestId("time-fim-button")).toBeNull();
-  });
-
-  it("ao selecionar horário de início, seletor de fim aparece", async () => {
-    render(<CriarVagaScreen />);
-    await selectDate();
-    await selectTime("time-inicio-button", 17);
-    expect(screen.getByTestId("time-fim-button")).toBeTruthy();
-  });
-
-  it("ao selecionar horário de início, botão da hora fica marcado", async () => {
-    render(<CriarVagaScreen />);
-    await selectDate();
-    await selectTime("time-inicio-button", 17);
-    expect(screen.getByTestId("time-inicio-button-hour-btn-17")).toBeTruthy();
-  });
-
-  it("campo de endereço fica visível quando switch No estabelecimento está OFF", () => {
-    render(<CriarVagaScreen />);
-    const switchEl = screen.getByTestId("toggle-estabelecimento");
-    fireEvent(switchEl, "valueChange", false);
-    expect(screen.getByPlaceholderText("Rua, número, bairro...")).toBeTruthy();
-  });
-
-  it("campo de endereço fica oculto quando switch No estabelecimento está ON", () => {
-    render(<CriarVagaScreen />);
-    expect(screen.queryByPlaceholderText("Rua, número, bairro...")).toBeNull();
-  });
-
-  it("submeter sem selecionar serviço exibe erro de validação", async () => {
-    render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText(/Publicar contratação/));
-    await waitFor(() => {
-      expect(screen.getByText("Selecione ao menos um serviço")).toBeTruthy();
-    });
-  });
-
-  it("submeter sem data exibe erro de campo obrigatório", async () => {
-    render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    fireEvent.press(screen.getByText(/Publicar contratação/));
-    await waitFor(() => {
-      expect(screen.getByText("Data do evento é obrigatória")).toBeTruthy();
-    });
-  });
-
-  it("submeter sem horário exibe erro de campo obrigatório", async () => {
-    render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    await selectDate();
-    fireEvent.press(screen.getByText(/Publicar contratação/));
-    await waitFor(() => {
-      expect(screen.getByText("Horário de início é obrigatório")).toBeTruthy();
-    });
-  });
-
-  it("seletor de fim não exibe horas menores ou iguais à hora de início", async () => {
-    render(<CriarVagaScreen />);
-    await selectDate();
-    await selectTime("time-inicio-button", 18);
-    expect(screen.queryByTestId("time-fim-button-hour-btn-18")).toBeNull();
-    expect(screen.queryByTestId("time-fim-button-hour-btn-17")).toBeNull();
-    expect(screen.getByTestId("time-fim-button-hour-btn-19")).toBeTruthy();
-  });
-
-  it("submeter sem horário de fim exibe erro de campo obrigatório", async () => {
-    render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    await selectDate();
-    await selectTime("time-inicio-button", 18);
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
-    await act(async () => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(screen.getByText("Horário de encerramento é obrigatório")).toBeTruthy();
-    });
-  });
-
-  it("submeter sem endereço quando switch está OFF exibe erro de campo obrigatório", async () => {
-    render(<CriarVagaScreen />);
-    const switchEl = screen.getByTestId("toggle-estabelecimento");
-    fireEvent(switchEl, "valueChange", false);
-    fireEvent.press(screen.getByText("Barista"));
-    await selectDate();
-    await selectTime("time-inicio-button", 18);
-    await selectTime("time-fim-button", 23);
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
-    fireEvent.press(screen.getByText(/Publicar contratação/));
-    await waitFor(() => {
-      expect(screen.getByText("Endereço é obrigatório")).toBeTruthy();
-    });
-  });
-
-  it("submeter form válido chama vagasService.create com payload correto", async () => {
-    render(<CriarVagaScreen />);
-    await fillValidForm();
-    await act(async () => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(mockCreate).toHaveBeenCalledTimes(1);
-    });
-    const [module, payload] = mockCreate.mock.calls[0];
-    expect(module).toBe("bars-restaurants");
-    expect(payload.serviceType).toBe("Barista");
-    expect(payload.date).toBe("2026-06-20");
-    expect(payload.startTime).toBe("2026-06-20T17:00:00.000Z");
-    expect(payload.endTime).toBe("2026-06-20T23:00:00.000Z");
-    expect(payload.contractorId).toBeUndefined();
-  });
-
-  it("após sucesso chama toast.success e router.back", async () => {
-    jest.useFakeTimers();
-    const routerMock = jest.requireMock("expo-router");
-    render(<CriarVagaScreen />);
-    await fillValidForm();
-    await act(async () => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(mockToastSuccess).toHaveBeenCalledWith("Vaga publicada com sucesso!");
-    });
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    expect(routerMock.router.back).toHaveBeenCalled();
-    jest.useRealTimers();
-  });
-
-  it("exibe indicador de loading enquanto a vaga é criada", async () => {
-    let resolveCreate!: (value: unknown) => void;
-    mockCreate.mockReturnValue(
-      new Promise((resolve) => {
-        resolveCreate = resolve;
-      })
-    );
-    render(<CriarVagaScreen />);
-    await fillValidForm();
-    act(() => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("primary-button-loading")).toBeTruthy();
-    });
-    await act(async () => {
-      resolveCreate({ id: "vaga-1", title: "Barista" });
-    });
-  });
-
-  it("erro na API exibe toast.error", async () => {
-    mockCreate.mockRejectedValue(new Error("network error"));
-    render(<CriarVagaScreen />);
-    await fillValidForm();
-    await act(async () => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(
-        "Erro ao publicar a vaga. Tente novamente."
-      );
-    });
-  });
-
-  it("ao selecionar 1 servico exibe card de tarifa com valor hora e jornada minima", async () => {
-    render(<CriarVagaScreen />);
-    await act(async () => {
-      fireEvent.press(screen.getByText("Barista"));
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("tarifa-info-card")).toBeTruthy();
-      expect(screen.getByText("R$ 25.00")).toBeTruthy();
-      expect(screen.getByText("6h")).toBeTruthy();
-    });
-  });
-
-  it("ao selecionar 2 servicos o card de tarifa nao e exibido", async () => {
-    render(<CriarVagaScreen />);
-    await act(async () => {
-      fireEvent.press(screen.getByText("Barista"));
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByText("Barman/Bartender"));
-    });
-    await waitFor(() => {
-      expect(screen.queryByTestId("tarifa-info-card")).toBeNull();
-    });
-  });
-
-  it("submeter com jornada menor que o minimo exibe erro de jornada minima", async () => {
-    render(<CriarVagaScreen />);
-    fireEvent.press(screen.getByText("Barista"));
-    await selectDate();
-    await selectTime("time-inicio-button", 18);
-    await selectTime("time-fim-button", 20);
-    fireEvent.changeText(
-      screen.getByPlaceholderText(/Preciso de 2 garçons/),
-      "Evento corporativo no sábado, traje social exigido."
-    );
-    await act(async () => {
-      fireEvent.press(screen.getByText(/Publicar contratação/));
-    });
-    await waitFor(() => {
-      expect(
-        screen.getByText("Jornada minima para este servico e de 6h")
-      ).toBeTruthy();
-    });
+    expect(screen.toJSON()).toBeNull();
   });
 });

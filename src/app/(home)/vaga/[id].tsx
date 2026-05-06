@@ -233,48 +233,53 @@ function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecu
   );
 }
 
+function StepperItem({ label, status }: { label: string; status: "done" | "current" | "pending" }) {
+  const isDone = status === "done";
+  const isCurrent = status === "current";
+  const isPending = status === "pending";
+
+  return (
+    <View style={stepperStyles.container}>
+      <View
+        style={[
+          stepperStyles.dot,
+          isDone && stepperStyles.dotDone,
+          isCurrent && stepperStyles.dotCurrent,
+          isPending && stepperStyles.dotPending,
+        ]}
+      >
+        {isDone && <Ionicons name="checkmark" size={8} color={colors.white} />}
+      </View>
+
+      <Text
+        style={[
+          stepperStyles.label,
+          isDone && stepperStyles.labelDone,
+          isCurrent && stepperStyles.labelCurrent,
+          isPending && stepperStyles.labelPending,
+        ]}
+      >
+        {label}
+      </Text>
+
+      {isDone && (
+        <View style={[stepperStyles.dot, stepperStyles.dotConfirm]}>
+          <Ionicons name="checkmark" size={8} color={colors.white} />
+        </View>
+      )}
+    </View>
+  );
+}
+
 function StatusCard({ stepAtual }: { stepAtual: number }) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardLabel}>Status da Vaga</Text>
-      <View style={styles.stepsRow}>
+      <View style={stepperStyles.list}>
         {STEPS.map((step, index) => {
-          const isDone = index < stepAtual;
-          const isCurrent = index === stepAtual;
-          const isLast = index === STEPS.length - 1;
-
-          return (
-            <View key={step} style={styles.stepItem}>
-              <View style={styles.stepDotRow}>
-                {index > 0 && (
-                  <View
-                    style={[
-                      styles.stepLineLeft,
-                      { backgroundColor: isDone || isCurrent ? colors.primary : colors.border },
-                    ]}
-                  />
-                )}
-                <View
-                  style={[
-                    styles.stepDot,
-                    (isDone || isCurrent) && styles.stepDotActive,
-                    isCurrent && styles.stepDotCurrent,
-                  ]}
-                />
-                {!isLast && (
-                  <View
-                    style={[
-                      styles.stepLineRight,
-                      { backgroundColor: isDone ? colors.primary : colors.border },
-                    ]}
-                  />
-                )}
-              </View>
-              <Text style={[styles.stepLabel, (isDone || isCurrent) && styles.stepLabelActive]}>
-                {step}
-              </Text>
-            </View>
-          );
+          const status: "done" | "current" | "pending" =
+            index < stepAtual ? "done" : index === stepAtual ? "current" : "pending";
+          return <StepperItem key={step} label={step} status={status} />;
         })}
       </View>
     </View>
@@ -1166,37 +1171,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  stepsRow: {
-    flexDirection: "row",
+  stepsColumn: {
+    flexDirection: "column",
     alignItems: "flex-start",
     marginTop: spacing["4"],
+    paddingHorizontal: spacing["2"],
   },
   stepItem: {
-    flex: 1,
-    alignItems: "center",
-    gap: spacing["3"],
-  },
-  stepDotRow: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing["3"],
+    minHeight: 40,
+  },
+  stepDotColumn: {
+    flexDirection: "column",
     alignItems: "center",
-    width: "100%",
   },
-  stepLineLeft: {
-    flex: 1,
-    height: 2,
-  },
-  stepLineRight: {
-    flex: 1,
-    height: 2,
-  },
-  stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: radii.full,
-    backgroundColor: colors.border,
+  stepLineTop: {
+    width: 2,
+    height: 20,
+},
+  stepLineBottom: {
+    width: 2,
+    height: 20,
   },
   stepDotActive: {
     backgroundColor: colors.primary,
+  },
+  stepDotDone: {
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
   stepDotCurrent: {
     width: 14,
@@ -1414,5 +1420,56 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.ink,
     backgroundColor: colors.white,
+  },
+});
+
+const stepperStyles = StyleSheet.create({
+  list: {
+    flexDirection: "column",
+    gap: spacing["1"],
+    marginTop: spacing["3"],
+  },
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing["2"],
+  },
+  dot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dotDone: {
+    backgroundColor: colors.primary,
+  },
+  dotCurrent: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  dotPending: {
+    backgroundColor: "#E5E7EB",
+  },
+  dotConfirm: {
+    backgroundColor: colors.primary,
+  },
+  label: {
+    flex: 1,
+    fontSize: fontSizes.sm,
+    marginHorizontal: spacing["3"],
+  },
+  labelDone: {
+    color: colors.ink,
+    fontWeight: fontWeights.medium,
+  },
+  labelCurrent: {
+    color: colors.ink,
+    fontWeight: fontWeights.medium,
+  },
+  labelPending: {
+    color: "#9CA3AF",
   },
 });
