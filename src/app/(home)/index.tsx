@@ -6,6 +6,7 @@ import { useNotifications } from "@/context/notifications-context";
 import { useHomeVagas } from "@/hooks/useHomeVagas";
 import { summaryService, ContractorSummary } from "@/services/summary.service";
 import { mapApiStatus, formatVagaValue } from "@/utils/vaga-status-map";
+import { consumePendingVaga } from "@/utils/pending-vaga-store";
 import type { VagaApi } from "@/types/vagas";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
@@ -113,14 +114,17 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { hasUnread } = useNotifications();
   const router = useRouter();
-  const { vagas, loading, refreshing, onRefresh, fetchVagas } = useHomeVagas();
+  const { vagas, loading, refreshing, onRefresh, fetchVagas, addVaga } = useHomeVagas();
   const [summary, setSummary] = useState<ContractorSummary>({});
 
   useFocusEffect(
     useCallback(() => {
-      fetchVagas();
+      const pending = consumePendingVaga();
+      fetchVagas().then(() => {
+        if (pending) addVaga(pending);
+      });
       summaryService.getContractorSummary().then(setSummary).catch(() => {});
-    }, [fetchVagas])
+    }, [fetchVagas, addVaga])
   );
 
   const handleNavigateToCreateVaga = useCallback(() => {
