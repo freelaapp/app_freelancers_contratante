@@ -9,6 +9,7 @@ import { ServiceChip } from "@/components/service-chip";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { vagasService } from "@/services/vagas.service";
+import { setPendingVaga } from "@/utils/pending-vaga-store";
 import { toast } from "@/utils/toast";
 import { SERVICES } from "@/utils/services";
 import { getTarifa, ModuloTarifas, Tarifa } from "@/utils/tarifas";
@@ -299,7 +300,8 @@ export default function CriarVagaScreen() {
 
     try {
       setLoading(true);
-      await vagasService.create(user.module as "home-services" | "bars-restaurants", payload);
+      const created = await vagasService.create(user.module as "home-services" | "bars-restaurants", payload);
+      setPendingVaga(created);
       toast.success("Vaga publicada com sucesso!");
       reset();
       setNoEstabelecimento(true);

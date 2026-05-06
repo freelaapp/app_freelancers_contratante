@@ -1,6 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react-native";
+import { render, screen, fireEvent, act } from "@testing-library/react-native";
 import HomeScreen from "@/app/(home)/index";
+import * as pendingStore from "@/utils/pending-vaga-store";
+
+jest.mock("@/utils/pending-vaga-store", () => ({
+  consumePendingVaga: jest.fn().mockReturnValue(null),
+}));
 
 // ─── Mocks de navegação e contexto ───────────────────────────────────────────
 
@@ -41,7 +46,8 @@ jest.mock("@/services/summary.service", () => ({
 // ─── Mock do hook useHomeVagas ────────────────────────────────────────────────
 
 const mockOnRefresh = jest.fn();
-const mockFetchVagas = jest.fn();
+const mockFetchVagas = jest.fn().mockResolvedValue(undefined);
+const mockAddVaga = jest.fn();
 const mockUseHomeVagas = jest.fn();
 
 jest.mock("@/hooks/useHomeVagas", () => ({
@@ -93,6 +99,7 @@ type HomeVagasOverride = {
   refreshing?: boolean;
   fetchVagas?: jest.Mock;
   onRefresh?: jest.Mock;
+  addVaga?: jest.Mock;
 };
 
 function setupHomeVagas(overrides: HomeVagasOverride = {}) {
@@ -102,6 +109,7 @@ function setupHomeVagas(overrides: HomeVagasOverride = {}) {
     refreshing: false,
     fetchVagas: mockFetchVagas,
     onRefresh: mockOnRefresh,
+    addVaga: mockAddVaga,
     ...overrides,
   });
 }
@@ -271,6 +279,99 @@ describe("HomeScreen", () => {
       fireEvent.press(notifButton);
 
       expect(mockRouterPush).toHaveBeenCalledWith("/(home)/notificacoes");
+    });
+  });
+
+  describe("Inserção otimista de vaga pendente (useFocusEffect)", () => {
+    it("chama addVaga somente após fetchVagas resolver", async () => {
+      const order: string[] = [];
+      let resolveFetch!: () => void;
+
+      const mockFetchVagasOrdered = jest.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFetch = () => {
+              order.push("fetchVagas_resolved");
+              resolve();
+            };
+          })
+      );
+
+      const mockAddVagaOrdered = jest.fn(() => {
+        order.push("addVaga_called");
+      });
+
+      jest.spyOn(pendingStore, "consumePendingVaga").mockReturnValueOnce({
+        id: "vaga-pending",
+        title: "Vaga Pendente",
+        status: "OPEN",
+      });
+
+      mockUseHomeVagas.mockReturnValue({
+        vagas: [],
+        loading: false,
+        refreshing: false,
+        fetchVagas: mockFetchVagasOrdered,
+        onRefresh: mockOnRefresh,
+        addVaga: mockAddVagaOrdered,
+      });
+
+      render(<HomeScreen />);
+
+      resolveFetch();
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(order).toEqual(["fetchVagas_resolved", "addVaga_called"]);
+    });
+
+    it("não chama addVaga quando não há vaga pendente", async () => {
+      jest.spyOn(pendingStore, "consumePendingVaga").mockReturnValueOnce(null);
+
+      const mockAddVaga = jest.fn();
+      const mockFetchVagasResolved = jest.fn().mockResolvedValue(undefined);
+
+      mockUseHomeVagas.mockReturnValue({
+        vagas: [],
+        loading: false,
+        refreshing: false,
+        fetchVagas: mockFetchVagasResolved,
+        onRefresh: mockOnRefresh,
+        addVaga: mockAddVaga,
+      });
+
+      render(<HomeScreen />);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(mockAddVaga).not.toHaveBeenCalled();
+    });
+
+    it("chama fetchVagas ao ganhar foco, mesmo sem vaga pendente", async () => {
+      jest.spyOn(pendingStore, "consumePendingVaga").mockReturnValueOnce(null);
+
+      const mockFetchVagasResolved = jest.fn().mockResolvedValue(undefined);
+
+      mockUseHomeVagas.mockReturnValue({
+        vagas: [],
+        loading: false,
+        refreshing: false,
+        fetchVagas: mockFetchVagasResolved,
+        onRefresh: mockOnRefresh,
+        addVaga: jest.fn(),
+      });
+
+      render(<HomeScreen />);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(mockFetchVagasResolved).toHaveBeenCalled();
     });
   });
 

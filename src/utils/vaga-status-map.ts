@@ -1,21 +1,28 @@
 import type { VagaStatus } from "@/types/vagas";
 
 const STATUS_MAP: Record<string, VagaStatus> = {
+  // Vagas com freelancer confirmado e agendado
   confirmed: "confirmado",
   active: "confirmado",
   accepted: "confirmado",
-  closed: "confirmado",
+  scheduled: "confirmado",
   in_progress: "confirmado",
   started: "confirmado",
   checking_in: "confirmado",
   checking_out: "confirmado",
+  // Vagas aguardando candidatos ou pagamento
   pending: "aguardando",
   waiting: "aguardando",
   open: "aguardando",
+  payment_pending: "aguardando",
+  // Vagas encerradas (qualquer forma de conclusão ou cancelamento)
+  closed: "finalizado",
   finished: "finalizado",
   completed: "finalizado",
   done: "finalizado",
   cancelled: "finalizado",
+  cancelled_by_contractor: "finalizado",
+  transfer_pending: "finalizado",
 };
 
 export function mapApiStatus(apiStatus: string): VagaStatus {

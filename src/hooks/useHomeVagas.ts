@@ -10,6 +10,7 @@ type UseHomeVagasResult = {
   refreshing: boolean;
   fetchVagas: () => Promise<void>;
   onRefresh: () => void;
+  addVaga: (vaga: VagaApi) => void;
 };
 
 export function useHomeVagas(): UseHomeVagasResult {
@@ -55,9 +56,16 @@ export function useHomeVagas(): UseHomeVagasResult {
       .finally(() => setRefreshing(false));
   }, [user?.contractorId, user?.module]);
 
+  const addVaga = useCallback((vaga: VagaApi) => {
+    setVagas((prev) => {
+      if (prev.some((v) => v.id === vaga.id)) return prev;
+      return [vaga, ...prev];
+    });
+  }, []);
+
   useEffect(() => {
     fetchVagas();
   }, [fetchVagas]);
 
-  return { vagas, loading, refreshing, fetchVagas, onRefresh };
+  return { vagas, loading, refreshing, fetchVagas, onRefresh, addVaga };
 }
