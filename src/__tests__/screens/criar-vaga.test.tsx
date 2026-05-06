@@ -18,36 +18,30 @@ jest.mock("expo-router", () => ({
   router: { back: jest.fn(), push: jest.fn() },
   useRouter: () => jest.requireMock("expo-router").router,
   Stack: { Screen: () => null },
+  Link: () => null,
 }));
-
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
-jest.mock("expo-linear-gradient", () => {
-  const { View } = require("react-native");
-  return {
-    LinearGradient: ({ children }: { children: unknown }) =>
-      require("react").createElement(View, null, children),
-  };
-});
 
 jest.mock("@expo/vector-icons", () => ({
   Ionicons: "Ionicons",
 }));
 
 jest.mock("@/context/auth-context", () => ({
-  useAuth: jest.fn().mockReturnValue({
+  useAuth: () => ({
     user: {
       id: "user-1",
-      name: "Empresa Teste",
-      email: "empresa@teste.com",
+      name: "Test User",
+      email: "test@test.com",
       profileCompleted: true,
-      userType: "contractor",
       module: "bars-restaurants",
-      contractorId: "contractor-123",
+      contractorId: "contractor-1",
       avatarUrl: null,
     },
+    isLoading: false,
+    isInitializing: false,
+    signIn: jest.fn(),
+    signOut: jest.fn(),
+    completeProfile: jest.fn(),
+    updateAvatar: jest.fn(),
   }),
 }));
 

@@ -12,7 +12,7 @@ export const SERVICES: Service[] = [
   { id: "5", emoji: "🧹", label: "Auxiliar de limpeza" },
   { id: "6", emoji: "🥘", label: "Auxiliar de cozinha" },
   { id: "7", emoji: "🛎️", label: "Camareira" },
-  { id: "8", emoji: "🍳", label: "Chapeiro(a)" },
+{ id: "8", emoji: "🍳", label: "Chapeiro(a)" },
   { id: "9", emoji: "🍴", label: "Cumim" },
   { id: "10", emoji: "🔥", label: "Churrasqueiro" },
   { id: "11", emoji: "🛡️", label: "Segurança (Não Armado)" },
