@@ -55,6 +55,24 @@ type PhotoSlotProps = {
   onPress: () => void;
 };
 
+function normalizeImageUri(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveBarsContractor(data: unknown): Partial<BarsContractor> | null {
+  if (!data || typeof data !== "object") return null;
+
+  const maybeWrapped = data as { props?: unknown };
+  const resolved = maybeWrapped.props && typeof maybeWrapped.props === "object"
+    ? maybeWrapped.props
+    : data;
+
+  return resolved && typeof resolved === "object" ? (resolved as Partial<BarsContractor>) : null;
+}
+
 function PhotoSlot({ uri, label, uploading, onPress }: PhotoSlotProps) {
   const [imageLoading, setImageLoading] = useState(false);
   const prevUri = useRef<string | null>(null);
@@ -105,34 +123,44 @@ export default function ProfileScreen() {
   const [uploadingFacade, setUploadingFacade] = useState(false);
   const [uploadingInterior, setUploadingInterior] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl ?? null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(normalizeImageUri(user?.avatarUrl));
 
   const isBars = user?.module === "bars-restaurants";
 
   useEffect(() => {
-    setAvatarUri(user?.avatarUrl ?? null);
+    setAvatarUri(normalizeImageUri(user?.avatarUrl));
   }, [user?.avatarUrl]);
 
   useEffect(() => {
     debug.log("PROFILE", "user contexto", { module: user?.module, contractorId: user?.contractorId });
     if (!isBars || !user?.contractorId) return;
+
+    let isMounted = true;
+
     contractorService.getBarsById(user.contractorId).then((res) => {
-      const responseData = res.data as unknown as { props?: BarsContractor };
-      const data = responseData.props ?? res.data;
+      if (!isMounted) return;
+
+      const data = resolveBarsContractor(res.data);
       debug.log("PROFILE", "dados contractor banco", data);
-      setFacadeUri(data.establishmentFacadeImage ?? null);
-      setInteriorUri(data.establishmentInteriorImage ?? null);
+      setFacadeUri(normalizeImageUri(data?.establishmentFacadeImage));
+      setInteriorUri(normalizeImageUri(data?.establishmentInteriorImage));
     }).catch((err) => debug.warn("PROFILE", "erro getBarsById", err));
 
     if (!user?.avatarUrl) {
       authService.getProfile().then((res) => {
-        const fetchedUrl = res.data.avatarUrl ?? null;
+        if (!isMounted) return;
+
+        const fetchedUrl = normalizeImageUri(res.data?.avatarUrl);
         if (fetchedUrl) {
           updateAvatar(fetchedUrl);
         }
       }).catch(() => undefined);
     }
-  }, [user?.contractorId, isBars]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.avatarUrl, user?.contractorId, user?.module, isBars, updateAvatar]);
 
   async function handlePickAvatar(): Promise<void> {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
