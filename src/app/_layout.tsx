@@ -5,7 +5,7 @@ import { NotificationsProvider } from "@/context/notifications-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 function RootNavigator() {
   const { user, isInitializing } = useAuth();
@@ -56,13 +56,15 @@ function ToastWithInsets() {
 
 export default function RootLayout() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <NotificationsProvider>
-          <RootNavigator />
-        </NotificationsProvider>
-      </AuthProvider>
-      <ToastWithInsets />
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <NotificationsProvider>
+            <RootNavigator />
+          </NotificationsProvider>
+        </AuthProvider>
+        <ToastWithInsets />
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
