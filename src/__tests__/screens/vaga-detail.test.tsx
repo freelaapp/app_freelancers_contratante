@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, Image as RNImage } from "react-native";
 import VagaDetailScreen from "@/app/(home)/vaga/[id]";
 
 // ─── Mocks de navegação ───────────────────────────────────────────────────────
@@ -55,9 +55,11 @@ const mockGenerateCheckinCode = jest.fn();
 const mockGenerateCheckoutCode = jest.fn();
 const mockGetCheckinStatus = jest.fn();
 const mockConfirmCheckout = jest.fn();
+const mockCreateByVacancy = jest.fn();
 jest.mock("@/services/jobs.service", () => ({
   jobsService: {
     getByVacancy: (...args: unknown[]) => mockGetByVacancy(...args),
+    createByVacancy: (...args: unknown[]) => mockCreateByVacancy(...args),
     generateCheckinCode: (...args: unknown[]) => mockGenerateCheckinCode(...args),
     generateCheckoutCode: (...args: unknown[]) => mockGenerateCheckoutCode(...args),
     getCheckinStatus: (...args: unknown[]) => mockGetCheckinStatus(...args),
@@ -81,10 +83,14 @@ jest.mock("@/services/feedbacks.service", () => ({
 
 const mockCreateVacancyPayment = jest.fn();
 const mockGetVacancyPayment = jest.fn();
+const mockCreateJobPayment = jest.fn();
+const mockGetJobPayment = jest.fn();
 jest.mock("@/services/payments.service", () => ({
   paymentsService: {
     createVacancyPayment: (...args: unknown[]) => mockCreateVacancyPayment(...args),
     getVacancyPayment: (...args: unknown[]) => mockGetVacancyPayment(...args),
+    createJobPayment: (...args: unknown[]) => mockCreateJobPayment(...args),
+    getJobPayment: (...args: unknown[]) => mockGetJobPayment(...args),
   },
 }));
 
@@ -168,6 +174,9 @@ beforeEach(() => {
   mockConfirmCheckout.mockResolvedValue(undefined);
   mockCreateVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_PENDING });
   mockGetVacancyPayment.mockResolvedValue({ ...BASE_PAYMENT_PAID });
+  mockCreateJobPayment.mockResolvedValue({ ...BASE_PAYMENT_PENDING });
+  mockGetJobPayment.mockResolvedValue({ ...BASE_PAYMENT_PAID });
+  mockCreateByVacancy.mockResolvedValue({ id: "job-1", status: "active" });
 });
 
 // ─── Testes ───────────────────────────────────────────────────────────────────
@@ -329,6 +338,7 @@ describe("VagaDetailScreen", () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
     expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 15185);
+    expect(mockCreateJobPayment).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
     });
@@ -353,6 +363,7 @@ describe("VagaDetailScreen", () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
     expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 9900);
+    expect(mockCreateJobPayment).not.toHaveBeenCalled();
   });
 
   it("15c. ao pressionar Pagar sem campos em centavos usa value (reais) convertido para centavos", async () => {
@@ -374,6 +385,7 @@ describe("VagaDetailScreen", () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
     expect(mockCreateVacancyPayment).toHaveBeenCalledWith("vaga-1", 15185);
+    expect(mockCreateJobPayment).not.toHaveBeenCalled();
   });
 
   it("15d. quando chargeValue resulta em 0 exibe toast.error e NÃO abre modal", async () => {
@@ -394,6 +406,7 @@ describe("VagaDetailScreen", () => {
       fireEvent.press(screen.getByText("Pagar"));
     });
     expect(mockCreateVacancyPayment).not.toHaveBeenCalled();
+    expect(mockCreateJobPayment).not.toHaveBeenCalled();
     expect(mockToastError).toHaveBeenCalledWith("Valor da vaga não encontrado. Recarregue a tela.");
     expect(screen.queryByText("Pagamento via PIX")).toBeNull();
   });
@@ -454,6 +467,27 @@ describe("VagaDetailScreen", () => {
       },
       { timeout: 5000 }
     );
+  });
+
+  it("15h. quando qrCodeImage já vem como data URI renderiza sem prefixar base64 novamente", async () => {
+    const dataUri = "data:image/png;base64,abc123";
+    mockCreateVacancyPayment.mockResolvedValue({
+      ...BASE_PAYMENT_PENDING,
+      brCode: null,
+      qrCodeImage: dataUri,
+    });
+
+    await renderAtPaymentStep();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Pagar"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Pagamento via PIX")).toBeTruthy();
+    });
+
+    const qrImage = screen.UNSAFE_getByType(RNImage);
+    expect(qrImage.props.source.uri).toBe(dataUri);
   });
 
   it("16. botão Já paguei com status PAID avança para step 3", async () => {

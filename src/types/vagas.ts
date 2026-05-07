@@ -1,4 +1,4 @@
-export type VagaStatus = "confirmado" | "aguardando" | "finalizado";
+export type VagaStatus = "aberta" | "preenchida" | "em_andamento" | "concluida";
 
 export type VagaApi = {
   id: string;

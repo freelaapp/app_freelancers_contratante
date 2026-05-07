@@ -1,32 +1,33 @@
 import type { VagaStatus } from "@/types/vagas";
 
 const STATUS_MAP: Record<string, VagaStatus> = {
-  // Vagas com freelancer confirmado e agendado
-  confirmed: "confirmado",
-  active: "confirmado",
-  accepted: "confirmado",
-  scheduled: "confirmado",
-  in_progress: "confirmado",
-  started: "confirmado",
-  checking_in: "confirmado",
-  checking_out: "confirmado",
-  // Vagas aguardando candidatos ou pagamento
-  pending: "aguardando",
-  waiting: "aguardando",
-  open: "aguardando",
-  payment_pending: "aguardando",
-  // Vagas encerradas (qualquer forma de conclusão ou cancelamento)
-  closed: "finalizado",
-  finished: "finalizado",
-  completed: "finalizado",
-  done: "finalizado",
-  cancelled: "finalizado",
-  cancelled_by_contractor: "finalizado",
-  transfer_pending: "finalizado",
+  // Abertas (ainda sem freelancer efetivamente selecionado)
+  pending: "aberta",
+  waiting: "aberta",
+  open: "aberta",
+  // Preenchidas (freelancer selecionado e aguardando execução)
+  accepted: "preenchida",
+  confirmed: "preenchida",
+  scheduled: "preenchida",
+  payment_pending: "preenchida",
+  // Em andamento
+  active: "em_andamento",
+  in_progress: "em_andamento",
+  started: "em_andamento",
+  checking_in: "em_andamento",
+  checking_out: "em_andamento",
+  transfer_pending: "em_andamento",
+  // Concluídas (inclui concluídas e canceladas)
+  closed: "concluida",
+  finished: "concluida",
+  completed: "concluida",
+  done: "concluida",
+  cancelled: "concluida",
+  cancelled_by_contractor: "concluida",
 };
 
 export function mapApiStatus(apiStatus: string): VagaStatus {
-  return STATUS_MAP[apiStatus?.toLowerCase()] ?? "aguardando";
+  return STATUS_MAP[apiStatus?.toLowerCase()] ?? "aberta";
 }
 
 export function mapApiStatusToStep(apiStatus: string): number {
@@ -51,4 +52,29 @@ export function formatVagaValue(value?: number): string {
   const decPart = (cents % 100).toString().padStart(2, "0");
   const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return `R$ ${intFormatted},${decPart}`;
+}
+
+export function formatVagaValueFromCents(cents?: number): string {
+  if (cents == null) return "";
+  const intPart = Math.floor(cents / 100).toString();
+  const decPart = (cents % 100).toString().padStart(2, "0");
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${intFormatted},${decPart}`;
+}
+
+export function resolveApiMoneyToReais(item: Record<string, unknown>): number | undefined {
+  const cents =
+    (item.chargeAmountInCents as number | undefined) ??
+    (item.payment as number | undefined) ??
+    (item.totalAmountInCents as number | undefined) ??
+    (item.hourlyRateInCents as number | undefined);
+  if (typeof cents === "number") return cents / 100;
+
+  const rawValue = item.value as number | undefined;
+  if (typeof rawValue !== "number") return undefined;
+
+  // Em alguns payloads o backend envia `value` em centavos.
+  if (Number.isInteger(rawValue) && rawValue >= 1000) return rawValue / 100;
+
+  return rawValue;
 }

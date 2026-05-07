@@ -16,13 +16,14 @@ import type { PaymentResponse } from "@/services/payments.service";
 import { vagasService } from "@/services/vagas.service";
 import type { CandidatoApi, JobApi, VagaDetalheApi } from "@/types/vagas";
 import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
+import { debug } from "@/utils/debug";
 import { toast } from "@/utils/toast";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Clipboard,
   Image,
   ScrollView,
   StyleSheet,
@@ -59,6 +60,33 @@ function calcDuration(startIso?: string, endIso?: string): string {
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return "—";
   const hours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
   return hours > 0 ? `${hours}h` : "—";
+}
+
+function buildQrCodeUri(qrCodeImage?: string | null): string | null {
+  if (!qrCodeImage) return null;
+  const value = qrCodeImage.trim();
+  if (!value) return null;
+
+  if (value.startsWith("data:image/")) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+
+  return `data:image/png;base64,${value}`;
+}
+
+const PIX_TTL_MS = 30 * 60 * 1000;
+
+function parseIsoToMs(iso?: string): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const ms = d.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 const STEPS = [
@@ -329,10 +357,96 @@ export default function VagaDetailScreen() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentConfirming, setPaymentConfirming] = useState(false);
   const [paymentPolling, setPaymentPolling] = useState(false);
+  const [paymentLocalCreatedAtMs, setPaymentLocalCreatedAtMs] = useState<number | null>(null);
 
   const paymentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const paymentIdRef = useRef<string>("");
   const paymentCreatedAtRef = useRef<number>(0);
+  const paymentValueCentsRef = useRef<number>(0);
+  const pixRefreshInFlightRef = useRef(false);
+  const pixRefreshLastAtRef = useRef<number>(0);
+  const paymentQrCodeUri = buildQrCodeUri(paymentData?.qrCodeImage);
+
+  const [pixNow, setPixNow] = useState(() => Date.now());
+  const paymentCreatedAtMs =
+    paymentLocalCreatedAtMs ?? paymentCreatedAtRef.current ?? parseIsoToMs(paymentData?.createdAt);
+  const paymentExpiresAtMs = paymentCreatedAtMs != null ? paymentCreatedAtMs + PIX_TTL_MS : null;
+  const pixExpiresInMs = paymentExpiresAtMs != null ? paymentExpiresAtMs - pixNow : null;
+  const pixIsExpired = paymentExpiresAtMs != null ? pixNow >= paymentExpiresAtMs : false;
+
+  const refreshPix = useCallback(
+    async (reason: "manual" | "expired") => {
+      if (!id) return;
+      if (pixRefreshInFlightRef.current) return;
+      if (!paymentValueCentsRef.current) return;
+
+      // evita loop em caso de erro/instabilidade
+      const now = Date.now();
+      if (reason === "expired" && now - pixRefreshLastAtRef.current < 15_000) return;
+
+      pixRefreshInFlightRef.current = true;
+      pixRefreshLastAtRef.current = now;
+      setPaymentPolling(true);
+      try {
+        const updated = job?.id
+          ? await paymentsService.createJobPayment(job.id, paymentValueCentsRef.current)
+          : await paymentsService.createVacancyPayment(id, paymentValueCentsRef.current);
+        setPaymentData(updated);
+        setPaymentLocalCreatedAtMs(Date.now());
+        paymentIdRef.current = updated.id;
+        paymentCreatedAtRef.current = Date.now();
+      } catch {
+        toast.error("Não foi possível gerar um novo PIX agora. Tente novamente.");
+      } finally {
+        setPaymentPolling(false);
+        pixRefreshInFlightRef.current = false;
+      }
+    },
+    [id, job?.id]
+  );
+
+  const syncPix = useCallback(async () => {
+    if (!id) return;
+    setPaymentPolling(true);
+    try {
+      const updated = job?.id
+        ? await paymentsService.getJobPayment(job.id, true)
+        : await paymentsService.getVacancyPayment(id, true);
+      setPaymentData(updated);
+      if (updated.id && updated.id !== paymentIdRef.current) {
+        paymentIdRef.current = updated.id;
+        paymentCreatedAtRef.current = Date.now();
+        setPaymentLocalCreatedAtMs(Date.now());
+      }
+    } catch {
+      toast.error("Não foi possível atualizar o PIX agora. Tente novamente.");
+    } finally {
+      setPaymentPolling(false);
+    }
+  }, [id, job?.id]);
+
+  useEffect(() => {
+    if (!paymentModalVisible) return;
+    debug.log("VagaDetailPayment", "estado do modal PIX", {
+      paymentData,
+      paymentQrCodeUri,
+      hasQrCodeImage: Boolean(paymentData?.qrCodeImage),
+      hasBrCode: Boolean(paymentData?.brCode),
+      paymentPolling,
+    });
+  }, [paymentModalVisible, paymentData, paymentQrCodeUri, paymentPolling]);
+
+  useEffect(() => {
+    if (!paymentModalVisible) return;
+    const t = setInterval(() => setPixNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [paymentModalVisible]);
+
+  useEffect(() => {
+    if (!paymentModalVisible) return;
+    if (!pixIsExpired) return;
+    refreshPix("expired");
+  }, [paymentModalVisible, pixIsExpired, refreshPix]);
 
   useEffect(() => {
     if (!paymentModalVisible) {
@@ -341,6 +455,7 @@ export default function VagaDetailScreen() {
         paymentPollRef.current = null;
       }
       setPaymentPolling(false);
+      setPaymentLocalCreatedAtMs(null);
       return;
     }
 
@@ -348,7 +463,9 @@ export default function VagaDetailScreen() {
 
     paymentPollRef.current = setInterval(async () => {
       try {
-        const updated = await paymentsService.getVacancyPayment(id ?? "", true);
+        const updated = job?.id
+          ? await paymentsService.getJobPayment(job.id, true)
+          : await paymentsService.getVacancyPayment(id ?? "", true);
         if (
           updated.id === paymentIdRef.current &&
           updated.status === "COMPLETED" &&
@@ -372,7 +489,7 @@ export default function VagaDetailScreen() {
         paymentPollRef.current = null;
       }
     };
-  }, [paymentModalVisible, id]);
+  }, [paymentModalVisible, id, job?.id]);
 
   function notifyStepChange(newStep: number, vagaTitle: string, vagaId: string) {
     const stepLabel = STEPS[newStep];
@@ -474,17 +591,22 @@ export default function VagaDetailScreen() {
           return;
         }
 
-        const payment = await paymentsService.createVacancyPayment(
-          id,
-          chargeValue
-        );
+        const payment = job?.id
+          ? await paymentsService.createJobPayment(job.id, chargeValue)
+          : await paymentsService.createVacancyPayment(id, chargeValue);
 
         const hasQrData = Boolean(payment.qrCodeImage || payment.brCode);
+        debug.log("VagaDetailPayment", "createVacancyPayment concluido", {
+          payment,
+          hasQrData,
+        });
         setPaymentData(payment);
         setPaymentPolling(!hasQrData);
         setPaymentModalVisible(true);
         paymentIdRef.current = payment.id;
         paymentCreatedAtRef.current = Date.now();
+        paymentValueCentsRef.current = chargeValue;
+        setPaymentLocalCreatedAtMs(Date.now());
 
         if (!hasQrData) {
           let attempts = 0;
@@ -495,7 +617,14 @@ export default function VagaDetailScreen() {
             }
             attempts++;
             try {
-              const updated = await paymentsService.getVacancyPayment(id ?? "");
+            const updated = job?.id
+              ? await paymentsService.getJobPayment(job.id)
+              : await paymentsService.getVacancyPayment(id ?? "");
+              debug.log("VagaDetailPayment", "polling de QR/payment", {
+                attempt: attempts,
+                updated,
+                hasQrData: Boolean(updated.qrCodeImage || updated.brCode),
+              });
               setPaymentData(updated);
               if (updated.qrCodeImage || updated.brCode) {
                 setPaymentPolling(false);
@@ -541,7 +670,9 @@ export default function VagaDetailScreen() {
     if (!id) return;
     setPaymentConfirming(true);
     try {
-      const payment = await paymentsService.getVacancyPayment(id);
+      const payment = job?.id
+        ? await paymentsService.getJobPayment(job.id)
+        : await paymentsService.getVacancyPayment(id);
       const isCompleted = payment.status === "COMPLETED" || payment.status === "PAID";
       if (isCompleted) {
         setPaymentModalVisible(false);
@@ -825,9 +956,46 @@ export default function VagaDetailScreen() {
 
         {paymentData && (
           <Text style={styles.pixValue}>
-            {formatVagaValue(paymentData.value)}
+            {formatVagaValue(paymentData.value / 100)}
           </Text>
         )}
+
+        <View style={styles.pixMetaRow}>
+          <Text style={styles.pixMetaText}>
+            {pixExpiresInMs == null
+              ? "Validade: —"
+              : pixIsExpired
+              ? "PIX expirado"
+              : `Expira em ${formatCountdown(pixExpiresInMs)}`}
+          </Text>
+
+          {paymentData?.id ? (
+            <Text style={styles.pixMetaText}>
+              Cobrança: {paymentData.id} | Gerado em {formatApiTime(paymentData.createdAt)}
+            </Text>
+          ) : null}
+
+          <View style={styles.pixRefreshRow}>
+            <TouchableOpacity
+              style={[styles.pixRefreshBtn, paymentPolling && { opacity: 0.6 }]}
+              onPress={syncPix}
+              disabled={paymentPolling}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="refresh" size={16} color={colors.primary} />
+              <Text style={styles.pixRefreshBtnText}>Atualizar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pixRefreshBtn, paymentPolling && { opacity: 0.6 }]}
+              onPress={() => refreshPix("manual")}
+              disabled={paymentPolling}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="qr-code-outline" size={16} color={colors.primary} />
+              <Text style={styles.pixRefreshBtnText}>Gerar novo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {paymentPolling ? (
           <View style={styles.pixPollingWrapper}>
@@ -836,10 +1004,10 @@ export default function VagaDetailScreen() {
           </View>
         ) : (
           <>
-            {paymentData?.qrCodeImage ? (
+            {paymentQrCodeUri ? (
               <View style={styles.pixQrWrapper}>
                 <Image
-                  source={{ uri: `data:image/png;base64,${paymentData.qrCodeImage}` }}
+                  source={{ uri: paymentQrCodeUri }}
                   style={styles.pixQrImage}
                   resizeMode="contain"
                 />
@@ -866,7 +1034,7 @@ export default function VagaDetailScreen() {
                   style={styles.pixCopyBtn}
                   activeOpacity={0.7}
                   onPress={() => {
-                    Clipboard.setString(paymentData.brCode ?? "");
+                    Clipboard.setStringAsync(paymentData.brCode ?? "");
                     toast.success("Chave PIX copiada!");
                   }}
                 >
@@ -1355,6 +1523,37 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.bold,
     color: colors.primary,
     textAlign: "center",
+  },
+  pixMetaRow: {
+    gap: spacing["4"],
+    alignItems: "center",
+  },
+  pixMetaText: {
+    fontSize: fontSizes.sm,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  pixRefreshRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: spacing["6"],
+    flexWrap: "wrap",
+  },
+  pixRefreshBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["3"],
+    paddingVertical: spacing["3"],
+    paddingHorizontal: spacing["6"],
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  pixRefreshBtnText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.primary,
   },
   pixQrWrapper: {
     alignItems: "center",
