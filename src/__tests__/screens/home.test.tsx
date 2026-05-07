@@ -1,6 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react-native";
+import { render, screen, fireEvent, act } from "@testing-library/react-native";
 import HomeScreen from "@/app/(home)/index";
+import * as pendingStore from "@/utils/pending-vaga-store";
+
+jest.mock("@/utils/pending-vaga-store", () => ({
+  consumePendingVaga: jest.fn().mockReturnValue(null),
+}));
 
 // ─── Mocks de navegação e contexto ───────────────────────────────────────────
 
@@ -41,7 +46,8 @@ jest.mock("@/services/summary.service", () => ({
 // ─── Mock do hook useHomeVagas ────────────────────────────────────────────────
 
 const mockOnRefresh = jest.fn();
-const mockFetchVagas = jest.fn();
+const mockFetchVagas = jest.fn().mockResolvedValue(undefined);
+const mockAddVaga = jest.fn();
 const mockUseHomeVagas = jest.fn();
 
 jest.mock("@/hooks/useHomeVagas", () => ({
@@ -93,6 +99,7 @@ type HomeVagasOverride = {
   refreshing?: boolean;
   fetchVagas?: jest.Mock;
   onRefresh?: jest.Mock;
+  addVaga?: jest.Mock;
 };
 
 function setupHomeVagas(overrides: HomeVagasOverride = {}) {
@@ -102,6 +109,7 @@ function setupHomeVagas(overrides: HomeVagasOverride = {}) {
     refreshing: false,
     fetchVagas: mockFetchVagas,
     onRefresh: mockOnRefresh,
+    addVaga: mockAddVaga,
     ...overrides,
   });
 }
@@ -272,7 +280,7 @@ describe("HomeScreen", () => {
 
       expect(mockRouterPush).toHaveBeenCalledWith("/(home)/notificacoes");
     });
-  });
+});
 
   describe("Pull-to-refresh", () => {
     it("passa a prop onRefresh para o RefreshControl", () => {

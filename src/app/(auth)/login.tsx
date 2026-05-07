@@ -1,6 +1,7 @@
 import { Input } from "@/components/input";
 import { useAuth } from "@/context/auth-context";
 import { LoginFormValues, loginSchema } from "@/validation/login.schema";
+import { debug } from "@/utils/debug";
 import { Ionicons } from "@expo/vector-icons";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
@@ -31,12 +32,13 @@ export default function LoginScreen() {
     defaultValues: { email: "", password: "" },
   });
 
-  async function handleSignIn(data: LoginFormValues) {
-    console.log("[LOGIN] handleSignIn chamado:", data.email);
+async function handleSignIn(data: LoginFormValues) {
+    debug.log("LOGIN", "handleSignIn chamado", data.email);
     try {
       await signIn(data.email, data.password);
+      router.replace("/(home)");
     } catch (err) {
-      console.log("[LOGIN] erro capturado no handleSignIn:", err);
+      debug.warn("LOGIN", "erro capturado no handleSignIn", err);
     }
   }
 

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { BookingCard, HomeHeader, PrimaryButton, SectionHeader } from "@/components";
 import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
@@ -5,6 +6,7 @@ import { useNotifications } from "@/context/notifications-context";
 import { useHomeVagas } from "@/hooks/useHomeVagas";
 import { summaryService, ContractorSummary } from "@/services/summary.service";
 import { mapApiStatus, formatVagaValue } from "@/utils/vaga-status-map";
+import { consumePendingVaga } from "@/utils/pending-vaga-store";
 import type { VagaApi } from "@/types/vagas";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
@@ -49,6 +51,16 @@ function resolveValue(item: Record<string, unknown>): number | undefined {
   return item.value as number | undefined;
 }
 
+function isHojeOuFuturo(dateField?: string): boolean {
+  if (!dateField) return true;
+  const d = new Date(dateField);
+  if (isNaN(d.getTime())) return true;
+  const hoje = new Date();
+  const vagaDay = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const hojeDay = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  return vagaDay >= hojeDay;
+}
+
 function formatSaldo(s: ContractorSummary): string {
   const cents = s.currentMonthSpent ?? s.totalSpent;
   if (cents == null) return "R$ 0,00";
@@ -79,7 +91,7 @@ function EmptyState() {
 
 type VagaSectionProps = {
   title: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   vagas: VagaApi[];
   onPressVaga: (id: string) => void;
 };
@@ -112,14 +124,17 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { hasUnread } = useNotifications();
   const router = useRouter();
-  const { vagas, loading, refreshing, onRefresh, fetchVagas } = useHomeVagas();
+  const { vagas, loading, refreshing, onRefresh, fetchVagas, addVaga } = useHomeVagas();
   const [summary, setSummary] = useState<ContractorSummary>({});
 
   useFocusEffect(
     useCallback(() => {
-      fetchVagas();
+      const pending = consumePendingVaga();
+      fetchVagas().then(() => {
+        if (pending) addVaga(pending);
+      });
       summaryService.getContractorSummary().then(setSummary).catch(() => {});
-    }, [fetchVagas])
+    }, [fetchVagas, addVaga])
   );
 
   const handleNavigateToCreateVaga = useCallback(() => {
@@ -137,9 +152,10 @@ export default function HomeScreen() {
     router.push("/(home)/notificacoes");
   }, [router]);
 
-  const proximas = vagas.filter((v) => mapApiStatus(v.status) === "confirmado");
-  const abertas = vagas.filter((v) => mapApiStatus(v.status) === "aguardando");
-  const finalizadas = vagas.filter((v) => mapApiStatus(v.status) === "finalizado");
+  const vagasHome = vagas.filter((v) => isHojeOuFuturo(v.date as string | undefined));
+  const proximas = vagasHome.filter((v) => mapApiStatus(v.status) === "confirmado");
+  const abertas = vagasHome.filter((v) => mapApiStatus(v.status) === "aguardando");
+  const finalizadas = vagasHome.filter((v) => mapApiStatus(v.status) === "finalizado");
 
   return (
     <View style={styles.container}>
@@ -174,7 +190,7 @@ export default function HomeScreen() {
             color={colors.primary}
             style={styles.loader}
           />
-        ) : vagas.length === 0 ? (
+        ) : vagasHome.length === 0 ? (
           <EmptyState />
         ) : (
           <>

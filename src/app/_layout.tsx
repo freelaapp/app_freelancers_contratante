@@ -1,4 +1,5 @@
 import { AppSplash } from "@/components/app-splash";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { NotificationsProvider } from "@/context/notifications-context";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -55,13 +56,13 @@ function ToastWithInsets() {
 
 export default function RootLayout() {
   return (
-    <>
+    <ErrorBoundary>
       <AuthProvider>
         <NotificationsProvider>
           <RootNavigator />
         </NotificationsProvider>
       </AuthProvider>
       <ToastWithInsets />
-    </>
+    </ErrorBoundary>
   );
 }

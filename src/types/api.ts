@@ -118,6 +118,17 @@ export type BarsContractor = {
   establishmentFacadeImage: string | null;
   establishmentInteriorImage: string | null;
   photos: string[];
+  corporateReason?: string;
+  cnpj?: string;
+  contactName?: string;
+  contactPhone?: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  uf?: string;
 };
 
 export type AuthTokens = {
