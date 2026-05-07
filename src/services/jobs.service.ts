@@ -2,6 +2,11 @@ import { api } from "@/services/api";
 import type { JobApi } from "@/types/vagas";
 
 export const jobsService = {
+  async createByVacancy(vacancyId: string): Promise<JobApi> {
+    const { data } = await api.post<JobApi>("/v1/bars-restaurants/jobs", { vacancyId });
+    return data;
+  },
+
   async getByVacancy(vacancyId: string): Promise<JobApi> {
     const { data } = await api.get<JobApi>(
       `/v1/bars-restaurants/jobs/by-vacancy/${vacancyId}`,

@@ -3,6 +3,7 @@ import { Input } from "@/components/input";
 import { PrimaryButton } from "@/components/primary-button";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
+import { EnderecoCompleto } from "@/hooks/use-via-cep";
 import { vagasService } from "@/services/vagas.service";
 import { setPendingVaga } from "@/utils/pending-vaga-store";
 import { toast } from "@/utils/toast";
@@ -14,16 +15,19 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { EnderecoForm } from "./endereco-form";
+import { formatCEP, formatEnderecoDisplay, useViaCep } from "@/hooks/use-via-cep";
+
 export type Step4Props = {
   dataEvento: string;
   selectedServices: string[];
   horarioInicio: string;
   horarioFim: string;
   noEstabelecimento: boolean;
-  endereco: string;
+  endereco: EnderecoCompleto;
   descricao: string;
   onNoEstabelecimentoChange: (value: boolean) => void;
-  onEnderecoChange: (value: string) => void;
+  onEnderecoChange: (value: EnderecoCompleto) => void;
   onDescricaoChange: (value: string) => void;
   onSuccess: () => void;
   modulo: ModuloTarifas | null;
@@ -80,6 +84,20 @@ export function Step4Overview({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
+  const {
+    loading: cepLoading,
+    error: cepError,
+    buscarCep,
+    reset: resetCep,
+  } = useViaCep();
+
+  const handleBuscarCep = async (cep: string) => {
+    const result = await buscarCep(cep);
+    if (result) {
+      onEnderecoChange(result);
+    }
+  };
+
   const serviceId = selectedServices[0];
   const serviceLabel = SERVICES.find((s) => s.id === serviceId)?.label ?? "";
   const serviceEmoji = SERVICES.find((s) => s.id === serviceId)?.emoji ?? "";
@@ -100,9 +118,12 @@ export function Step4Overview({
   const handleSubmit = async () => {
     if (!user?.module || !user?.contractorId) return;
 
-    if (!noEstabelecimento && !endereco?.trim()) {
-      toast.error("Endereço é obrigatório");
-      return;
+    if (!noEstabelecimento) {
+      const { cep, rua, numero, bairro, cidade, uf } = endereco;
+      if (!cep || !rua || !numero || !bairro || !cidade || !uf) {
+        toast.error("Endereço completo é obrigatório");
+        return;
+      }
     }
 
     if (!descricao?.trim()) {
@@ -124,6 +145,15 @@ export function Step4Overview({
     const dateISO = `${year}-${month}-${day}`;
     const toISO = (date: string, time: string) => `${date}T${time}:00.000Z`;
 
+    const formatAddressString = () => {
+      if (noEstabelecimento) return undefined;
+      const { rua, numero, complemento, bairro, cidade, uf } = endereco;
+      let address = `${rua}, ${numero}`;
+      if (complemento) address += `, ${complemento}`;
+      address += `, ${bairro}, ${cidade}/${uf}`;
+      return address;
+    };
+
     const payload = {
       title: serviceLabel,
       description: descricao,
@@ -131,7 +161,7 @@ export function Step4Overview({
       date: dateISO,
       startTime: toISO(dateISO, horarioInicio),
       endTime: toISO(dateISO, horarioFim),
-      address: noEstabelecimento ? undefined : endereco,
+      address: formatAddressString(),
     };
 
     try {
@@ -190,7 +220,7 @@ export function Step4Overview({
             <SummaryItem
               icon="location-outline"
               label="Local"
-              value={endereco}
+              value={formatEnderecoDisplay(endereco)}
             />
           )}
         </View>
@@ -223,11 +253,12 @@ export function Step4Overview({
             />
           </View>
           {!noEstabelecimento && (
-            <Input
-              placeholder="Rua, número, bairro..."
-              icon="location-outline"
-              value={endereco}
-              onChangeText={onEnderecoChange}
+            <EnderecoForm
+              endereco={endereco}
+              onEnderecoChange={onEnderecoChange}
+              onBuscarCep={handleBuscarCep}
+              loading={cepLoading}
+              error={cepError}
             />
           )}
         </View>

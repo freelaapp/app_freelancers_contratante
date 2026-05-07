@@ -1,8 +1,10 @@
 import { colors, fontSizes, fontWeights, gradients, radii, spacing } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import Logo from '../../assets/images/icon.png';
 
 type Props = {
   userName: string;
@@ -35,11 +37,7 @@ export function HomeHeader({
       <View style={styles.topRow}>
         <View style={styles.topLeft}>
           <View style={styles.logoBox}>
-            <View style={styles.eyes}>
-              <View style={styles.eye} />
-              <View style={styles.eye} />
-            </View>
-            <View style={styles.smile} />
+            <Image source={Logo} style={styles.logo} />
           </View>
 
           <View style={styles.greetingColumn}>
@@ -104,29 +102,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: radii.lg,
-    backgroundColor: colors.white,
+
     alignItems: "center",
     justifyContent: "center",
     gap: spacing["2"],
   },
-  eyes: {
-    flexDirection: "row",
-    gap: spacing["4"],
-  },
-  eye: {
-    width: 10,
-    height: 10,
-    borderRadius: radii.full,
-    backgroundColor: colors.dark,
-  },
-  smile: {
-    width: 18,
-    height: 8,
-    borderBottomLeftRadius: 9,
-    borderBottomRightRadius: 9,
-    borderWidth: 2,
-    borderTopWidth: 0,
-    borderColor: colors.dark,
+  logo: {
+    width: 45,
+    height: 45,
   },
   greetingColumn: {
     gap: spacing["1"],

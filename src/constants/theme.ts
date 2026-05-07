@@ -114,10 +114,11 @@ export const tabShadow = {
 } as const;
 
 export const statusColors = {
-  confirmado: { bg: "#D1FAE5", text: "#065F46" },
-  aguardando: { bg: "#FEF3C7", text: "#92400E" },
+  aberta: { bg: "#FEF3C7", text: "#92400E" },
+  preenchida: { bg: "#DBEAFE", text: "#1D4ED8" },
+  em_andamento: { bg: "#D1FAE5", text: "#065F46" },
+  concluida: { bg: "#F3F4F6", text: "#6B7280" },
   cancelado:  { bg: "#FEE2E2", text: "#991B1B" },
-  finalizado: { bg: "#F3F4F6", text: "#6B7280" },
   aceito:     { bg: "#DCFCE7", text: "#16A34A" },
   recusado:   { bg: "#FEE2E2", text: "#DC2626" },
 } as const;

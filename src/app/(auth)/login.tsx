@@ -1,7 +1,7 @@
 import { Input } from "@/components/input";
 import { useAuth } from "@/context/auth-context";
-import { LoginFormValues, loginSchema } from "@/validation/login.schema";
 import { debug } from "@/utils/debug";
+import { LoginFormValues, loginSchema } from "@/validation/login.schema";
 import { Ionicons } from "@expo/vector-icons";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
@@ -9,6 +9,7 @@ import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,6 +20,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import Logo from '../../../assets/images/icon.png';
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
@@ -32,7 +35,7 @@ export default function LoginScreen() {
     defaultValues: { email: "", password: "" },
   });
 
-async function handleSignIn(data: LoginFormValues) {
+  async function handleSignIn(data: LoginFormValues) {
     debug.log("LOGIN", "handleSignIn chamado", data.email);
     try {
       await signIn(data.email, data.password);
@@ -52,7 +55,7 @@ async function handleSignIn(data: LoginFormValues) {
         <View style={styles.circleM} />
         <View style={styles.circleS} />
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>freela</Text>
+          <Image source={Logo} style={styles.logo} />
         </View>
         <Text style={styles.headerTitle}>Freela</Text>
         <Text style={styles.headerSubtitle}>
@@ -225,11 +228,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 12,
   },
-  logoText: {
-    fontSize: 20,
-    fontWeight: "700",
-    fontStyle: "italic",
-    color: "#F5A623",
+  logo: {
+    width: 80,
+    height: 80,
   },
   headerTitle: {
     fontSize: 22,

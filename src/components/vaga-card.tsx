@@ -16,9 +16,10 @@ type Props = {
 };
 
 const BADGE_LABEL: Record<VagaStatus, string> = {
-  confirmado: "Confirmado",
-  aguardando: "Aguardando",
-  finalizado: "Finalizado",
+  aberta: "Aberta",
+  preenchida: "Preenchida",
+  em_andamento: "Em andamento",
+  concluida: "Concluída",
 };
 
 export function VagaCard({ title, location, date, time, value, status, onPress }: Props) {

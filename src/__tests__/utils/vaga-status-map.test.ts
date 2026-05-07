@@ -1,4 +1,10 @@
-import { formatVagaValue, mapApiStatus, mapApiStatusToStep } from "@/utils/vaga-status-map";
+import {
+  formatVagaValue,
+  formatVagaValueFromCents,
+  mapApiStatus,
+  mapApiStatusToStep,
+  resolveApiMoneyToReais,
+} from "@/utils/vaga-status-map";
 
 describe("formatVagaValue", () => {
   it("formata valor inteiro sem decimais", () => {
@@ -22,79 +28,84 @@ describe("formatVagaValue", () => {
   });
 });
 
+describe("formatVagaValueFromCents", () => {
+  it("formata centavos corretamente", () => {
+    expect(formatVagaValueFromCents(20185)).toBe("R$ 201,85");
+  });
+});
+
+describe("resolveApiMoneyToReais", () => {
+  it("usa campos em centavos quando presentes", () => {
+    expect(resolveApiMoneyToReais({ payment: 15000 })).toBe(150);
+  });
+
+  it("aceita value em reais", () => {
+    expect(resolveApiMoneyToReais({ value: 250.5 })).toBe(250.5);
+  });
+
+  it("normaliza value inteiro grande como centavos", () => {
+    expect(resolveApiMoneyToReais({ value: 20185 })).toBe(201.85);
+  });
+});
+
 describe("mapApiStatus", () => {
-  describe("status → confirmado (vagas com freelancer agendado)", () => {
-    it.each(["confirmed", "CONFIRMED"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
+  describe("status → preenchida", () => {
+    it.each(["confirmed", "CONFIRMED"])("%s → preenchida", (s) =>
+      expect(mapApiStatus(s)).toBe("preenchida")
     );
-    it.each(["active", "ACTIVE"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
+    it.each(["accepted", "ACCEPTED"])("%s → preenchida", (s) =>
+      expect(mapApiStatus(s)).toBe("preenchida")
     );
-    it.each(["accepted", "ACCEPTED"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
-    );
-    it.each(["scheduled", "SCHEDULED"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
-    );
-    it.each(["in_progress", "IN_PROGRESS"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
-    );
-    it.each(["started", "STARTED"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
-    );
-    it.each(["checking_in", "CHECKING_IN"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
-    );
-    it.each(["checking_out", "CHECKING_OUT"])("%s → confirmado", (s) =>
-      expect(mapApiStatus(s)).toBe("confirmado")
+    it.each(["scheduled", "SCHEDULED", "payment_pending", "PAYMENT_PENDING"])("%s → preenchida", (s) =>
+      expect(mapApiStatus(s)).toBe("preenchida")
     );
   });
 
-  describe("status → aguardando (vagas abertas)", () => {
-    it.each(["open", "OPEN"])("%s → aguardando", (s) =>
-      expect(mapApiStatus(s)).toBe("aguardando")
+  describe("status → aberta", () => {
+    it.each(["open", "OPEN"])("%s → aberta", (s) =>
+      expect(mapApiStatus(s)).toBe("aberta")
     );
-    it.each(["pending", "PENDING"])("%s → aguardando", (s) =>
-      expect(mapApiStatus(s)).toBe("aguardando")
+    it.each(["pending", "PENDING"])("%s → aberta", (s) =>
+      expect(mapApiStatus(s)).toBe("aberta")
     );
-    it.each(["waiting", "WAITING"])("%s → aguardando", (s) =>
-      expect(mapApiStatus(s)).toBe("aguardando")
-    );
-    it.each(["payment_pending", "PAYMENT_PENDING"])("%s → aguardando", (s) =>
-      expect(mapApiStatus(s)).toBe("aguardando")
+    it.each(["waiting", "WAITING"])("%s → aberta", (s) =>
+      expect(mapApiStatus(s)).toBe("aberta")
     );
   });
 
-  describe("status → finalizado (vagas encerradas)", () => {
-    it.each(["closed", "CLOSED"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
-    );
-    it.each(["finished", "FINISHED"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
-    );
-    it.each(["completed", "COMPLETED"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
-    );
-    it.each(["done", "DONE"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
-    );
-    it.each(["cancelled", "CANCELLED"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
-    );
-    it.each(["cancelled_by_contractor", "CANCELLED_BY_CONTRACTOR"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
-    );
-    it.each(["transfer_pending", "TRANSFER_PENDING"])("%s → finalizado", (s) =>
-      expect(mapApiStatus(s)).toBe("finalizado")
+  describe("status → em_andamento", () => {
+    it.each(["active", "ACTIVE", "in_progress", "IN_PROGRESS", "started", "STARTED", "checking_in", "CHECKING_IN", "checking_out", "CHECKING_OUT", "transfer_pending", "TRANSFER_PENDING"])("%s → em_andamento", (s) =>
+      expect(mapApiStatus(s)).toBe("em_andamento")
     );
   });
 
-  it("status desconhecido cai no fallback aguardando", () => {
-    expect(mapApiStatus("unknown_xyz")).toBe("aguardando");
+  describe("status → concluida", () => {
+    it.each(["closed", "CLOSED"])("%s → concluida", (s) =>
+      expect(mapApiStatus(s)).toBe("concluida")
+    );
+    it.each(["finished", "FINISHED"])("%s → concluida", (s) =>
+      expect(mapApiStatus(s)).toBe("concluida")
+    );
+    it.each(["completed", "COMPLETED"])("%s → concluida", (s) =>
+      expect(mapApiStatus(s)).toBe("concluida")
+    );
+    it.each(["done", "DONE"])("%s → concluida", (s) =>
+      expect(mapApiStatus(s)).toBe("concluida")
+    );
+    it.each(["cancelled", "CANCELLED"])("%s → concluida", (s) =>
+      expect(mapApiStatus(s)).toBe("concluida")
+    );
+    it.each(["cancelled_by_contractor", "CANCELLED_BY_CONTRACTOR"])("%s → concluida", (s) =>
+      expect(mapApiStatus(s)).toBe("concluida")
+    );
   });
 
-  it("string vazia cai no fallback aguardando", () => {
-    expect(mapApiStatus("")).toBe("aguardando");
+  it("status desconhecido cai no fallback aberta", () => {
+    expect(mapApiStatus("unknown_xyz")).toBe("aberta");
+  });
+
+  it("string vazia cai no fallback aberta", () => {
+    expect(mapApiStatus("")).toBe("aberta");
   });
 });
 

@@ -47,7 +47,7 @@ function resolveVagaValueInCents(item: VagaApi): number | undefined {
 type PaymentStatus = "Pago" | "Pendente";
 
 function mapVagaToPaymentStatus(vaga: VagaApi): PaymentStatus {
-  return mapApiStatus(vaga.status) === "finalizado" ? "Pago" : "Pendente";
+  return mapApiStatus(vaga.status) === "concluida" ? "Pago" : "Pendente";
 }
 
 export default function FinanceiroScreen() {

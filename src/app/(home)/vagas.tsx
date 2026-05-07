@@ -5,7 +5,7 @@ import { colors, fontSizes, fontWeights, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { vagasService } from "@/services/vagas.service";
 import type { VagaApi, VagaStatus } from "@/types/vagas";
-import { mapApiStatus, formatVagaValue } from "@/utils/vaga-status-map";
+import { mapApiStatus, formatVagaValue, resolveApiMoneyToReais } from "@/utils/vaga-status-map";
 import { VAGA_FILTERS } from "@/utils/vaga-filters";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -36,20 +36,12 @@ function formatApiTime(iso?: string): string {
   return `${hh}:${mn}`;
 }
 
-function resolveValue(item: Record<string, unknown>): number | undefined {
-  const cents =
-    (item.chargeAmountInCents as number | undefined) ??
-    (item.payment as number | undefined) ??
-    (item.totalAmountInCents as number | undefined);
-  if (cents != null) return cents / 100;
-  return item.value as number | undefined;
-}
-
 const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
-  todos: ["confirmado", "aguardando", "finalizado"],
-  confirmados: ["confirmado"],
-  aguardando: ["aguardando"],
-  finalizados: ["finalizado"],
+  todos: ["aberta", "preenchida", "em_andamento", "concluida"],
+  abertas: ["aberta"],
+  preenchidas: ["preenchida"],
+  em_andamento: ["em_andamento"],
+  concluidas: ["concluida"],
 };
 
 export default function VagasScreen() {
@@ -108,7 +100,7 @@ export default function VagasScreen() {
                 location={(item.location ?? item.address ?? "") as string}
                 date={formatApiDate(item.date as string | undefined)}
                 time={formatApiTime(item.startTime as string | undefined)}
-                value={formatVagaValue(resolveValue(item as Record<string, unknown>))}
+                value={formatVagaValue(resolveApiMoneyToReais(item as Record<string, unknown>))}
                 status={mapApiStatus(item.status)}
                 onPress={() => router.push(`/(home)/vaga/${item.id}`)}
               />

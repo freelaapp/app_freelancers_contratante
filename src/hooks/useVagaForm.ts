@@ -1,12 +1,14 @@
 import { useCallback, useState } from "react";
 
+import { EnderecoCompleto, initialEndereco } from "./use-via-cep";
+
 export type VagaFormData = {
   dataEvento: string;
   selectedServices: string[];
   horarioInicio: string;
   horarioFim: string;
   noEstabelecimento: boolean;
-  endereco: string;
+  endereco: EnderecoCompleto;
   descricao: string;
 };
 
@@ -16,7 +18,7 @@ const initialData: VagaFormData = {
   horarioInicio: "",
   horarioFim: "",
   noEstabelecimento: true,
-  endereco: "",
+  endereco: initialEndereco,
   descricao: "",
 };
 

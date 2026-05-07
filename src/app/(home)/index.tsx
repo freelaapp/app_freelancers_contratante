@@ -5,7 +5,7 @@ import { useAuth } from "@/context/auth-context";
 import { useNotifications } from "@/context/notifications-context";
 import { useHomeVagas } from "@/hooks/useHomeVagas";
 import { summaryService, ContractorSummary } from "@/services/summary.service";
-import { mapApiStatus, formatVagaValue } from "@/utils/vaga-status-map";
+import { mapApiStatus, formatVagaValue, resolveApiMoneyToReais } from "@/utils/vaga-status-map";
 import { consumePendingVaga } from "@/utils/pending-vaga-store";
 import type { VagaApi } from "@/types/vagas";
 import { useRouter } from "expo-router";
@@ -39,16 +39,6 @@ function formatApiTime(iso?: string): string {
   const hh = String(d.getUTCHours()).padStart(2, "0");
   const mn = String(d.getUTCMinutes()).padStart(2, "0");
   return `${hh}:${mn}`;
-}
-
-function resolveValue(item: Record<string, unknown>): number | undefined {
-  // API retorna valores em centavos — preferência: chargeAmountInCents > payment > value
-  const cents =
-    (item.chargeAmountInCents as number | undefined) ??
-    (item.payment as number | undefined) ??
-    (item.totalAmountInCents as number | undefined);
-  if (cents != null) return cents / 100;
-  return item.value as number | undefined;
 }
 
 function isHojeOuFuturo(dateField?: string): boolean {
@@ -108,7 +98,7 @@ function VagaSection({ title, icon, vagas, onPressVaga }: VagaSectionProps) {
             location={(item.location ?? item.address ?? "") as string}
             date={formatApiDate(item.date as string | undefined)}
             time={formatApiTime(item.startTime as string | undefined)}
-            value={formatVagaValue(resolveValue(item))}
+            value={formatVagaValue(resolveApiMoneyToReais(item))}
             status={mapApiStatus(item.status)}
             onPress={() => onPressVaga(item.id)}
           />
@@ -153,9 +143,10 @@ export default function HomeScreen() {
   }, [router]);
 
   const vagasHome = vagas.filter((v) => isHojeOuFuturo(v.date as string | undefined));
-  const proximas = vagasHome.filter((v) => mapApiStatus(v.status) === "confirmado");
-  const abertas = vagasHome.filter((v) => mapApiStatus(v.status) === "aguardando");
-  const finalizadas = vagasHome.filter((v) => mapApiStatus(v.status) === "finalizado");
+  const abertas = vagasHome.filter((v) => mapApiStatus(v.status) === "aberta");
+  const preenchidas = vagasHome.filter((v) => mapApiStatus(v.status) === "preenchida");
+  const emAndamento = vagasHome.filter((v) => mapApiStatus(v.status) === "em_andamento");
+  const concluidas = vagasHome.filter((v) => mapApiStatus(v.status) === "concluida");
 
   return (
     <View style={styles.container}>
@@ -194,27 +185,35 @@ export default function HomeScreen() {
           <EmptyState />
         ) : (
           <>
-            {proximas.length > 0 && (
-              <VagaSection
-                title="Próximas Contratações"
-                icon="time-outline"
-                vagas={proximas}
-                onPressVaga={handleNavigateToVaga}
-              />
-            )}
             {abertas.length > 0 && (
               <VagaSection
-                title="Vagas Abertas"
-                icon="flash"
+                title="Aberta"
+                icon="time-outline"
                 vagas={abertas}
                 onPressVaga={handleNavigateToVaga}
               />
             )}
-            {finalizadas.length > 0 && (
+            {preenchidas.length > 0 && (
               <VagaSection
-                title="Histórico"
+                title="Preenchidas"
+                icon="flash"
+                vagas={preenchidas}
+                onPressVaga={handleNavigateToVaga}
+              />
+            )}
+            {emAndamento.length > 0 && (
+              <VagaSection
+                title="Em andamento"
+                icon="play-circle-outline"
+                vagas={emAndamento}
+                onPressVaga={handleNavigateToVaga}
+              />
+            )}
+            {concluidas.length > 0 && (
+              <VagaSection
+                title="Concluídas"
                 icon="checkmark-circle-outline"
-                vagas={finalizadas}
+                vagas={concluidas}
                 onPressVaga={handleNavigateToVaga}
               />
             )}

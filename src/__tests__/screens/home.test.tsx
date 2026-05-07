@@ -182,15 +182,15 @@ describe("HomeScreen", () => {
       expect(screen.getAllByText("Barman para casamento").length).toBeGreaterThan(0);
     });
 
-    it('exibe seção "Vagas Abertas" quando há vagas com status aguardando', () => {
+    it('exibe seção "Aberta" quando há vagas abertas', () => {
       setupHomeVagas({ loading: false, vagas: [VAGA_ABERTA_FIXTURE] });
 
       render(<HomeScreen />);
 
-      expect(screen.getByText("Vagas Abertas")).toBeTruthy();
+      expect(screen.getAllByText("Aberta").length).toBeGreaterThan(0);
     });
 
-    it('exibe seção "Próximas Contratações" apenas com vagas confirmadas', () => {
+    it('exibe seção "Preenchidas" para vagas confirmadas', () => {
       setupHomeVagas({
         loading: false,
         vagas: [VAGA_CONFIRMADA_FIXTURE],
@@ -198,26 +198,26 @@ describe("HomeScreen", () => {
 
       render(<HomeScreen />);
 
-      expect(screen.getByText("Próximas Contratações")).toBeTruthy();
+      expect(screen.getByText("Preenchidas")).toBeTruthy();
     });
 
-    it('não exibe seção "Próximas Contratações" para vagas abertas', () => {
+    it('não exibe seção "Preenchidas" para vagas abertas', () => {
       setupHomeVagas({ loading: false, vagas: [VAGA_ABERTA_FIXTURE] });
 
       render(<HomeScreen />);
 
-      expect(screen.queryByText("Próximas Contratações")).toBeNull();
+      expect(screen.queryByText("Preenchidas")).toBeNull();
     });
 
-    it('exibe seção "Histórico" para vagas finalizadas', () => {
+    it('exibe seção "Concluídas" para vagas finalizadas', () => {
       const vagaFinalizada = { ...VAGA_ABERTA_FIXTURE, status: "finished" };
       setupHomeVagas({ loading: false, vagas: [vagaFinalizada] });
 
       render(<HomeScreen />);
 
-      expect(screen.getByText("Histórico")).toBeTruthy();
-      expect(screen.queryByText("Próximas Contratações")).toBeNull();
-      expect(screen.queryByText("Vagas Abertas")).toBeNull();
+      expect(screen.getByText("Concluídas")).toBeTruthy();
+      expect(screen.queryByText("Preenchidas")).toBeNull();
+      expect(screen.queryByText("Aberta")).toBeNull();
     });
 
     it("navega para a tela de detalhes ao pressionar um card de vaga", () => {
