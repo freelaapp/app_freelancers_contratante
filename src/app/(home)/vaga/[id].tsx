@@ -15,6 +15,7 @@ import { paymentsService } from "@/services/payments.service";
 import type { PaymentResponse } from "@/services/payments.service";
 import { vagasService } from "@/services/vagas.service";
 import type { CandidatoApi, JobApi, VagaDetalheApi } from "@/types/vagas";
+import { goBackOrReplace } from "@/utils/navigation";
 import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
 import { debug } from "@/utils/debug";
 import { toast } from "@/utils/toast";
@@ -530,6 +531,14 @@ export default function VagaDetailScreen() {
   }, [id, user?.module, user?.contractorId]);
 
   useEffect(() => {
+    setLoading(true);
+    setVaga(null);
+    setCandidatos([]);
+    setJob(null);
+    setStepAtual(0);
+  }, [id]);
+
+  useEffect(() => {
     loadData();
   }, [loadData]);
 
@@ -742,7 +751,7 @@ export default function VagaDetailScreen() {
     setEstrelas(0);
     setComentario("");
     setCompareceu(null);
-    router.back();
+    goBackOrReplace(router, "/(home)");
   }
 
   async function handleDeleteVaga() {
@@ -756,7 +765,7 @@ export default function VagaDetailScreen() {
       await vagasService.delete(user.module as "home-services" | "bars-restaurants", id);
       toast.success("Vaga excluída com sucesso!");
       setDeleteConfirmVisible(false);
-      router.back();
+      goBackOrReplace(router, "/(home)");
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
@@ -785,7 +794,11 @@ export default function VagaDetailScreen() {
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + spacing["6"] }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => goBackOrReplace(router, "/(home)")}
+          activeOpacity={0.8}
+        >
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <View style={styles.statusBadge}>
@@ -866,7 +879,11 @@ export default function VagaDetailScreen() {
             }
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          activeOpacity={0.85}
+          onPress={() => goBackOrReplace(router, "/(home)")}
+        >
           <Text style={styles.cancelBtnText}>Cancelar</Text>
         </TouchableOpacity>
       </BottomActionBar>

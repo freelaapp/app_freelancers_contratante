@@ -621,6 +621,30 @@ describe("VagaDetailScreen", () => {
     expect(screen.queryByTestId("btn-aceitar-c-1")).toBeNull();
   });
 
+  it("19b. ao mudar o id os dados anteriores são resetados e o loading spinner é exibido antes dos novos dados", async () => {
+    const { useLocalSearchParams } = require("expo-router");
+
+    useLocalSearchParams.mockReturnValue({ id: "vaga-1" });
+    mockGetById.mockResolvedValue({ ...BASE_VAGA });
+    mockListByVacancy.mockResolvedValue([]);
+
+    const { rerender } = render(<VagaDetailScreen />);
+    await waitFor(() => {
+      expect(screen.queryByText("Garçom para evento")).toBeTruthy();
+    });
+
+    useLocalSearchParams.mockReturnValue({ id: "vaga-2" });
+    mockGetById.mockImplementation(() => new Promise(() => {}));
+
+    await act(async () => {
+      rerender(<VagaDetailScreen />);
+    });
+
+    const indicators = screen.UNSAFE_queryAllByType(ActivityIndicator);
+    expect(indicators.length).toBeGreaterThan(0);
+    expect(screen.queryByText("Garçom para evento")).toBeNull();
+  });
+
   it("19. polling automático fecha modal e avança para step 3 quando status COMPLETED", async () => {
     const fakeNow = Date.now();
     jest.useFakeTimers();
