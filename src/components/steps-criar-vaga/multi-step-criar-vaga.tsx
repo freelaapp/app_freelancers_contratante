@@ -10,7 +10,7 @@ import { SERVICES } from "@/utils/services";
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useState } from "react";
 
 import { Step1DataEvento } from "./step1-data-evento";
@@ -234,7 +234,7 @@ export function MultiStepCriarVaga() {
         </BottomActionBar>
       )}
 
-      {showSuccess && (
+      <Modal visible={showSuccess} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.successOverlay}>
           <View style={styles.successCircle}>
             <Ionicons name="checkmark" size={48} color={colors.primary} />
@@ -244,7 +244,7 @@ export function MultiStepCriarVaga() {
             <Text style={styles.successSubtext}>Você será redirecionado em instantes</Text>
           </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -355,12 +355,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   successOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
-    zIndex: 100,
   },
   successCircle: {
     width: 96,
