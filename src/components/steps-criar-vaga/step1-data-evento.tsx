@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 
@@ -65,8 +65,6 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
   const [pickerValue, setPickerValue] = useState<Date>(minDate);
   const pendingDateRef = useRef<Date>(minDate);
 
-  const quickChips = useMemo(() => getQuickChips(), []);
-
   const openPicker = useCallback(() => {
     const initial = value ? parseDisplayDate(value) : minDate;
     pendingDateRef.current = initial;
@@ -102,27 +100,6 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.quickLabel}>Datas rápidas</Text>
-      <View style={styles.chipsRow}>
-        {quickChips.map((chip) => {
-          const chipFormatted = formatDateDisplay(chip.date);
-          const isSelected = value === chipFormatted;
-          return (
-            <TouchableOpacity
-              key={chip.label}
-              style={[styles.chip, isSelected && styles.chipSelected]}
-              onPress={() => handleQuickChip(chip.date)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                {chip.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      <Text style={styles.orLabel}>ou escolha outra data</Text>
-
       <TouchableOpacity
         style={[styles.dateButton, value ? styles.dateButtonFilled : styles.dateButtonEmpty]}
         onPress={openPicker}
