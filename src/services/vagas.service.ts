@@ -38,12 +38,13 @@ export const vagasService = {
   },
 
   async create(module: ContractorModule, payload: CreateVagaPayload): Promise<VagaApi> {
-    const endpoint = `/v1/${module}/vacancies`;
-    console.log("[vagasService.create] ➡️  POST", endpoint);
-    console.log("[vagasService.create] payload →", JSON.stringify(payload, null, 2));
-    const { data } = await api.post<VagaApi>(endpoint, payload);
-    console.log("[vagasService.create] ✅ resposta →", JSON.stringify(data, null, 2));
+    const { data } = await api.post<VagaApi>(`/v1/${module}/vacancies`, payload);
     return data;
+  },
+
+  async list(module: ContractorModule): Promise<VagaApi[]> {
+    const { data } = await api.get<VagaApi[]>(`/v1/${module}/vacancies`);
+    return Array.isArray(data) ? data : [];
   },
 
   async delete(module: ContractorModule, id: string): Promise<void> {

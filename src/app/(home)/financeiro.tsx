@@ -3,7 +3,6 @@ import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from
 import { useAuth } from "@/context/auth-context";
 import { summaryService, type ContractorSummary } from "@/services/summary.service";
 import { vagasService } from "@/services/vagas.service";
-import { mapApiStatus } from "@/utils/vaga-status-map";
 import type { VagaApi } from "@/types/vagas";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -46,8 +45,22 @@ function resolveVagaValueInCents(item: VagaApi): number | undefined {
 
 type PaymentStatus = "Pago" | "Pendente";
 
+const PAYMENT_CONFIRMED_STATUSES = new Set([
+  "active",
+  "in_progress",
+  "started",
+  "checking_in",
+  "checking_out",
+  "transfer_pending",
+  "finished",
+  "completed",
+  "done",
+  "closed",
+]);
+
 function mapVagaToPaymentStatus(vaga: VagaApi): PaymentStatus {
-  return mapApiStatus(vaga.status) === "concluida" ? "Pago" : "Pendente";
+  const normalized = (vaga.status ?? "").toLowerCase();
+  return PAYMENT_CONFIRMED_STATUSES.has(normalized) ? "Pago" : "Pendente";
 }
 
 export default function FinanceiroScreen() {

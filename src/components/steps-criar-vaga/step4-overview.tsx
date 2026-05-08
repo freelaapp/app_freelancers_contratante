@@ -152,7 +152,7 @@ export function Step4Overview({
         return;
       }
     } catch {
-      console.warn("[CriarVaga] Não foi possível verificar conflitos de horário");
+      // ignora falha na verificação de conflito — não bloqueia o submit
     }
 
     if (!noEstabelecimento) {
@@ -209,17 +209,12 @@ export function Step4Overview({
 
     try {
       setLoading(true);
-      console.log("[CriarVaga] payload →", JSON.stringify(payload, null, 2));
       const created = await vagasService.create(user.module as ModuloTarifas, payload);
       setPendingVaga(created);
       toast.success("Vaga publicada com sucesso!");
       onSuccess();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { status?: number; data?: unknown }; message?: string };
-      console.error("[CriarVaga] erro status →", axiosErr?.response?.status);
-      console.error("[CriarVaga] erro data  →", JSON.stringify(axiosErr?.response?.data, null, 2));
-      console.error("[CriarVaga] erro msg   →", axiosErr?.message);
-      const apiMessage = (axiosErr as { response?: { data?: { error?: { message?: string } } } })
+      const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
       toast.error(apiMessage ?? "Erro ao publicar a vaga. Tente novamente.");
     } finally {
