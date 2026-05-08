@@ -13,7 +13,7 @@ export function AvatarInitials({ initials, size = 56, backgroundColor = colors.p
   if (imageUrl) {
     return (
       <Image
-        source={{ uri: imageUrl }}
+        source={{ uri: imageUrl, cache: 'reload' }}
         style={[containerStyle, { overflow: "hidden" }]}
         resizeMode="cover"
       />

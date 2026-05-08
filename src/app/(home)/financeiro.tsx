@@ -3,7 +3,6 @@ import { cardShadowStrong, colors, fontSizes, fontWeights, radii, spacing } from
 import { useAuth } from "@/context/auth-context";
 import { summaryService, type ContractorSummary } from "@/services/summary.service";
 import { vagasService } from "@/services/vagas.service";
-import { mapApiStatus } from "@/utils/vaga-status-map";
 import type { VagaApi } from "@/types/vagas";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -46,8 +45,22 @@ function resolveVagaValueInCents(item: VagaApi): number | undefined {
 
 type PaymentStatus = "Pago" | "Pendente";
 
+const PAYMENT_CONFIRMED_STATUSES = new Set([
+  "active",
+  "in_progress",
+  "started",
+  "checking_in",
+  "checking_out",
+  "transfer_pending",
+  "finished",
+  "completed",
+  "done",
+  "closed",
+]);
+
 function mapVagaToPaymentStatus(vaga: VagaApi): PaymentStatus {
-  return mapApiStatus(vaga.status) === "concluida" ? "Pago" : "Pendente";
+  const normalized = (vaga.status ?? "").toLowerCase();
+  return PAYMENT_CONFIRMED_STATUSES.has(normalized) ? "Pago" : "Pendente";
 }
 
 export default function FinanceiroScreen() {
@@ -75,8 +88,29 @@ export default function FinanceiroScreen() {
     loadData();
   }, [loadData]);
 
-  const currentMonthCents = summary.currentMonthSpent ?? summary.totalSpent;
-  const pendingCents = summary.pendingAmount;
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const estesMesCents = (() => {
+    const apiValue = summary.currentMonthSpent ?? summary.totalSpent;
+    if (apiValue != null && apiValue > 0) return apiValue;
+    return vagas
+      .filter((v) => {
+        const dateStr = (v.date ?? v.startTime) as string | undefined;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d.getUTCFullYear() === currentYear && d.getUTCMonth() === currentMonth;
+      })
+      .reduce((acc, v) => acc + (resolveVagaValueInCents(v) ?? 0), 0);
+  })();
+
+  const pendingCents = (() => {
+    const apiValue = summary.pendingAmount;
+    if (apiValue != null && apiValue > 0) return apiValue;
+    return vagas
+      .filter((v) => mapVagaToPaymentStatus(v) === "Pendente")
+      .reduce((acc, v) => acc + (resolveVagaValueInCents(v) ?? 0), 0);
+  })();
 
   return (
     <View style={styles.screen}>
@@ -97,7 +131,7 @@ export default function FinanceiroScreen() {
                   <Ionicons name="trending-up-outline" size={14} color="#fff" />
                   <Text style={styles.statLabelAmber}>Este mês</Text>
                 </View>
-                <Text style={styles.statValueAmber}>{formatBRL(currentMonthCents)}</Text>
+                <Text style={styles.statValueAmber}>{formatBRL(estesMesCents)}</Text>
               </View>
               <View style={[styles.statBox, styles.statBoxWhite]}>
                 <View style={styles.statLabelRow}>

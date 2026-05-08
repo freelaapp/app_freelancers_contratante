@@ -69,12 +69,13 @@ export function useViaCep(): UseViaCepReturn {
 
       const enderecoCompleto: EnderecoCompleto = {
         cep: data.cep.replace(/\D/g, ""),
-        rua: data.logradouro,
+        // Se não tiver logradouro, usa o bairro como referência
+        rua: data.logradouro || data.bairro || "",
         numero: "",
-        complemento: data.complemento,
-        bairro: data.bairro,
-        cidade: data.locality,
-        uf: data.uf,
+        complemento: data.complemento || "",
+        bairro: data.bairro || "",
+        cidade: data.localidade || "",
+        uf: data.uf || "",
       };
 
       setEndereco(enderecoCompleto);

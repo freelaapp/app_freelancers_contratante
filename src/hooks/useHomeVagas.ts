@@ -3,6 +3,7 @@ import { vagasService } from "@/services/vagas.service";
 import { toast } from "@/utils/toast";
 import { useAuth } from "@/context/auth-context";
 import { debug } from "@/utils/debug";
+import { addOptimisticVaga, getOptimisticVagas } from "@/utils/optimistic-vagas-store";
 import type { VagaApi } from "@/types/vagas";
 
 type UseHomeVagasResult = {
@@ -13,6 +14,13 @@ type UseHomeVagasResult = {
   onRefresh: () => void;
   addVaga: (vaga: VagaApi) => void;
 };
+
+function mergeWithOptimistic(fromApi: VagaApi[], optimistic: VagaApi[]): VagaApi[] {
+  if (optimistic.length === 0) return fromApi;
+  const apiIds = new Set(fromApi.map((v) => v.id));
+  const stillMissing = optimistic.filter((v) => !apiIds.has(v.id));
+  return [...stillMissing, ...fromApi];
+}
 
 export function useHomeVagas(): UseHomeVagasResult {
   const { user } = useAuth();
@@ -38,7 +46,9 @@ export function useHomeVagas(): UseHomeVagasResult {
     try {
       const data = await vagasService.listByContractor(user.module, user.contractorId);
       debug.log("useHomeVagas", "vagas recebidas", data);
-      setVagas(Array.isArray(data) ? data : []);
+      const apiList = Array.isArray(data) ? data : [];
+      const merged = mergeWithOptimistic(apiList, getOptimisticVagas());
+      setVagas(merged);
     } catch (err) {
       debug.error("useHomeVagas", "erro ao buscar vagas", err);
       toast.error("Não foi possível carregar as vagas. Tente novamente.");
@@ -52,12 +62,17 @@ export function useHomeVagas(): UseHomeVagasResult {
     setRefreshing(true);
     vagasService
       .listByContractor(user.module, user.contractorId)
-      .then((data) => setVagas(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const apiList = Array.isArray(data) ? data : [];
+        const merged = mergeWithOptimistic(apiList, getOptimisticVagas());
+        setVagas(merged);
+      })
       .catch(() => toast.error("Não foi possível atualizar as vagas."))
       .finally(() => setRefreshing(false));
   }, [user?.contractorId, user?.module]);
 
   const addVaga = useCallback((vaga: VagaApi) => {
+    addOptimisticVaga(vaga);
     setVagas((prev) => {
       if (prev.some((v) => v.id === vaga.id)) return prev;
       return [vaga, ...prev];

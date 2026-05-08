@@ -15,6 +15,7 @@ import { paymentsService } from "@/services/payments.service";
 import type { PaymentResponse } from "@/services/payments.service";
 import { vagasService } from "@/services/vagas.service";
 import type { CandidatoApi, JobApi, VagaDetalheApi } from "@/types/vagas";
+import { goBackOrReplace } from "@/utils/navigation";
 import { formatVagaValue, mapApiStatusToStep } from "@/utils/vaga-status-map";
 import { debug } from "@/utils/debug";
 import { toast } from "@/utils/toast";
@@ -33,6 +34,20 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+function extractVagaDisplayValue(vaga: VagaDetalheApi): string {
+  const raw = vaga as Record<string, unknown>;
+  const cents =
+    (typeof raw.payment === "number" && raw.payment > 0 ? raw.payment : undefined) ??
+    (typeof raw.chargeAmountInCents === "number" && raw.chargeAmountInCents > 0 ? raw.chargeAmountInCents : undefined) ??
+    (typeof raw.totalAmountInCents === "number" && raw.totalAmountInCents > 0 ? raw.totalAmountInCents : undefined) ??
+    (typeof raw.hourlyRateInCents === "number" && raw.hourlyRateInCents > 0 ? raw.hourlyRateInCents : undefined);
+  if (cents != null) {
+    const intPart = Math.floor(cents / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `R$ ${intPart},${(cents % 100).toString().padStart(2, "0")}`;
+  }
+  return formatVagaValue(raw.value as number | undefined);
+}
 
 function formatApiDate(iso?: string): string {
   if (!iso) return "—";
@@ -182,7 +197,7 @@ function InfoCard({ vaga }: InfoCardProps) {
           </Text>
         </View>
         <Text style={styles.infoValor}>
-          {formatVagaValue(vaga.value as number | undefined)}
+          {extractVagaDisplayValue(vaga)}
         </Text>
       </View>
     </View>
@@ -219,17 +234,15 @@ function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecu
         <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} imageUrl={item.avatarUrl as string | null | undefined} />
         <View style={styles.candidatoInfo}>
           <Text style={styles.candidatoNome}>{displayName}</Text>
-          <Text style={styles.candidatoCargo}>{item.role ?? ""}</Text>
-          {item.rating != null && (
-            <View style={styles.candidatoMeta}>
-              <Ionicons name="star" size={11} color={colors.primary} />
-              <Text style={styles.candidatoMetaText}>
-                {item.rating}
-                {item.reviewCount != null && ` (${item.reviewCount})`}
-                {item.jobCount != null && ` • ${item.jobCount} jobs`}
-              </Text>
-            </View>
-          )}
+          <Text style={styles.candidatoCargo}>{item.role ?? "—"}</Text>
+          <View style={styles.candidatoMeta}>
+            <Ionicons name="star" size={11} color={colors.primary} />
+            <Text style={styles.candidatoMetaText}>
+              {item.rating ?? "—"}
+              {" "}({item.reviewCount ?? "—"})
+              {" • "}{item.jobCount != null ? `${item.jobCount} jobs` : "— jobs"}
+            </Text>
+          </View>
           {isAceito && (
             <View style={styles.candidatoStatusRow}>
               <StatusBadge status="aceito" label="Aceito" />
@@ -530,6 +543,14 @@ export default function VagaDetailScreen() {
   }, [id, user?.module, user?.contractorId]);
 
   useEffect(() => {
+    setLoading(true);
+    setVaga(null);
+    setCandidatos([]);
+    setJob(null);
+    setStepAtual(0);
+  }, [id]);
+
+  useEffect(() => {
     loadData();
   }, [loadData]);
 
@@ -742,7 +763,7 @@ export default function VagaDetailScreen() {
     setEstrelas(0);
     setComentario("");
     setCompareceu(null);
-    router.back();
+    goBackOrReplace(router, "/(home)");
   }
 
   async function handleDeleteVaga() {
@@ -756,7 +777,7 @@ export default function VagaDetailScreen() {
       await vagasService.delete(user.module as "home-services" | "bars-restaurants", id);
       toast.success("Vaga excluída com sucesso!");
       setDeleteConfirmVisible(false);
-      router.back();
+      goBackOrReplace(router, "/(home)");
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
@@ -785,7 +806,11 @@ export default function VagaDetailScreen() {
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + spacing["6"] }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => goBackOrReplace(router, "/(home)")}
+          activeOpacity={0.8}
+        >
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <View style={styles.statusBadge}>
@@ -866,7 +891,11 @@ export default function VagaDetailScreen() {
             }
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          activeOpacity={0.85}
+          onPress={() => goBackOrReplace(router, "/(home)")}
+        >
           <Text style={styles.cancelBtnText}>Cancelar</Text>
         </TouchableOpacity>
       </BottomActionBar>

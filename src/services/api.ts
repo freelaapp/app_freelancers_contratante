@@ -148,7 +148,13 @@ api.interceptors.response.use(
     const fallbackMessage = status ? ERROR_MESSAGES[status] : undefined;
     const message = apiMessage ?? fallbackMessage ?? "Ocorreu um erro inesperado.";
 
-    if (!error.config?._suppressToast) {
+    // Não tratar como erro quando o perfil de contractor não existe (usuário ainda está em onboarding)
+    const isContractorProfileNotFound =
+      status === 404 &&
+      error.response?.data?.error?.code === "NOT_FOUND" &&
+      error.response?.data?.error?.message === "Contractor profile not found.";
+
+    if (!error.config?._suppressToast && !isContractorProfileNotFound) {
       debug.error("API", "erro na requisicao", {
         url: error.config?.url,
         method: error.config?.method,

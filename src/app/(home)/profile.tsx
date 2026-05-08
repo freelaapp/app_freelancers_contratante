@@ -312,6 +312,7 @@ export default function ProfileScreen() {
           icon="help-circle-outline"
           title="Ajuda"
           subtitle="Dúvidas e suporte"
+          onPress={() => router.push("/(home)/ajuda")}
         />
       </View>
 

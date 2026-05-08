@@ -1,47 +1,113 @@
 import type { VagaStatus } from "@/types/vagas";
 
-const STATUS_MAP: Record<string, VagaStatus> = {
-  // Abertas (ainda sem freelancer efetivamente selecionado)
-  pending: "aberta",
-  waiting: "aberta",
+/**
+ * Status reais retornados pelo campo vacancy.status da API.
+ *
+ * A API expõe apenas três estados em vacancy.status:
+ * - OPEN: vaga publicada — cobre todo o ciclo enquanto o job estiver em
+ *   andamento (candidatos pendentes, candidato aceito, pagamento feito,
+ *   check-in em progresso). O status só muda quando o check-out é concluído.
+ * - CLOSED: vaga encerrada após validação do check-out pelo provider.
+ * - CANCELLED_BY_CONTRACTOR: contratante cancelou a vaga.
+ *
+ * Os status de job (accepted, scheduled, in_progress, checking_in, etc.)
+ * pertencem ao objeto job — entidade separada — e nunca aparecem em
+ * vacancy.status. Referência: docs/api-contracts (3).md.
+ *
+ * Para estados de UI intermediários ("preenchida", "em_andamento"),
+ * use mapApiStatusExtended() quando o payload incluir campos auxiliares.
+ */
+const VACANCY_STATUS_MAP: Record<string, VagaStatus> = {
   open: "aberta",
-  // Preenchidas (freelancer selecionado e aguardando execução)
-  accepted: "preenchida",
-  confirmed: "preenchida",
-  scheduled: "preenchida",
-  payment_pending: "preenchida",
-  // Em andamento
-  active: "em_andamento",
-  in_progress: "em_andamento",
-  started: "em_andamento",
-  checking_in: "em_andamento",
-  checking_out: "em_andamento",
-  transfer_pending: "em_andamento",
-  // Concluídas (inclui concluídas e canceladas)
   closed: "concluida",
-  finished: "concluida",
-  completed: "concluida",
-  done: "concluida",
   cancelled: "concluida",
   cancelled_by_contractor: "concluida",
 };
 
+/**
+ * Conjunto de job.status que indicam trabalho em andamento (check-in feito,
+ * pagamento confirmado). Usado por mapApiStatusExtended para derivar "em_andamento".
+ * Esses valores vêm do campo job.status — nunca de vacancy.status.
+ */
+const JOB_STATUS_IN_PROGRESS = new Set([
+  "in_progress",
+  "started",
+  "checking_in",
+  "checking_out",
+  "transfer_pending",
+]);
+
+/**
+ * Conjunto de job.status que indicam candidato aceito e pagamento confirmado,
+ * mas trabalho ainda não iniciado. Usado para derivar "preenchida".
+ */
+const JOB_STATUS_SCHEDULED = new Set([
+  "scheduled",
+  "confirmed",
+  "payment_completed",
+  "active",
+]);
+
+/**
+ * Mapeia vacancy.status da API para VagaStatus de UI.
+ * Usa apenas o campo vacancy.status — sem dados auxiliares.
+ * Para vagas OPEN, retorna sempre "aberta" independente do estado do job.
+ */
 export function mapApiStatus(apiStatus: string): VagaStatus {
-  return STATUS_MAP[apiStatus?.toLowerCase()] ?? "aberta";
+  return VACANCY_STATUS_MAP[apiStatus?.toLowerCase()] ?? "aberta";
+}
+
+/**
+ * Versão estendida que deriva o status de UI a partir de campos auxiliares
+ * presentes em alguns endpoints (jobStatus, hasAcceptedCandidacy, etc.).
+ *
+ * Regras de derivação (aplicadas em ordem de precedência):
+ * 1. vacancy.status = CLOSED ou CANCELLED* → "concluida"
+ * 2. jobStatus pertence ao conjunto IN_PROGRESS → "em_andamento"
+ * 3. jobStatus pertence ao conjunto SCHEDULED → "preenchida"
+ * 4. hasAcceptedCandidacy = true (sem jobStatus) → "preenchida"
+ * 5. vacancy.status = OPEN sem dados auxiliares → "aberta"
+ *
+ * @param vacancyStatus - Valor bruto de vacancy.status da API (ex: "OPEN", "CLOSED")
+ * @param options - Campos auxiliares opcionais do payload
+ * @param options.jobStatus - Valor de job.status quando disponível no payload
+ * @param options.hasAcceptedCandidacy - true quando houver candidatura ACCEPTED
+ */
+export function mapApiStatusExtended(
+  vacancyStatus: string,
+  options: {
+    jobStatus?: string;
+    hasAcceptedCandidacy?: boolean;
+  } = {}
+): VagaStatus {
+  const normalizedVacancy = vacancyStatus?.toLowerCase() ?? "";
+
+  if (normalizedVacancy === "closed" || normalizedVacancy === "cancelled" || normalizedVacancy === "cancelled_by_contractor") {
+    return "concluida";
+  }
+
+  const normalizedJob = options.jobStatus?.toLowerCase() ?? "";
+
+  if (normalizedJob && JOB_STATUS_IN_PROGRESS.has(normalizedJob)) {
+    return "em_andamento";
+  }
+
+  if (normalizedJob && JOB_STATUS_SCHEDULED.has(normalizedJob)) {
+    return "preenchida";
+  }
+
+  if (options.hasAcceptedCandidacy === true) {
+    return "preenchida";
+  }
+
+  return "aberta";
 }
 
 export function mapApiStatusToStep(apiStatus: string): number {
   const lower = apiStatus?.toLowerCase() ?? "";
   if (lower === "open") return 1;
-  if (lower === "pending" || lower === "waiting") return 1;
-  if (lower === "accepted") return 1;
-  if (lower === "closed") return 2;
-  if (lower === "payment_pending") return 2;
-  if (lower === "active" || lower === "confirmed") return 3;
-  if (lower === "in_progress" || lower === "started" || lower === "checking_in") return 3;
-  if (lower === "checking_out") return 4;
-  if (lower === "transfer_pending") return 5;
-  if (lower === "finished" || lower === "completed" || lower === "done") return 6;
+  if (lower === "closed") return 6;
+  if (lower === "cancelled_by_contractor" || lower === "cancelled") return 0;
   return 0;
 }
 

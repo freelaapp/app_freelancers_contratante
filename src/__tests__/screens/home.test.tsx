@@ -77,13 +77,13 @@ const VAGA_ABERTA_FIXTURE = {
   value: 250,
 };
 
-const VAGA_CONFIRMADA_FIXTURE = {
+const VAGA_CONCLUIDA_FIXTURE = {
   id: "vaga-2",
   title: "Barman para casamento",
   location: "Campinas, SP",
   date: "15/06/2026",
   startTime: "20:00",
-  status: "confirmed",
+  status: "closed",
   value: 400,
 };
 
@@ -173,7 +173,7 @@ describe("HomeScreen", () => {
     it("renderiza múltiplos cards quando há múltiplas vagas", () => {
       setupHomeVagas({
         loading: false,
-        vagas: [VAGA_ABERTA_FIXTURE, VAGA_CONFIRMADA_FIXTURE],
+        vagas: [VAGA_ABERTA_FIXTURE, VAGA_CONCLUIDA_FIXTURE],
       });
 
       render(<HomeScreen />);
@@ -190,33 +190,30 @@ describe("HomeScreen", () => {
       expect(screen.getAllByText("Aberta").length).toBeGreaterThan(0);
     });
 
-    it('exibe seção "Preenchidas" para vagas confirmadas', () => {
-      setupHomeVagas({
-        loading: false,
-        vagas: [VAGA_CONFIRMADA_FIXTURE],
-      });
+    it('não exibe seção "Aberta" quando há apenas vagas concluídas', () => {
+      setupHomeVagas({ loading: false, vagas: [VAGA_CONCLUIDA_FIXTURE] });
 
       render(<HomeScreen />);
 
-      expect(screen.getByText("Preenchidas")).toBeTruthy();
+      expect(screen.queryByText("Aberta")).toBeNull();
     });
 
-    it('não exibe seção "Preenchidas" para vagas abertas', () => {
-      setupHomeVagas({ loading: false, vagas: [VAGA_ABERTA_FIXTURE] });
-
-      render(<HomeScreen />);
-
-      expect(screen.queryByText("Preenchidas")).toBeNull();
-    });
-
-    it('exibe seção "Concluídas" para vagas finalizadas', () => {
-      const vagaFinalizada = { ...VAGA_ABERTA_FIXTURE, status: "finished" };
-      setupHomeVagas({ loading: false, vagas: [vagaFinalizada] });
+    it('exibe seção "Concluídas" para vagas com status closed', () => {
+      setupHomeVagas({ loading: false, vagas: [VAGA_CONCLUIDA_FIXTURE] });
 
       render(<HomeScreen />);
 
       expect(screen.getByText("Concluídas")).toBeTruthy();
-      expect(screen.queryByText("Preenchidas")).toBeNull();
+      expect(screen.queryByText("Aberta")).toBeNull();
+    });
+
+    it('exibe seção "Concluídas" para vagas canceladas pelo contratante', () => {
+      const vagaCancelada = { ...VAGA_ABERTA_FIXTURE, status: "cancelled_by_contractor" };
+      setupHomeVagas({ loading: false, vagas: [vagaCancelada] });
+
+      render(<HomeScreen />);
+
+      expect(screen.getByText("Concluídas")).toBeTruthy();
       expect(screen.queryByText("Aberta")).toBeNull();
     });
 

@@ -14,6 +14,7 @@ type Props = {
   hasNotifications?: boolean;
   onChat?: () => void;
   onNotifications?: () => void;
+  onHelp?: () => void;
 };
 
 export function HomeHeader({
@@ -24,6 +25,7 @@ export function HomeHeader({
   hasNotifications,
   onChat,
   onNotifications,
+  onHelp,
 }: Props) {
   const { top } = useSafeAreaInsets();
 
@@ -49,6 +51,9 @@ export function HomeHeader({
         <View style={styles.topRight}>
           <TouchableOpacity style={styles.iconButton} onPress={onChat} activeOpacity={0.8}>
             <Ionicons name="chatbubble-outline" size={20} color={colors.dark} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={onHelp} activeOpacity={0.8}>
+            <Ionicons name="logo-whatsapp" size={20} color={colors.dark} />
           </TouchableOpacity>
           <TouchableOpacity testID="header-notifications-button" style={styles.iconButton} onPress={onNotifications} activeOpacity={0.8}>
             <Ionicons name="notifications-outline" size={20} color={colors.dark} />

@@ -11,19 +11,22 @@ export type CreateVagaPayload = {
   startTime: string;
   endTime: string;
   address?: string;
+  cityId?: string;
 };
 
 export const vagasService = {
   async listByContractor(module: ContractorModule, contractorId: string): Promise<VagaApi[]> {
     try {
       const { data } = await api.get<VagaApi[]>(
-        `/v1/${module}/vacancies/contractors/${contractorId}`
+        `/v1/${module}/vacancies/contractors/${contractorId}`,
+        { _suppressToast: true }
       );
       return Array.isArray(data) ? data : [];
     } catch {
       // fallback: endpoint alternativo documentado
       const { data } = await api.get<VagaApi[]>(
-        `/v1/${module}/contractors/${contractorId}/vacancies`
+        `/v1/${module}/contractors/${contractorId}/vacancies`,
+        { _suppressToast: true }
       );
       return Array.isArray(data) ? data : [];
     }
@@ -37,11 +40,13 @@ export const vagasService = {
   },
 
   async create(module: ContractorModule, payload: CreateVagaPayload): Promise<VagaApi> {
-    const { data } = await api.post<VagaApi>(
-      `/v1/${module}/vacancies`,
-      payload
-    );
+    const { data } = await api.post<VagaApi>(`/v1/${module}/vacancies`, payload);
     return data;
+  },
+
+  async list(module: ContractorModule): Promise<VagaApi[]> {
+    const { data } = await api.get<VagaApi[]>(`/v1/${module}/vacancies`);
+    return Array.isArray(data) ? data : [];
   },
 
   async delete(module: ContractorModule, id: string): Promise<void> {

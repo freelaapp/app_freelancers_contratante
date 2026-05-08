@@ -36,12 +36,20 @@ function formatApiTime(iso?: string): string {
   return `${hh}:${mn}`;
 }
 
+/**
+ * Mapeamento entre IDs de filtro (definidos em VAGA_FILTERS) e os
+ * status de UI que cada filtro deve exibir.
+ *
+ * - "todos": todos os status
+ * - "confirmados": vagas com candidato aceito e/ou trabalho agendado/em andamento
+ * - "aguardando": vagas abertas aguardando candidatos ou ação do contratante
+ * - "finalizados": vagas concluídas ou canceladas
+ */
 const STATUS_BY_FILTER: Record<string, VagaStatus[]> = {
   todos: ["aberta", "preenchida", "em_andamento", "concluida"],
-  abertas: ["aberta"],
-  preenchidas: ["preenchida"],
-  em_andamento: ["em_andamento"],
-  concluidas: ["concluida"],
+  confirmados: ["preenchida", "em_andamento"],
+  aguardando: ["aberta"],
+  finalizados: ["concluida"],
 };
 
 export default function VagasScreen() {

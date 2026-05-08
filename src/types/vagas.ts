@@ -1,3 +1,17 @@
+/**
+ * Status de UI de uma vaga — derivados do campo vacancy.status da API
+ * e, quando disponíveis, de campos auxiliares do payload (jobId, candidacies).
+ *
+ * A API retorna apenas dois estados em vacancy.status:
+ *   - OPEN  → cobre todo o ciclo enquanto a vaga está ativa
+ *   - CLOSED → vaga encerrada após check-out confirmado
+ *   - CANCELLED_BY_CONTRACTOR → cancelada pelo contratante
+ *
+ * Os status "preenchida" e "em_andamento" são estados de UI derivados
+ * de campos auxiliares presentes em alguns endpoints (ex: jobId presente,
+ * candidacies com status ACCEPTED, job.status = SCHEDULED/IN_PROGRESS).
+ * Quando esses campos não estiverem disponíveis, "aberta" é o fallback.
+ */
 export type VagaStatus = "aberta" | "preenchida" | "em_andamento" | "concluida";
 
 export type VagaApi = {

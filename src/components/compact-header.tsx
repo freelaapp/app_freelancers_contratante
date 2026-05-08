@@ -1,18 +1,36 @@
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
+
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import Logo from '../../assets/images/icon.png';
 
 type Props = {
   title: string;
   subtitle: string;
   onBack?: () => void;
+  isFirstScreen?: boolean;
 };
 
-export function CompactHeader({ title, subtitle, onBack }: Props) {
+export function CompactHeader({ title, subtitle, onBack, isFirstScreen = false }: Props) {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (isFirstScreen) {
+      // Se é a primeira tela, vai direto para login (sem chance de voltar)
+      router.replace("/(auth)/login");
+      return;
+    }
+    goBackOrReplace(router, "/(auth)/login");
+  };
 
   return (
     <View style={[styles.header, { paddingTop: top + spacing["6"] }]}>
@@ -22,7 +40,7 @@ export function CompactHeader({ title, subtitle, onBack }: Props) {
 
       <TouchableOpacity
         style={styles.backRow}
-        onPress={onBack ?? (() => router.back())}
+        onPress={handleBack}
         activeOpacity={0.7}
       >
         <Ionicons name="arrow-back" size={24} color={colors.dark} />
@@ -31,7 +49,7 @@ export function CompactHeader({ title, subtitle, onBack }: Props) {
 
       <View style={styles.subtitleRow}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>freela</Text>
+          <Image source={Logo} style={styles.logoImage} />
         </View>
         <Text style={styles.subtitleText}>{subtitle}</Text>
       </View>
@@ -93,18 +111,17 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radii.md,
-    backgroundColor: colors.white,
+
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
-  logoText: {
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.bold,
-    fontStyle: "italic",
-    color: colors.primary,
+  logoImage: {
+    width: 45,
+    height: 45,
   },
   subtitleText: {
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.xl,
     color: colors.dark,
     opacity: 0.8,
     flex: 1,

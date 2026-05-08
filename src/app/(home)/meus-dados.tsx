@@ -5,6 +5,7 @@ import { useAuth } from "@/context/auth-context";
 import { authService } from "@/services/auth.service";
 import { contractorService } from "@/services/contractor.service";
 import { CepNotFoundError, fetchAddressByCep } from "@/services/viacep";
+import { goBackOrReplace } from "@/utils/navigation";
 import { toast } from "@/utils/toast";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as ImagePicker from "expo-image-picker";
@@ -96,15 +97,15 @@ type SectionCardProps = {
   danger?: boolean;
 };
 
-type InlineHeaderProps = { top: number; onBack: () => void };
+type InlineHeaderProps = { top: number; onBack: () => void; title: string };
 
-function InlineHeader({ top, onBack }: InlineHeaderProps) {
+function InlineHeader({ top, onBack, title }: InlineHeaderProps) {
   return (
     <View style={[styles.header, { paddingTop: top + 8 }]}>
       <TouchableOpacity testID="back-button" onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Ionicons name="chevron-back" size={24} color={colors.ink} />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Perfil do Estabelecimento</Text>
+      <Text style={styles.headerTitle}>{title}</Text>
       <View style={{ width: 24 }} />
     </View>
   );
@@ -141,6 +142,7 @@ function ReadOnlyField({ label, value, helperText }: ReadOnlyFieldProps) {
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={styles.readOnlyInput}>
         <Text style={styles.readOnlyText}>{value || "—"}</Text>
+        <Ionicons name="lock-closed-outline" size={14} color={colors.muted} />
       </View>
       {helperText && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
@@ -497,7 +499,7 @@ export default function MeusDadosScreen() {
   if (isLoadingData) {
     return (
       <View style={styles.root}>
-        <InlineHeader top={top} onBack={() => router.back()} />
+        <InlineHeader top={top} onBack={() => goBackOrReplace(router, "/(home)")} title={isBars ? "Perfil do Estabelecimento" : "Meus Dados"} />
         <TabMenu tabs={tabs} active={activeTab} onChange={setActiveTab} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} testID="loading-indicator" />
@@ -511,7 +513,7 @@ export default function MeusDadosScreen() {
       style={styles.root}
       behavior="padding"
     >
-      <InlineHeader top={top} onBack={() => router.back()} />
+      <InlineHeader top={top} onBack={() => goBackOrReplace(router, "/(home)")} title={isBars ? "Perfil do Estabelecimento" : "Meus Dados"} />
       <TabMenu tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       <ScrollView
@@ -567,6 +569,7 @@ export default function MeusDadosScreen() {
               <Text style={styles.fieldLabel}>Celular</Text>
               <View style={styles.readOnlyInput}>
                 <Text style={styles.readOnlyText}>{phone || "—"}</Text>
+                <Ionicons name="lock-closed-outline" size={14} color={colors.muted} />
               </View>
             </View>
           </View>
@@ -943,11 +946,13 @@ const styles = StyleSheet.create({
   readOnlyInput: {
     height: 52,
     backgroundColor: colors.borderLight,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
     borderRadius: radii.md,
     paddingHorizontal: spacing["7"],
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   readOnlyText: {
     fontSize: fontSizes.md,

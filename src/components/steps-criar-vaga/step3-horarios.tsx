@@ -1,4 +1,5 @@
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,6 +10,8 @@ export type Step3Props = {
   onHorarioInicioChange: (value: string) => void;
   onHorarioFimChange: (value: string) => void;
   jornadaMinima?: number;
+  horaInicioServico: number;
+  horaFimServico: number;
 };
 
 function isToday(displayDate: string): boolean {
@@ -22,9 +25,13 @@ function isToday(displayDate: string): boolean {
   );
 }
 
-function getAvailableHours(displayDate: string): number[] {
-  const minHour = isToday(displayDate) ? new Date().getHours() + 1 : 0;
-  return Array.from({ length: 24 }, (_, i) => i).filter((h) => h >= minHour);
+function getAvailableHours(displayDate: string, horaInicio: number, horaFim: number): number[] {
+  const minHour = isToday(displayDate)
+    ? Math.max(new Date().getHours() + 1, horaInicio)
+    : horaInicio;
+  return Array.from({ length: 24 }, (_, i) => i).filter(
+    (h) => h >= minHour && h <= horaFim
+  );
 }
 
 type HourGridProps = {
@@ -34,6 +41,7 @@ type HourGridProps = {
   onSelect: (hour: string) => void;
   jornadaMinima?: number;
   startHour?: number;
+  horaFimServico?: number;
 };
 
 function HourGrid({
@@ -43,10 +51,15 @@ function HourGrid({
   onSelect,
   jornadaMinima,
   startHour,
+  horaFimServico,
 }: HourGridProps) {
   const endHours =
     jornadaMinima && startHour !== undefined
-      ? availableHours.filter((h) => h >= startHour + jornadaMinima)
+      ? availableHours.filter(
+          (h) =>
+            h >= startHour + jornadaMinima &&
+            (horaFimServico === undefined || h <= horaFimServico)
+        )
       : availableHours;
 
   const hours = endHours.length > 0 ? endHours : availableHours;
@@ -105,32 +118,42 @@ export function Step3Horarios({
   onHorarioInicioChange,
   onHorarioFimChange,
   jornadaMinima,
+  horaInicioServico,
+  horaFimServico,
 }: Step3Props) {
   const insets = useSafeAreaInsets();
-  const availableHours = dataEvento ? getAvailableHours(dataEvento) : [];
+  const availableHours = dataEvento
+    ? getAvailableHours(dataEvento, horaInicioServico, horaFimServico)
+    : [];
   const startHour = horarioInicio ? parseInt(horarioInicio.split(":")[0], 10) : -1;
 
   const duration = calculateDuration(horarioInicio, horarioFim);
 
+  // 76 = paddingTop(12) + PrimaryButton(52) + paddingBottom(12) do BottomActionBar absoluto
+  const BAR_HEIGHT = 76 + insets.bottom;
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: BAR_HEIGHT + 16 }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Qual horário do evento?</Text>
-      <Text style={styles.subtitle}>
-        Defina quando o serviço começa e termina
-      </Text>
-
-      <View style={styles.dateInfo}>
-        <Text style={styles.dateLabel}>Data selecionada:</Text>
-        <Text style={styles.dateValue}>{dataEvento}</Text>
+      <View style={styles.metaRow}>
+        <View style={styles.metaPill}>
+          <Ionicons name="calendar-outline" size={12} color={colors.primary} />
+          <Text style={styles.metaPillText}>{dataEvento}</Text>
+        </View>
+        <View style={styles.metaPill}>
+          <Ionicons name="time-outline" size={12} color={colors.primary} />
+          <Text style={styles.metaPillText}>
+            {String(horaInicioServico).padStart(2, "0")}h–{String(horaFimServico).padStart(2, "0")}h
+          </Text>
+        </View>
       </View>
 
       <HourGrid
-        label="Horário de início"
+        label="Início do serviço"
         selectedHour={
           horarioInicio ? parseInt(horarioInicio.split(":")[0], 10) : null
         }
@@ -138,24 +161,28 @@ export function Step3Horarios({
         onSelect={onHorarioInicioChange}
       />
 
-      {horarioInicio && (
-        <HourGrid
-          label="Horário de encerramento"
-          selectedHour={
-            horarioFim ? parseInt(horarioFim.split(":")[0], 10) : null
-          }
-          availableHours={availableHours}
-          onSelect={onHorarioFimChange}
-          jornadaMinima={jornadaMinima}
-          startHour={startHour}
-        />
+      {horarioInicio && horarioFim && duration && (
+        <View style={styles.durationPill}>
+          <Ionicons name="timer-outline" size={18} color={colors.primaryDark} />
+          <Text style={styles.durationText}>{duration} de duração</Text>
+        </View>
       )}
 
-      {horarioInicio && horarioFim && duration && (
-        <View style={styles.durationBox}>
-          <Text style={styles.durationLabel}>Duração total:</Text>
-          <Text style={styles.durationValue}>{duration}</Text>
-        </View>
+      {horarioInicio && (
+        <>
+          <View style={styles.gridsDivider} />
+          <HourGrid
+            label="Término do serviço"
+            selectedHour={
+              horarioFim ? parseInt(horarioFim.split(":")[0], 10) : null
+            }
+            availableHours={availableHours}
+            onSelect={onHorarioFimChange}
+            jornadaMinima={jornadaMinima}
+            startHour={startHour}
+            horaFimServico={horaFimServico}
+          />
+        </>
       )}
     </ScrollView>
   );
@@ -166,88 +193,91 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing["6"],
-    paddingTop: spacing["4"],
+    paddingHorizontal: spacing["8"],
+    paddingTop: spacing["8"],
   },
-  title: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
-    color: colors.ink,
-    marginBottom: spacing["2"],
+  metaRow: {
+    flexDirection: "row",
+    gap: spacing["3"],
+    marginBottom: spacing["8"],
   },
-  subtitle: {
-    fontSize: fontSizes.base,
-    color: colors.muted,
-    marginBottom: spacing["6"],
-  },
-  dateInfo: {
+  metaPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    padding: spacing["4"],
-    borderRadius: radii.lg,
-    marginBottom: spacing["6"],
     gap: spacing["2"],
+    backgroundColor: "#FFFBEB",
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["5"],
+    paddingVertical: spacing["3"],
+    borderWidth: 1,
+    borderColor: colors.primary + "30",
   },
-  dateLabel: {
-    fontSize: fontSizes.sm,
+  metaPillText: {
+    fontSize: fontSizes.xs,
     color: colors.primary,
-  },
-  dateValue: {
-    fontSize: fontSizes.sm,
     fontWeight: fontWeights.semibold,
-    color: colors.primary,
   },
-  durationBox: {
+  gridsDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: spacing["8"],
+  },
+  durationPill: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    padding: spacing["5"],
-    borderRadius: radii.lg,
-    marginTop: spacing["4"],
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    paddingVertical: spacing["5"],
+    paddingHorizontal: spacing["10"],
+    gap: spacing["4"],
+    marginTop: spacing["6"],
+    alignSelf: "center",
   },
-  durationLabel: {
-    fontSize: fontSizes.base,
-    color: colors.ink,
-  },
-  durationValue: {
+  durationText: {
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.bold,
-    color: colors.primary,
+    color: colors.white,
   },
 });
 
 const hourStyles = StyleSheet.create({
   container: {
-    marginBottom: spacing["6"],
+    marginBottom: spacing["4"],
   },
   label: {
     fontSize: fontSizes.md,
     fontWeight: fontWeights.semibold,
     color: colors.ink,
-    marginBottom: spacing["2"],
+    marginBottom: spacing["5"],
   },
   hint: {
     fontSize: fontSizes.xs,
-    color: colors.muted,
-    marginBottom: spacing["3"],
+    color: colors.primary,
+    backgroundColor: "#FFFBEB",
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["5"],
+    paddingVertical: spacing["2"],
+    alignSelf: "flex-start",
+    marginBottom: spacing["5"],
+    borderWidth: 1,
+    borderColor: colors.primary + "30",
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing["3"],
+    gap: spacing["4"],
   },
   btn: {
-    paddingVertical: spacing["4"],
-    paddingHorizontal: spacing["5"],
+    width: 64,
+    height: 44,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    minWidth: 64,
     alignItems: "center",
+    justifyContent: "center",
   },
   btnDefault: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.border,
   },
   btnSelected: {
