@@ -9,6 +9,7 @@ import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -97,11 +98,11 @@ export default function RegisterScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {isSubmitting && (
-        <View style={styles.overlay} pointerEvents="box-none">
+      <Modal visible={isSubmitting} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.overlay}>
           <ActivityIndicator size="large" color="#F5A623" />
         </View>
-      )}
+      </Modal>
 
       <CompactHeader
         title="Criar conta"
@@ -303,11 +304,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5A623",
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 999,
   },
   card: {
     flex: 1,
