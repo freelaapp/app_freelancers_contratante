@@ -371,6 +371,7 @@ export function Step4Overview({
           label="Publicar contratação →"
           onPress={handleSubmit}
           loading={loading}
+          disabled={loading}
         />
       </BottomActionBar>
     </View>
