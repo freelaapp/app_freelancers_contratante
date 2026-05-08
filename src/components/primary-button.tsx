@@ -1,6 +1,7 @@
 import { colors, fontSizes, fontWeights, gradients, radii } from "@/constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { ActivityIndicator, Animated, Easing, StyleSheet, TouchableOpacity, View } from "react-native";
 
 type Props = {
   label: string;
@@ -11,6 +12,38 @@ type Props = {
 };
 
 export function PrimaryButton({ label, onPress, icon = "+", disabled = false, loading = false }: Props) {
+  const slideAnim = useRef(new Animated.Value(-300)).current;
+  const chevronAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // skewX não é suportado pelo native driver — useNativeDriver: false aqui
+    Animated.loop(
+      Animated.timing(slideAnim, {
+        toValue: 600,
+        duration: 2200,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      })
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(chevronAnim, {
+          toValue: 5,
+          duration: 400,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(chevronAnim, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
   return (
     <TouchableOpacity
       style={styles.wrapper}
@@ -24,13 +57,30 @@ export function PrimaryButton({ label, onPress, icon = "+", disabled = false, lo
         end={gradients.button.end}
         style={styles.gradient}
       >
-        <View style={styles.diagonalOverlay} />
+        <Animated.View
+          style={[
+            styles.diagonalOverlay,
+            {
+              transform: [
+                { translateX: slideAnim },
+                { skewX: "-20deg" },
+              ],
+            },
+          ]}
+        />
         {loading ? (
           <ActivityIndicator color={colors.inkButton} size="small" testID="primary-button-loading" />
         ) : (
-          <Text style={styles.label}>
-            {icon}{"   "}{label}{"   "}›
-          </Text>
+          <View style={styles.labelRow}>
+            <Animated.Text style={styles.label}>
+              {icon}{"   "}{label}{"   "}
+            </Animated.Text>
+            <Animated.Text
+              style={[styles.label, { transform: [{ translateX: chevronAnim }] }]}
+            >
+              ›
+            </Animated.Text>
+          </View>
         )}
       </LinearGradient>
     </TouchableOpacity>
@@ -53,12 +103,15 @@ const styles = StyleSheet.create({
   },
   diagonalOverlay: {
     position: "absolute",
-    right: -20,
+    left: 0,
     top: 0,
     bottom: 0,
     width: "45%",
     backgroundColor: colors.overlayButtonShade,
-    transform: [{ skewX: "-20deg" }],
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   label: {
     fontSize: fontSizes.xl,

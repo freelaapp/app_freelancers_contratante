@@ -168,6 +168,7 @@ export default function LoginScreen() {
         <TouchableOpacity
           style={styles.forgotPassword}
           onPress={() => router.push("/(auth)/forgot-password")}
+          hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
         >
           <Text style={styles.forgotPasswordText}>Esqueci minha senha</Text>
         </TouchableOpacity>
@@ -193,12 +194,12 @@ export default function LoginScreen() {
 
         {
           Platform.OS !== "ios" ?
-            <TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.googleButton, styles.socialButtonDisabled]} activeOpacity={0.85} disabled>
               <Text style={styles.googleIcon}>G</Text>
               <Text style={styles.googleButtonText}>Entrar com Google</Text>
             </TouchableOpacity>
             :
-            <TouchableOpacity style={styles.appleButton} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.appleButton, styles.socialButtonDisabled]} activeOpacity={0.85} disabled>
               <Ionicons
                 name="logo-apple"
                 size={22}
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
   forgotPassword: {
     alignSelf: "flex-end",
     marginTop: 10,
-    paddingVertical: 4,
+    paddingVertical: 12,
   },
   authErrorText: {
     marginTop: 12,
@@ -395,6 +396,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     color: "#fff",
+  },
+  socialButtonDisabled: {
+    opacity: 0.4,
   },
   footer: {
     marginTop: 20,

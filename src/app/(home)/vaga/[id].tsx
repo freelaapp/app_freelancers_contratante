@@ -234,17 +234,15 @@ function CandidatoRow({ item, index, showDivider, onVerPerfil, onAceitar, onRecu
         <AvatarInitials initials={initials} size={40} backgroundColor={colors.primary} imageUrl={item.avatarUrl as string | null | undefined} />
         <View style={styles.candidatoInfo}>
           <Text style={styles.candidatoNome}>{displayName}</Text>
-          <Text style={styles.candidatoCargo}>{item.role ?? ""}</Text>
-          {item.rating != null && (
-            <View style={styles.candidatoMeta}>
-              <Ionicons name="star" size={11} color={colors.primary} />
-              <Text style={styles.candidatoMetaText}>
-                {item.rating}
-                {item.reviewCount != null && ` (${item.reviewCount})`}
-                {item.jobCount != null && ` • ${item.jobCount} jobs`}
-              </Text>
-            </View>
-          )}
+          <Text style={styles.candidatoCargo}>{item.role ?? "—"}</Text>
+          <View style={styles.candidatoMeta}>
+            <Ionicons name="star" size={11} color={colors.primary} />
+            <Text style={styles.candidatoMetaText}>
+              {item.rating ?? "—"}
+              {" "}({item.reviewCount ?? "—"})
+              {" • "}{item.jobCount != null ? `${item.jobCount} jobs` : "— jobs"}
+            </Text>
+          </View>
           {isAceito && (
             <View style={styles.candidatoStatusRow}>
               <StatusBadge status="aceito" label="Aceito" />

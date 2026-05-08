@@ -143,13 +143,11 @@ export default function HomeScreen() {
   }, [router]);
 
   const handleHelp = useCallback(() => {
-    Linking.openURL("https://wa.me/5511999999999?text=Olá!%20Preciso%20de%20ajuda%20com%20o%20Freela%20Serviços.");
+    Linking.openURL("https://wa.me/5511994989805?text=Olá!%20Preciso%20de%20ajuda%20com%20o%20Freela%20Serviços.");
   }, []);
 
   const vagasHome = vagas.filter((v) => isHojeOuFuturo(v.date as string | undefined));
   const abertas = vagasHome.filter((v) => mapApiStatus(v.status) === "aberta");
-  const preenchidas = vagasHome.filter((v) => mapApiStatus(v.status) === "preenchida");
-  const emAndamento = vagasHome.filter((v) => mapApiStatus(v.status) === "em_andamento");
   const concluidas = vagasHome.filter((v) => mapApiStatus(v.status) === "concluida");
 
   return (
@@ -195,22 +193,6 @@ export default function HomeScreen() {
                 title="Aberta"
                 icon="time-outline"
                 vagas={abertas}
-                onPressVaga={handleNavigateToVaga}
-              />
-            )}
-            {preenchidas.length > 0 && (
-              <VagaSection
-                title="Preenchidas"
-                icon="flash"
-                vagas={preenchidas}
-                onPressVaga={handleNavigateToVaga}
-              />
-            )}
-            {emAndamento.length > 0 && (
-              <VagaSection
-                title="Em andamento"
-                icon="play-circle-outline"
-                vagas={emAndamento}
                 onPressVaga={handleNavigateToVaga}
               />
             )}

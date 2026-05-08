@@ -104,7 +104,7 @@ export default function AjudaScreen() {
   }
 
   function handleSupportPress() {
-    Linking.openURL("https://wa.me/5511999999999");
+    Linking.openURL("https://wa.me/5511994989805?text=Olá!%20Preciso%20de%20ajuda%20com%20o%20Freela%20Serviços.");
   }
 
   return (
@@ -158,7 +158,7 @@ export default function AjudaScreen() {
             activeOpacity={0.8}
             testID="support-button"
           >
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color="#1A1A2E" />
+            <Ionicons name="logo-whatsapp" size={18} color="#1A1A2E" />
             <Text style={styles.supportButtonLabel}>Chamar Suporte</Text>
           </TouchableOpacity>
         </View>

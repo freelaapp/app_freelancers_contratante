@@ -18,13 +18,15 @@ export const vagasService = {
   async listByContractor(module: ContractorModule, contractorId: string): Promise<VagaApi[]> {
     try {
       const { data } = await api.get<VagaApi[]>(
-        `/v1/${module}/vacancies/contractors/${contractorId}`
+        `/v1/${module}/vacancies/contractors/${contractorId}`,
+        { _suppressToast: true }
       );
       return Array.isArray(data) ? data : [];
     } catch {
       // fallback: endpoint alternativo documentado
       const { data } = await api.get<VagaApi[]>(
-        `/v1/${module}/contractors/${contractorId}/vacancies`
+        `/v1/${module}/contractors/${contractorId}/vacancies`,
+        { _suppressToast: true }
       );
       return Array.isArray(data) ? data : [];
     }

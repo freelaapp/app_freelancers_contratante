@@ -2,6 +2,7 @@ import {
   formatVagaValue,
   formatVagaValueFromCents,
   mapApiStatus,
+  mapApiStatusExtended,
   mapApiStatusToStep,
   resolveApiMoneyToReais,
 } from "@/utils/vaga-status-map";
@@ -48,83 +49,140 @@ describe("resolveApiMoneyToReais", () => {
   });
 });
 
+/**
+ * mapApiStatus — cobre apenas os status reais do campo vacancy.status.
+ *
+ * A API retorna OPEN para vagas publicadas (inclui vagas com candidatos,
+ * vagas com candidato aceito e job em andamento) e CLOSED após o check-out.
+ * Status de job (accepted, scheduled, in_progress etc.) não aparecem em
+ * vacancy.status e portanto devem cair no fallback "aberta".
+ */
 describe("mapApiStatus", () => {
-  describe("status → preenchida", () => {
-    it.each(["confirmed", "CONFIRMED"])("%s → preenchida", (s) =>
-      expect(mapApiStatus(s)).toBe("preenchida")
-    );
-    it.each(["accepted", "ACCEPTED"])("%s → preenchida", (s) =>
-      expect(mapApiStatus(s)).toBe("preenchida")
-    );
-    it.each(["scheduled", "SCHEDULED", "payment_pending", "PAYMENT_PENDING"])("%s → preenchida", (s) =>
-      expect(mapApiStatus(s)).toBe("preenchida")
-    );
-  });
-
   describe("status → aberta", () => {
     it.each(["open", "OPEN"])("%s → aberta", (s) =>
       expect(mapApiStatus(s)).toBe("aberta")
     );
-    it.each(["pending", "PENDING"])("%s → aberta", (s) =>
-      expect(mapApiStatus(s)).toBe("aberta")
-    );
-    it.each(["waiting", "WAITING"])("%s → aberta", (s) =>
-      expect(mapApiStatus(s)).toBe("aberta")
-    );
-  });
 
-  describe("status → em_andamento", () => {
-    it.each(["active", "ACTIVE", "in_progress", "IN_PROGRESS", "started", "STARTED", "checking_in", "CHECKING_IN", "checking_out", "CHECKING_OUT", "transfer_pending", "TRANSFER_PENDING"])("%s → em_andamento", (s) =>
-      expect(mapApiStatus(s)).toBe("em_andamento")
-    );
+    it("status desconhecido cai no fallback aberta", () => {
+      expect(mapApiStatus("unknown_xyz")).toBe("aberta");
+    });
+
+    it("string vazia cai no fallback aberta", () => {
+      expect(mapApiStatus("")).toBe("aberta");
+    });
+
+    it("status de job não aparece em vacancy.status — fallback aberta", () => {
+      const jobStatuses = [
+        "pending", "waiting", "accepted", "confirmed", "scheduled",
+        "payment_pending", "active", "in_progress", "started",
+        "checking_in", "checking_out", "transfer_pending",
+        "finished", "completed", "done",
+      ];
+      jobStatuses.forEach((s) => {
+        expect(mapApiStatus(s)).toBe("aberta");
+      });
+    });
   });
 
   describe("status → concluida", () => {
     it.each(["closed", "CLOSED"])("%s → concluida", (s) =>
       expect(mapApiStatus(s)).toBe("concluida")
     );
-    it.each(["finished", "FINISHED"])("%s → concluida", (s) =>
-      expect(mapApiStatus(s)).toBe("concluida")
-    );
-    it.each(["completed", "COMPLETED"])("%s → concluida", (s) =>
-      expect(mapApiStatus(s)).toBe("concluida")
-    );
-    it.each(["done", "DONE"])("%s → concluida", (s) =>
-      expect(mapApiStatus(s)).toBe("concluida")
-    );
+
     it.each(["cancelled", "CANCELLED"])("%s → concluida", (s) =>
       expect(mapApiStatus(s)).toBe("concluida")
     );
+
     it.each(["cancelled_by_contractor", "CANCELLED_BY_CONTRACTOR"])("%s → concluida", (s) =>
       expect(mapApiStatus(s)).toBe("concluida")
     );
   });
+});
 
-  it("status desconhecido cai no fallback aberta", () => {
-    expect(mapApiStatus("unknown_xyz")).toBe("aberta");
+/**
+ * mapApiStatusExtended — deriva status de UI a partir de vacancy.status
+ * e campos auxiliares opcionais (jobStatus, hasAcceptedCandidacy).
+ *
+ * Regras testadas:
+ * 1. CLOSED/CANCELLED* → "concluida" independente de campos auxiliares
+ * 2. jobStatus IN_PROGRESS → "em_andamento"
+ * 3. jobStatus SCHEDULED → "preenchida"
+ * 4. hasAcceptedCandidacy = true (sem jobStatus) → "preenchida"
+ * 5. OPEN sem auxiliares → "aberta" (fallback)
+ */
+describe("mapApiStatusExtended", () => {
+  describe("vacancy.status encerrada → sempre concluida", () => {
+    it.each(["closed", "CLOSED"])("%s → concluida", (s) =>
+      expect(mapApiStatusExtended(s)).toBe("concluida")
+    );
+
+    it.each(["cancelled", "CANCELLED"])("%s → concluida", (s) =>
+      expect(mapApiStatusExtended(s)).toBe("concluida")
+    );
+
+    it.each(["cancelled_by_contractor", "CANCELLED_BY_CONTRACTOR"])("%s → concluida", (s) =>
+      expect(mapApiStatusExtended(s)).toBe("concluida")
+    );
+
+    it("CLOSED com jobStatus in_progress → concluida (vacancy status tem precedência)", () => {
+      expect(mapApiStatusExtended("CLOSED", { jobStatus: "in_progress" })).toBe("concluida");
+    });
   });
 
-  it("string vazia cai no fallback aberta", () => {
-    expect(mapApiStatus("")).toBe("aberta");
+  describe("OPEN com jobStatus em andamento → em_andamento", () => {
+    it.each(["in_progress", "started", "checking_in", "checking_out", "transfer_pending"])(
+      "jobStatus %s → em_andamento",
+      (jobStatus) =>
+        expect(mapApiStatusExtended("OPEN", { jobStatus })).toBe("em_andamento")
+    );
+  });
+
+  describe("OPEN com jobStatus agendado → preenchida", () => {
+    it.each(["scheduled", "confirmed", "payment_completed", "active"])(
+      "jobStatus %s → preenchida",
+      (jobStatus) =>
+        expect(mapApiStatusExtended("OPEN", { jobStatus })).toBe("preenchida")
+    );
+  });
+
+  describe("OPEN sem jobStatus mas com candidatura aceita → preenchida", () => {
+    it("hasAcceptedCandidacy true → preenchida", () => {
+      expect(mapApiStatusExtended("OPEN", { hasAcceptedCandidacy: true })).toBe("preenchida");
+    });
+
+    it("hasAcceptedCandidacy false → aberta", () => {
+      expect(mapApiStatusExtended("OPEN", { hasAcceptedCandidacy: false })).toBe("aberta");
+    });
+  });
+
+  describe("OPEN sem auxiliares → aberta", () => {
+    it("sem opções → aberta", () =>
+      expect(mapApiStatusExtended("OPEN")).toBe("aberta")
+    );
+
+    it("string vazia → aberta", () =>
+      expect(mapApiStatusExtended("")).toBe("aberta")
+    );
+
+    it("status desconhecido → aberta", () =>
+      expect(mapApiStatusExtended("unknown_xyz")).toBe("aberta")
+    );
+  });
+
+  describe("jobStatus desconhecido não altera o fallback", () => {
+    it("jobStatus irreconhecível com OPEN → aberta", () => {
+      expect(mapApiStatusExtended("OPEN", { jobStatus: "some_unknown_status" })).toBe("aberta");
+    });
   });
 });
 
 describe("mapApiStatusToStep", () => {
   it("open → 1", () => expect(mapApiStatusToStep("open")).toBe(1));
-  it("pending → 1", () => expect(mapApiStatusToStep("pending")).toBe(1));
-  it("accepted → 1", () => expect(mapApiStatusToStep("accepted")).toBe(1));
-  it("closed → 2", () => expect(mapApiStatusToStep("closed")).toBe(2));
-  it("CLOSED (maiúsculo) → 2", () => expect(mapApiStatusToStep("CLOSED")).toBe(2));
-  it("payment_pending → 2", () => expect(mapApiStatusToStep("payment_pending")).toBe(2));
-  it("active → 3", () => expect(mapApiStatusToStep("active")).toBe(3));
-  it("confirmed → 3", () => expect(mapApiStatusToStep("confirmed")).toBe(3));
-  it("in_progress → 3", () => expect(mapApiStatusToStep("in_progress")).toBe(3));
-  it("started → 3", () => expect(mapApiStatusToStep("started")).toBe(3));
-  it("checking_in → 3", () => expect(mapApiStatusToStep("checking_in")).toBe(3));
-  it("checking_out → 4", () => expect(mapApiStatusToStep("checking_out")).toBe(4));
-  it("transfer_pending → 5", () => expect(mapApiStatusToStep("transfer_pending")).toBe(5));
-  it("finished → 6", () => expect(mapApiStatusToStep("finished")).toBe(6));
-  it("completed → 6", () => expect(mapApiStatusToStep("completed")).toBe(6));
+  it("OPEN (maiúsculo) → 1", () => expect(mapApiStatusToStep("OPEN")).toBe(1));
+  it("closed → 6", () => expect(mapApiStatusToStep("closed")).toBe(6));
+  it("CLOSED (maiúsculo) → 6", () => expect(mapApiStatusToStep("CLOSED")).toBe(6));
+  it("cancelled → 0", () => expect(mapApiStatusToStep("cancelled")).toBe(0));
+  it("cancelled_by_contractor → 0", () => expect(mapApiStatusToStep("cancelled_by_contractor")).toBe(0));
   it("status desconhecido → 0", () => expect(mapApiStatusToStep("unknown_xyz")).toBe(0));
   it("string vazia → 0", () => expect(mapApiStatusToStep("")).toBe(0));
 });
