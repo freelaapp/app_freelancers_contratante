@@ -84,8 +84,8 @@ export default function RegisterScreen() {
         // best-effort — o redirect deve acontecer de qualquer forma
       }
 
-      toast.success("Cadastro realizado! Verifique seu e-mail.");
-      router.push({ pathname: "/(auth)/confirm-email", params: { email: data.email } });
+      toast.success("Cadastro realizado com sucesso!");
+      router.replace("/(auth)/login");
     } catch {
       // erro tratado pelo interceptor
       toast.error("Não foi possível criar sua conta.", "Tente novamente em instantes.")
@@ -97,9 +97,16 @@ export default function RegisterScreen() {
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      {isSubmitting && (
+        <View style={styles.overlay} pointerEvents="box-none">
+          <ActivityIndicator size="large" color="#F5A623" />
+        </View>
+      )}
+
       <CompactHeader
         title="Criar conta"
         subtitle="Cadastre-se e comece a contratar"
+        isFirstScreen={true}
       />
 
       <ScrollView
@@ -294,6 +301,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#F5A623",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 999,
   },
   card: {
     flex: 1,
