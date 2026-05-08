@@ -13,6 +13,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -120,9 +121,8 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       const pending = consumePendingVaga();
-      fetchVagas().then(() => {
-        if (pending) addVaga(pending);
-      });
+      if (pending) addVaga(pending);
+      fetchVagas();
       summaryService.getContractorSummary().then(setSummary).catch(() => {});
     }, [fetchVagas, addVaga])
   );
@@ -142,6 +142,10 @@ export default function HomeScreen() {
     router.push("/(home)/notificacoes");
   }, [router]);
 
+  const handleHelp = useCallback(() => {
+    Linking.openURL("https://wa.me/5511999999999?text=Olá!%20Preciso%20de%20ajuda%20com%20o%20Freela%20Serviços.");
+  }, []);
+
   const vagasHome = vagas.filter((v) => isHojeOuFuturo(v.date as string | undefined));
   const abertas = vagasHome.filter((v) => mapApiStatus(v.status) === "aberta");
   const preenchidas = vagasHome.filter((v) => mapApiStatus(v.status) === "preenchida");
@@ -157,6 +161,7 @@ export default function HomeScreen() {
         avaliacao={formatAvaliacao(summary)}
         hasNotifications={hasUnread}
         onNotifications={handleNotifications}
+        onHelp={handleHelp}
       />
       <ScrollView
         testID="home-scroll-view"

@@ -1,10 +1,10 @@
 import { cardShadow, colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { goBackOrReplace } from "@/utils/navigation";
 import { toast } from "@/utils/toast";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -93,8 +93,6 @@ type SettingsState = {
   pagamentosRealizados: boolean;
   receberEmail: boolean;
   notificacoesPush: boolean;
-  perfilPublico: boolean;
-  modoEscuro: boolean;
 };
 
 export default function ConfiguracoesScreen() {
@@ -108,8 +106,6 @@ export default function ConfiguracoesScreen() {
     pagamentosRealizados: true,
     receberEmail: false,
     notificacoesPush: true,
-    perfilPublico: true,
-    modoEscuro: false,
   });
 
   function toggle(key: keyof SettingsState) {
@@ -120,14 +116,14 @@ export default function ConfiguracoesScreen() {
     toast.success("Configurações salvas!");
   }
 
-  function handleLegalItem(url: string) {
-    Linking.openURL(url).catch(() => toast.info("Em breve"));
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => goBackOrReplace(router, "/(home)")}
+          activeOpacity={0.7}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={24} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Configurações</Text>
@@ -186,42 +182,17 @@ export default function ConfiguracoesScreen() {
         </View>
 
         <View style={styles.card}>
-          <SectionHeader icon="shield-outline" title="Privacidade" />
-          <View style={styles.divider} />
-          <ToggleRow
-            icon="globe-outline"
-            label="Perfil público"
-            sublabel="Freelancers podem ver seu perfil"
-            value={settings.perfilPublico}
-            onValueChange={toggle("perfilPublico")}
-            showInsetDivider={false}
-          />
-        </View>
-
-        <View style={styles.card}>
-          <SectionHeader icon="globe-outline" title="Preferências" />
-          <View style={styles.divider} />
-          <ToggleRow
-            icon="moon-outline"
-            label="Modo escuro"
-            value={settings.modoEscuro}
-            onValueChange={toggle("modoEscuro")}
-            showInsetDivider={false}
-          />
-        </View>
-
-        <View style={styles.card}>
           <SectionHeader icon="document-text-outline" title="Legal" />
           <View style={styles.divider} />
           <TapRow
             icon="document-outline"
             label="Termos de Uso"
-            onPress={() => handleLegalItem("https://contratante.app/termos")}
+            onPress={() => router.push("/(home)/termos-de-uso")}
           />
           <TapRow
             icon="lock-closed-outline"
             label="Política de Privacidade"
-            onPress={() => handleLegalItem("https://contratante.app/privacidade")}
+            onPress={() => router.push("/(home)/politica-de-privacidade")}
             showInsetDivider={false}
           />
         </View>

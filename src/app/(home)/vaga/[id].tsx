@@ -35,6 +35,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+function extractVagaDisplayValue(vaga: VagaDetalheApi): string {
+  const raw = vaga as Record<string, unknown>;
+  const cents =
+    (typeof raw.payment === "number" && raw.payment > 0 ? raw.payment : undefined) ??
+    (typeof raw.chargeAmountInCents === "number" && raw.chargeAmountInCents > 0 ? raw.chargeAmountInCents : undefined) ??
+    (typeof raw.totalAmountInCents === "number" && raw.totalAmountInCents > 0 ? raw.totalAmountInCents : undefined) ??
+    (typeof raw.hourlyRateInCents === "number" && raw.hourlyRateInCents > 0 ? raw.hourlyRateInCents : undefined);
+  if (cents != null) {
+    const intPart = Math.floor(cents / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `R$ ${intPart},${(cents % 100).toString().padStart(2, "0")}`;
+  }
+  return formatVagaValue(raw.value as number | undefined);
+}
+
 function formatApiDate(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -183,7 +197,7 @@ function InfoCard({ vaga }: InfoCardProps) {
           </Text>
         </View>
         <Text style={styles.infoValor}>
-          {formatVagaValue(vaga.value as number | undefined)}
+          {extractVagaDisplayValue(vaga)}
         </Text>
       </View>
     </View>

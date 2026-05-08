@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { Input } from "@/components/input";
-import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
-import { EnderecoCompleto } from "@/hooks/use-via-cep";
-import { formatCEP } from "@/hooks/use-via-cep";
+import { colors, spacing } from "@/constants/theme";
+import { EnderecoCompleto, formatCEP } from "@/hooks/use-via-cep";
 import { useState } from "react";
 
 export type EnderecoFormProps = {
@@ -22,7 +21,9 @@ export function EnderecoForm({
   loading,
   error,
 }: EnderecoFormProps) {
-  const [cepInput, setCepInput] = useState(endereco.cep);
+  const [cepInput, setCepInput] = useState(
+    endereco.cep ? formatCEP(endereco.cep) : ""
+  );
 
   const handleCepChange = (value: string) => {
     const formatted = formatCEP(value);
@@ -45,52 +46,46 @@ export function EnderecoForm({
 
   return (
     <View style={styles.container}>
-      <View style={styles.cepRow}>
-        <View style={styles.cepInputContainer}>
-          <Input
-            label="CEP"
-            icon="mail-outline"
-            placeholder="00000-000"
-            value={cepInput}
-            onChangeText={handleCepChange}
-            onBlur={handleCepBlur}
-            keyboardType="numeric"
-            maxLength={9}
-            error={error ?? undefined}
-            containerStyle={styles.cepInput}
-          />
-        </View>
-        {loading && (
-          <View style={styles.loadingBox}>
-            <Ionicons name="reload" size={20} color={colors.primary} />
-          </View>
-        )}
-      </View>
+      {/* CEP com spinner inline */}
+      <Input
+        label="CEP"
+        icon="location-outline"
+        placeholder="00000-000"
+        value={cepInput}
+        onChangeText={handleCepChange}
+        onBlur={handleCepBlur}
+        keyboardType="numeric"
+        maxLength={9}
+        error={error ?? undefined}
+        rightElement={
+          loading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : undefined
+        }
+      />
 
-      {endereco.rua && (
-        <View style={styles.enderecoDisplay}>
-          <Text style={styles.enderecoText}>
-            {endereco.rua}
-            {endereco.bairro && `, ${endereco.bairro}`}
-          </Text>
-          <Text style={styles.enderecoCidade}>
-            {endereco.cidade}/{endereco.uf}
-          </Text>
-        </View>
-      )}
+      {/* Rua — preenchida automaticamente pelo ViaCEP */}
+      <Input
+        label="Rua"
+        icon="map-outline"
+        placeholder="Preenchida automaticamente"
+        value={endereco.rua}
+        editable={false}
+        containerStyle={styles.readOnly}
+      />
 
+      {/* Número + Complemento */}
       <View style={styles.row}>
-        <View style={styles.numeroContainer}>
+        <View style={styles.numeroCol}>
           <Input
             label="Número"
-            icon="navigate-outline"
-            placeholder="0"
+            placeholder="Nº"
             value={endereco.numero}
             onChangeText={(v) => updateField("numero", v)}
             keyboardType="numeric"
           />
         </View>
-        <View style={styles.complementoContainer}>
+        <View style={styles.flex1}>
           <Input
             label="Complemento"
             placeholder="Sala, andar, apt..."
@@ -100,54 +95,38 @@ export function EnderecoForm({
         </View>
       </View>
 
-      <Input
-        label="Rua"
-        icon="location-outline"
-        placeholder="Rua..."
-        value={endereco.rua}
-        onChangeText={(v) => updateField("rua", v)}
-        editable={false}
-        containerStyle={styles.readOnlyInput}
-      />
-
+      {/* Bairro + Cidade */}
       <View style={styles.row}>
-        <View style={styles.bairroContainer}>
+        <View style={styles.flex1}>
           <Input
             label="Bairro"
-            placeholder="Bairro..."
+            placeholder="Bairro"
             value={endereco.bairro}
-            onChangeText={(v) => updateField("bairro", v)}
             editable={false}
+            containerStyle={styles.readOnly}
           />
         </View>
-        <View style={styles.cidadeContainer}>
+        <View style={styles.flex1}>
           <Input
             label="Cidade"
-            placeholder="Cidade..."
+            placeholder="Cidade"
             value={endereco.cidade}
-            onChangeText={(v) => updateField("cidade", v)}
             editable={false}
+            containerStyle={styles.readOnly}
           />
         </View>
       </View>
 
-      <View style={styles.row}>
-        <View style={styles.ufContainer}>
+      {/* UF */}
+      <View style={styles.ufRow}>
+        <View style={styles.ufCol}>
           <Input
             label="UF"
             placeholder="UF"
             value={endereco.uf}
-            onChangeText={(v) => updateField("uf", v.toUpperCase())}
+            editable={false}
             maxLength={2}
-            editable={false}
-          />
-        </View>
-        <View style={styles.cepDisplayContainer}>
-          <Input
-            label="CEP"
-            placeholder="CEP"
-            value={formatCEP(endereco.cep)}
-            editable={false}
+            containerStyle={styles.readOnly}
           />
         </View>
       </View>
@@ -158,68 +137,25 @@ export function EnderecoForm({
 const styles = StyleSheet.create({
   container: {
     gap: spacing["4"],
-  },
-  cepRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing["3"],
-  },
-  cepInputContainer: {
-    flex: 1,
-  },
-  cepInput: {
-    flex: 1,
-  },
-  loadingBox: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  enderecoDisplay: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing["4"],
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  enderecoText: {
-    fontSize: fontSizes.md,
-    color: colors.ink,
-    fontWeight: fontWeights.medium,
-  },
-  enderecoCidade: {
-    fontSize: fontSizes.sm,
-    color: colors.muted,
-    marginTop: spacing["1"],
+    marginTop: spacing["4"],
   },
   row: {
     flexDirection: "row",
     gap: spacing["3"],
   },
-  numeroContainer: {
+  numeroCol: {
     width: 100,
   },
-  complementoContainer: {
+  flex1: {
     flex: 1,
   },
-  bairroContainer: {
-    flex: 1,
+  ufRow: {
+    flexDirection: "row",
   },
-  cidadeContainer: {
-    flex: 1,
+  ufCol: {
+    width: 80,
   },
-  ufContainer: {
-    width: 60,
-  },
-  cepDisplayContainer: {
-    flex: 1,
-  },
-  readOnlyInput: {
-    opacity: 0.7,
+  readOnly: {
+    opacity: 0.6,
   },
 });

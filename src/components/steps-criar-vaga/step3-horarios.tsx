@@ -1,4 +1,5 @@
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,6 +10,8 @@ export type Step3Props = {
   onHorarioInicioChange: (value: string) => void;
   onHorarioFimChange: (value: string) => void;
   jornadaMinima?: number;
+  horaInicioServico: number;
+  horaFimServico: number;
 };
 
 function isToday(displayDate: string): boolean {
@@ -22,9 +25,13 @@ function isToday(displayDate: string): boolean {
   );
 }
 
-function getAvailableHours(displayDate: string): number[] {
-  const minHour = isToday(displayDate) ? new Date().getHours() + 1 : 0;
-  return Array.from({ length: 24 }, (_, i) => i).filter((h) => h >= minHour);
+function getAvailableHours(displayDate: string, horaInicio: number, horaFim: number): number[] {
+  const minHour = isToday(displayDate)
+    ? Math.max(new Date().getHours() + 1, horaInicio)
+    : horaInicio;
+  return Array.from({ length: 24 }, (_, i) => i).filter(
+    (h) => h >= minHour && h <= horaFim
+  );
 }
 
 type HourGridProps = {
@@ -34,6 +41,7 @@ type HourGridProps = {
   onSelect: (hour: string) => void;
   jornadaMinima?: number;
   startHour?: number;
+  horaFimServico?: number;
 };
 
 function HourGrid({
@@ -43,10 +51,15 @@ function HourGrid({
   onSelect,
   jornadaMinima,
   startHour,
+  horaFimServico,
 }: HourGridProps) {
   const endHours =
     jornadaMinima && startHour !== undefined
-      ? availableHours.filter((h) => h >= startHour + jornadaMinima)
+      ? availableHours.filter(
+          (h) =>
+            h >= startHour + jornadaMinima &&
+            (horaFimServico === undefined || h <= horaFimServico)
+        )
       : availableHours;
 
   const hours = endHours.length > 0 ? endHours : availableHours;
@@ -105,17 +118,24 @@ export function Step3Horarios({
   onHorarioInicioChange,
   onHorarioFimChange,
   jornadaMinima,
+  horaInicioServico,
+  horaFimServico,
 }: Step3Props) {
   const insets = useSafeAreaInsets();
-  const availableHours = dataEvento ? getAvailableHours(dataEvento) : [];
+  const availableHours = dataEvento
+    ? getAvailableHours(dataEvento, horaInicioServico, horaFimServico)
+    : [];
   const startHour = horarioInicio ? parseInt(horarioInicio.split(":")[0], 10) : -1;
 
   const duration = calculateDuration(horarioInicio, horarioFim);
 
+  // 76 = paddingTop(12) + PrimaryButton(52) + paddingBottom(12) do BottomActionBar absoluto
+  const BAR_HEIGHT = 76 + insets.bottom;
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: BAR_HEIGHT + 16 }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
@@ -125,8 +145,15 @@ export function Step3Horarios({
       </Text>
 
       <View style={styles.dateInfo}>
-        <Text style={styles.dateLabel}>Data selecionada:</Text>
-        <Text style={styles.dateValue}>{dataEvento}</Text>
+        <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+        <Text style={styles.dateInfoText}>Data selecionada: {dataEvento}</Text>
+      </View>
+
+      <View style={styles.serviceHoursInfo}>
+        <Ionicons name="time-outline" size={14} color={colors.primary} />
+        <Text style={styles.serviceHoursText}>
+          Disponível das {String(horaInicioServico).padStart(2, "0")}h às {String(horaFimServico).padStart(2, "0")}h
+        </Text>
       </View>
 
       <HourGrid
@@ -139,22 +166,29 @@ export function Step3Horarios({
       />
 
       {horarioInicio && (
-        <HourGrid
-          label="Horário de encerramento"
-          selectedHour={
-            horarioFim ? parseInt(horarioFim.split(":")[0], 10) : null
-          }
-          availableHours={availableHours}
-          onSelect={onHorarioFimChange}
-          jornadaMinima={jornadaMinima}
-          startHour={startHour}
-        />
+        <>
+          <View style={styles.gridsDivider} />
+          <HourGrid
+            label="Horário de encerramento"
+            selectedHour={
+              horarioFim ? parseInt(horarioFim.split(":")[0], 10) : null
+            }
+            availableHours={availableHours}
+            onSelect={onHorarioFimChange}
+            jornadaMinima={jornadaMinima}
+            startHour={startHour}
+            horaFimServico={horaFimServico}
+          />
+        </>
       )}
 
       {horarioInicio && horarioFim && duration && (
         <View style={styles.durationBox}>
-          <Text style={styles.durationLabel}>Duração total:</Text>
-          <Text style={styles.durationValue}>{duration}</Text>
+          <Text style={styles.durationLabel}>Duração total</Text>
+          <View style={styles.durationValueContainer}>
+            <Ionicons name="timer-outline" size={16} color={colors.primary} />
+            <Text style={styles.durationValue}>{duration}</Text>
+          </View>
         </View>
       )}
     </ScrollView>
@@ -166,8 +200,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing["6"],
-    paddingTop: spacing["4"],
+    paddingHorizontal: spacing["8"],
+    paddingTop: spacing["10"],
   },
   title: {
     fontSize: fontSizes.xl,
@@ -183,36 +217,62 @@ const styles = StyleSheet.create({
   dateInfo: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    padding: spacing["4"],
-    borderRadius: radii.lg,
-    marginBottom: spacing["6"],
-    gap: spacing["2"],
+    backgroundColor: "#FFFBEB",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: spacing["3"],
+    alignSelf: "flex-start",
+    marginBottom: spacing["10"],
+    gap: spacing["3"],
   },
-  dateLabel: {
-    fontSize: fontSizes.sm,
-    color: colors.primary,
-  },
-  dateValue: {
-    fontSize: fontSizes.sm,
+  dateInfoText: {
+    fontSize: fontSizes.base,
     fontWeight: fontWeights.semibold,
     color: colors.primary,
+  },
+  serviceHoursInfo: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    marginBottom: 12,
+  },
+  serviceHoursText: {
+    fontSize: fontSizes.xs,
+    color: colors.primary,
+    fontWeight: fontWeights.semibold,
+  },
+  gridsDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: spacing["8"],
   },
   durationBox: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    padding: spacing["5"],
-    borderRadius: radii.lg,
+    backgroundColor: "#FFFBEB",
+    padding: 14,
+    borderRadius: 12,
     marginTop: spacing["4"],
+    borderWidth: 1,
+    borderColor: colors.primary + "33",
   },
   durationLabel: {
-    fontSize: fontSizes.base,
+    fontSize: fontSizes.md,
     color: colors.ink,
   },
+  durationValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["2"],
+  },
   durationValue: {
-    fontSize: fontSizes.lg,
+    fontSize: fontSizes.xl,
     fontWeight: fontWeights.bold,
     color: colors.primary,
   },
@@ -223,15 +283,20 @@ const hourStyles = StyleSheet.create({
     marginBottom: spacing["6"],
   },
   label: {
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.lg - 1,
     fontWeight: fontWeights.semibold,
     color: colors.ink,
-    marginBottom: spacing["2"],
+    marginBottom: spacing["4"],
   },
   hint: {
-    fontSize: fontSizes.xs,
-    color: colors.muted,
-    marginBottom: spacing["3"],
+    fontSize: fontSizes.sm,
+    color: colors.primary,
+    backgroundColor: "#FFFBEB",
+    borderRadius: 8,
+    paddingHorizontal: spacing["4"],
+    paddingVertical: spacing["1"],
+    alignSelf: "flex-start",
+    marginBottom: spacing["5"],
   },
   grid: {
     flexDirection: "row",
@@ -239,12 +304,12 @@ const hourStyles = StyleSheet.create({
     gap: spacing["3"],
   },
   btn: {
-    paddingVertical: spacing["4"],
-    paddingHorizontal: spacing["5"],
-    borderRadius: radii.md,
+    width: 56,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1.5,
-    minWidth: 64,
     alignItems: "center",
+    justifyContent: "center",
   },
   btnDefault: {
     backgroundColor: colors.surface,

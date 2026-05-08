@@ -12,7 +12,7 @@ export type ViaCepResponse = {
   /** Nome do bairro */
   bairro: string;
   /** Nome da cidade */
-  locality: string;
+  localidade: string;
   /** Sigla do estado */
   uf: string;
   /** Código IBGE do estado */
@@ -29,5 +29,9 @@ export type ViaCepResponse = {
 export function isValidViaCepResponse(response: unknown): response is ViaCepResponse {
   if (!response || typeof response !== "object") return false;
   const obj = response as Partial<ViaCepResponse>;
-  return typeof obj.cep === "string" && typeof obj.locality === "string";
+  // Aceita resposta válida mesmo sem logradouro (CEP de range)
+  // Verifica se tem CEP e se tem pelo menos locality ou bairro
+  const hasLocation = (obj.localidade && obj.localidade.length > 0) ||
+                      (obj.bairro && obj.bairro.length > 0);
+  return typeof obj.cep === "string" && hasLocation;
 }

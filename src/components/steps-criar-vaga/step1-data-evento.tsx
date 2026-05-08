@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { useCallback, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 
 const minDate = new Date();
@@ -55,6 +55,10 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.iconContainer}>
+        <Ionicons name="calendar" size={32} color={colors.primary} />
+      </View>
+
       <Text style={styles.title}>Qual a data do seu evento?</Text>
       <Text style={styles.subtitle}>Escolha o dia em que você precisa dos profissionais</Text>
 
@@ -69,32 +73,35 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
           color={value ? colors.primary : colors.muted}
           style={styles.icon}
         />
-        <Text style={[styles.dateText, value ? styles.dateTextFilled : styles.dateTextEmpty]}>
-          {value || "Selecione uma data"}
-        </Text>
+        <View style={styles.dateTextContainer}>
+          <Text style={[styles.dateText, value ? styles.dateTextFilled : styles.dateTextEmpty]}>
+            {value || "Selecione uma data"}
+          </Text>
+          {value && (
+            <Text style={styles.dateHint}>Toque para alterar</Text>
+          )}
+        </View>
       </TouchableOpacity>
 
       <View style={styles.infoBox}>
-        <Ionicons name="information-circle-outline" size={20} color={colors.muted} />
+        <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
         <Text style={styles.infoText}>
           Você pode criar vagas com antecedência de até 3 meses
         </Text>
       </View>
 
-      {Platform.OS === "ios" && showIOS && (
+      <Modal
+        visible={Platform.OS === "ios" && showIOS}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowIOS(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowIOS(false)}
+        />
         <View style={styles.pickerContainer}>
-          <DateTimePicker
-            mode="date"
-            display="spinner"
-            value={pickerValue}
-            minimumDate={minDate}
-            maximumDate={maxDate}
-            locale="pt-BR"
-            style={styles.picker}
-            onChange={(_e, date) => {
-              if (date) pendingDateRef.current = date;
-            }}
-          />
           <View style={styles.pickerToolbar}>
             <TouchableOpacity onPress={() => setShowIOS(false)}>
               <Text style={styles.toolbarCancel}>Cancelar</Text>
@@ -103,8 +110,22 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
               <Text style={styles.toolbarConfirm}>Confirmar</Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.pickerWrapper}>
+            <DateTimePicker
+              mode="date"
+              display="spinner"
+              value={pickerValue}
+              minimumDate={minDate}
+              maximumDate={maxDate}
+              locale="pt-BR"
+              style={styles.picker}
+              onChange={(_e, date) => {
+                if (date) pendingDateRef.current = date;
+              }}
+            />
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -112,40 +133,54 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: spacing["6"],
+    paddingHorizontal: spacing["10"],
+    paddingTop: spacing["12"],
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#FEF3C7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: spacing["8"],
   },
   title: {
-    fontSize: fontSizes.xl,
+    fontSize: fontSizes["2xl"],
     fontWeight: fontWeights.bold,
     color: colors.ink,
-    marginBottom: spacing["2"],
+    marginBottom: spacing["3"],
   },
   subtitle: {
-    fontSize: fontSizes.base,
+    fontSize: fontSizes.md,
     color: colors.muted,
-    marginBottom: spacing["8"],
+    marginBottom: 28,
+    lineHeight: 20,
   },
   dateButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing["6"],
-    paddingHorizontal: spacing["6"],
-    borderRadius: radii.xl,
+    paddingVertical: spacing["10"],
+    paddingHorizontal: spacing["10"],
+    borderRadius: 16,
     borderWidth: 2,
-    borderStyle: "dashed",
     marginBottom: spacing["6"],
   },
   dateButtonEmpty: {
+    borderStyle: "dashed",
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   dateButtonFilled: {
+    borderStyle: "solid",
     borderColor: colors.primary,
-    backgroundColor: "#FEF3C7",
+    backgroundColor: "#FFFBEB",
   },
   icon: {
     marginRight: spacing["4"],
+  },
+  dateTextContainer: {
+    flex: 1,
   },
   dateText: {
     fontSize: fontSizes.lg,
@@ -157,24 +192,40 @@ const styles = StyleSheet.create({
   dateTextFilled: {
     color: colors.primary,
   },
+  dateHint: {
+    fontSize: fontSizes.sm,
+    color: colors.primary,
+    opacity: 0.7,
+    marginTop: 4,
+  },
   infoBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    padding: spacing["5"],
-    borderRadius: radii.lg,
+    backgroundColor: "#FFFBEB",
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    borderRadius: 8,
+    padding: spacing["6"],
     gap: spacing["3"],
   },
   infoText: {
     flex: 1,
     fontSize: fontSizes.sm,
-    color: colors.muted,
+    color: colors.ink,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   pickerContainer: {
     backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    marginTop: spacing["6"],
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
     overflow: "hidden",
+  },
+  pickerWrapper: {
+    width: "100%",
+    alignItems: "center",
   },
   picker: {
     height: 216,
@@ -185,8 +236,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: spacing["8"],
     paddingVertical: spacing["5"],
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   toolbarCancel: {
     fontSize: fontSizes.md,
