@@ -5,6 +5,7 @@ import { useAuth } from "@/context/auth-context";
 import { authService } from "@/services/auth.service";
 import { contractorService } from "@/services/contractor.service";
 import { CepNotFoundError, fetchAddressByCep } from "@/services/viacep";
+import { goBackOrReplace } from "@/utils/navigation";
 import { toast } from "@/utils/toast";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as ImagePicker from "expo-image-picker";
@@ -497,7 +498,7 @@ export default function MeusDadosScreen() {
   if (isLoadingData) {
     return (
       <View style={styles.root}>
-        <InlineHeader top={top} onBack={() => router.back()} />
+        <InlineHeader top={top} onBack={() => goBackOrReplace(router, "/(home)")} />
         <TabMenu tabs={tabs} active={activeTab} onChange={setActiveTab} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} testID="loading-indicator" />
@@ -511,7 +512,7 @@ export default function MeusDadosScreen() {
       style={styles.root}
       behavior="padding"
     >
-      <InlineHeader top={top} onBack={() => router.back()} />
+      <InlineHeader top={top} onBack={() => goBackOrReplace(router, "/(home)")} />
       <TabMenu tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       <ScrollView

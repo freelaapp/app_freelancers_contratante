@@ -139,25 +139,21 @@ export function Step3Horarios({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Qual horário do evento?</Text>
-      <Text style={styles.subtitle}>
-        Defina quando o serviço começa e termina
-      </Text>
-
-      <View style={styles.dateInfo}>
-        <Ionicons name="calendar-outline" size={14} color={colors.primary} />
-        <Text style={styles.dateInfoText}>Data selecionada: {dataEvento}</Text>
-      </View>
-
-      <View style={styles.serviceHoursInfo}>
-        <Ionicons name="time-outline" size={14} color={colors.primary} />
-        <Text style={styles.serviceHoursText}>
-          Disponível das {String(horaInicioServico).padStart(2, "0")}h às {String(horaFimServico).padStart(2, "0")}h
-        </Text>
+      <View style={styles.metaRow}>
+        <View style={styles.metaPill}>
+          <Ionicons name="calendar-outline" size={12} color={colors.primary} />
+          <Text style={styles.metaPillText}>{dataEvento}</Text>
+        </View>
+        <View style={styles.metaPill}>
+          <Ionicons name="time-outline" size={12} color={colors.primary} />
+          <Text style={styles.metaPillText}>
+            {String(horaInicioServico).padStart(2, "0")}h–{String(horaFimServico).padStart(2, "0")}h
+          </Text>
+        </View>
       </View>
 
       <HourGrid
-        label="Horário de início"
+        label="Início do serviço"
         selectedHour={
           horarioInicio ? parseInt(horarioInicio.split(":")[0], 10) : null
         }
@@ -165,11 +161,18 @@ export function Step3Horarios({
         onSelect={onHorarioInicioChange}
       />
 
+      {horarioInicio && horarioFim && duration && (
+        <View style={styles.durationPill}>
+          <Ionicons name="timer-outline" size={18} color={colors.primaryDark} />
+          <Text style={styles.durationText}>{duration} de duração</Text>
+        </View>
+      )}
+
       {horarioInicio && (
         <>
           <View style={styles.gridsDivider} />
           <HourGrid
-            label="Horário de encerramento"
+            label="Término do serviço"
             selectedHour={
               horarioFim ? parseInt(horarioFim.split(":")[0], 10) : null
             }
@@ -181,16 +184,6 @@ export function Step3Horarios({
           />
         </>
       )}
-
-      {horarioInicio && horarioFim && duration && (
-        <View style={styles.durationBox}>
-          <Text style={styles.durationLabel}>Duração total</Text>
-          <View style={styles.durationValueContainer}>
-            <Ionicons name="timer-outline" size={16} color={colors.primary} />
-            <Text style={styles.durationValue}>{duration}</Text>
-          </View>
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -201,47 +194,25 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing["8"],
-    paddingTop: spacing["10"],
+    paddingTop: spacing["8"],
   },
-  title: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
-    color: colors.ink,
-    marginBottom: spacing["2"],
-  },
-  subtitle: {
-    fontSize: fontSizes.base,
-    color: colors.muted,
-    marginBottom: spacing["6"],
-  },
-  dateInfo: {
+  metaRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFBEB",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: spacing["3"],
-    alignSelf: "flex-start",
-    marginBottom: spacing["10"],
     gap: spacing["3"],
+    marginBottom: spacing["8"],
   },
-  dateInfoText: {
-    fontSize: fontSizes.base,
-    fontWeight: fontWeights.semibold,
-    color: colors.primary,
-  },
-  serviceHoursInfo: {
+  metaPill: {
     flexDirection: "row",
-    gap: 6,
     alignItems: "center",
+    gap: spacing["2"],
     backgroundColor: "#FFFBEB",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-    marginBottom: 12,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["5"],
+    paddingVertical: spacing["3"],
+    borderWidth: 1,
+    borderColor: colors.primary + "30",
   },
-  serviceHoursText: {
+  metaPillText: {
     fontSize: fontSizes.xs,
     color: colors.primary,
     fontWeight: fontWeights.semibold,
@@ -251,68 +222,62 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderLight,
     marginVertical: spacing["8"],
   },
-  durationBox: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFFBEB",
-    padding: 14,
-    borderRadius: 12,
-    marginTop: spacing["4"],
-    borderWidth: 1,
-    borderColor: colors.primary + "33",
-  },
-  durationLabel: {
-    fontSize: fontSizes.md,
-    color: colors.ink,
-  },
-  durationValueContainer: {
+  durationPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing["2"],
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    paddingVertical: spacing["5"],
+    paddingHorizontal: spacing["10"],
+    gap: spacing["4"],
+    marginTop: spacing["6"],
+    alignSelf: "center",
   },
-  durationValue: {
-    fontSize: fontSizes.xl,
+  durationText: {
+    fontSize: fontSizes.lg,
     fontWeight: fontWeights.bold,
-    color: colors.primary,
+    color: colors.white,
   },
 });
 
 const hourStyles = StyleSheet.create({
   container: {
-    marginBottom: spacing["6"],
-  },
-  label: {
-    fontSize: fontSizes.lg - 1,
-    fontWeight: fontWeights.semibold,
-    color: colors.ink,
     marginBottom: spacing["4"],
   },
+  label: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+    marginBottom: spacing["5"],
+  },
   hint: {
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.xs,
     color: colors.primary,
     backgroundColor: "#FFFBEB",
-    borderRadius: 8,
-    paddingHorizontal: spacing["4"],
-    paddingVertical: spacing["1"],
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["5"],
+    paddingVertical: spacing["2"],
     alignSelf: "flex-start",
     marginBottom: spacing["5"],
+    borderWidth: 1,
+    borderColor: colors.primary + "30",
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing["3"],
+    gap: spacing["4"],
   },
   btn: {
-    width: 56,
+    width: 64,
     height: 44,
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
   btnDefault: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.border,
   },
   btnSelected: {

@@ -103,6 +103,7 @@ export default function ConfirmEmailScreen() {
       <CompactHeader
         title="Confirmar e-mail"
         subtitle="Verifique seu e-mail para continuar"
+        isFirstScreen={true}
       />
 
       <View style={[styles.card, { paddingBottom: Math.max(bottom, 24) + 16 }]}>

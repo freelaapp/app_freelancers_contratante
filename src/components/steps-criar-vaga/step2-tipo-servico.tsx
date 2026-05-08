@@ -1,10 +1,9 @@
-import { ServiceChip } from "@/components/service-chip";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { SERVICES } from "@/utils/services";
 import { getTarifa, ModuloTarifas, Tarifa } from "@/utils/tarifas";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type Step2Props = {
@@ -13,12 +12,50 @@ export type Step2Props = {
   modulo: ModuloTarifas | null;
 };
 
+type ServiceCardProps = {
+  emoji: string;
+  label: string;
+  horaInicio: number;
+  horaFim: number;
+  selected: boolean;
+  onPress: () => void;
+};
+
+function ServiceCard({ emoji, label, horaInicio, horaFim, selected, onPress }: ServiceCardProps) {
+  return (
+    <TouchableOpacity
+      style={[cardStyles.card, selected && cardStyles.cardSelected]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      {selected && (
+        <View style={cardStyles.checkBadge}>
+          <Ionicons name="checkmark" size={10} color={colors.white} />
+        </View>
+      )}
+      <Text style={cardStyles.emoji}>{emoji}</Text>
+      <Text
+        style={[cardStyles.label, selected && cardStyles.labelSelected]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+      <View style={cardStyles.hoursRow}>
+        <Ionicons name="time-outline" size={10} color={selected ? colors.primary : colors.muted} />
+        <Text style={[cardStyles.hours, selected && cardStyles.hoursSelected]}>
+          {String(horaInicio).padStart(2, "0")}h–{String(horaFim).padStart(2, "0")}h
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function TarifaCard({ tarifa }: { tarifa: Tarifa }) {
   return (
     <View style={tarifaStyles.card}>
       <View style={tarifaStyles.cardHeader}>
-        <Ionicons name="information-circle" size={18} color={colors.primary} />
-        <Text style={tarifaStyles.title}>Informações do serviço</Text>
+        <Ionicons name="receipt-outline" size={16} color={colors.primary} />
+        <Text style={tarifaStyles.title}>Estimativa de custo</Text>
       </View>
       <View style={tarifaStyles.row}>
         <Text style={tarifaStyles.label}>Valor por hora</Text>
@@ -26,19 +63,18 @@ function TarifaCard({ tarifa }: { tarifa: Tarifa }) {
       </View>
       <View style={tarifaStyles.row}>
         <Text style={tarifaStyles.label}>Jornada mínima</Text>
-        <Text style={tarifaStyles.value}>{tarifa.jornadaMinima}h</Text>
+        <View style={tarifaStyles.badgeContainer}>
+          <Text style={tarifaStyles.badgeText}>{tarifa.jornadaMinima}h mínimo</Text>
+        </View>
       </View>
       <View style={tarifaStyles.separator} />
       <View style={tarifaStyles.row}>
         <Text style={tarifaStyles.labelSmall}>Taxa plataforma (20%)</Text>
-        <Text style={tarifaStyles.valueSmall}>R$ {tarifa.taxaRetencao.toFixed(2)}</Text>
+        <Text style={tarifaStyles.valueSmall}>R$ {tarifa.taxaRetencao.toFixed(2)}/h</Text>
       </View>
-      <View style={tarifaStyles.row}>
+      <View style={[tarifaStyles.row, tarifaStyles.lastRow]}>
         <Text style={tarifaStyles.labelGreen}>Freelancer recebe</Text>
-        <View style={tarifaStyles.valueGreenContainer}>
-          <Ionicons name="arrow-up-circle-outline" size={14} color="#16A34A" />
-          <Text style={tarifaStyles.valueGreen}>R$ {tarifa.freelancerRecebe.toFixed(2)}</Text>
-        </View>
+        <Text style={tarifaStyles.valueGreen}>R$ {tarifa.freelancerRecebe.toFixed(2)}/h</Text>
       </View>
     </View>
   );
@@ -52,7 +88,6 @@ export function Step2TipoServico({ selectedServices, onToggle, modulo }: Step2Pr
   const tarifa = selectedId && modulo ? getTarifa(modulo, selectedId) : null;
   const serviceLabel = SERVICES.find((s) => s.id === selectedId)?.label ?? "";
 
-  // Ao selecionar um serviço, rola para mostrar as informações de tarifa
   useEffect(() => {
     if (selectedId) {
       const timer = setTimeout(() => {
@@ -62,7 +97,6 @@ export function Step2TipoServico({ selectedServices, onToggle, modulo }: Step2Pr
     }
   }, [selectedId]);
 
-  // 76 = paddingTop(12) + PrimaryButton(52) + paddingBottom(12) do BottomActionBar
   const BAR_HEIGHT = 76 + insets.bottom;
 
   return (
@@ -72,31 +106,32 @@ export function Step2TipoServico({ selectedServices, onToggle, modulo }: Step2Pr
       contentContainerStyle={[styles.contentContainer, { paddingBottom: BAR_HEIGHT + 16 }]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Que tipo de profissional você precisa?</Text>
-      <Text style={styles.subtitle}>Selecione o serviço desejado</Text>
-
       {selectedId && (
         <View style={styles.selectionBadge}>
           <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-          <Text style={styles.selectionBadgeText}>1 serviço selecionado</Text>
+          <Text style={styles.selectionBadgeText}>
+            {SERVICES.find((s) => s.id === selectedId)?.label ?? ""} selecionado
+          </Text>
         </View>
       )}
 
-      <View style={styles.chipsGrid}>
+      <View style={styles.cardsGrid}>
         {Array.from({ length: Math.ceil(SERVICES.length / 2) }, (_, i) => {
           const row = SERVICES.slice(i * 2, i * 2 + 2);
           return (
-            <View key={i} style={styles.chipsRow}>
+            <View key={i} style={styles.cardsRow}>
               {row.map((service) => (
-                <ServiceChip
+                <ServiceCard
                   key={service.id}
                   emoji={service.emoji}
                   label={service.label}
+                  horaInicio={service.horaInicio}
+                  horaFim={service.horaFim}
                   selected={selectedServices.includes(service.id)}
                   onPress={() => onToggle(service.id)}
                 />
               ))}
-              {row.length === 1 && <View style={styles.chipPlaceholder} />}
+              {row.length === 1 && <View style={styles.cardPlaceholder} />}
             </View>
           );
         })}
@@ -125,43 +160,34 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: spacing["8"],
-    paddingTop: spacing["10"],
-  },
-  title: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
-    color: colors.ink,
-    marginBottom: spacing["2"],
-  },
-  subtitle: {
-    fontSize: fontSizes.base,
-    color: colors.muted,
-    marginBottom: spacing["6"],
+    paddingTop: spacing["8"],
   },
   selectionBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFBEB",
-    borderRadius: 20,
+    borderRadius: radii.full,
     paddingHorizontal: spacing["6"],
-    paddingVertical: spacing["2"],
+    paddingVertical: spacing["3"],
     alignSelf: "flex-start",
     marginBottom: spacing["6"],
-    gap: spacing["2"],
+    gap: spacing["3"],
+    borderWidth: 1,
+    borderColor: colors.primary + "40",
   },
   selectionBadgeText: {
-    fontSize: fontSizes.xs,
+    fontSize: fontSizes.sm,
     color: colors.primary,
     fontWeight: fontWeights.semibold,
   },
-  chipsGrid: {
+  cardsGrid: {
     gap: spacing["4"],
   },
-  chipsRow: {
+  cardsRow: {
     flexDirection: "row",
     gap: spacing["4"],
   },
-  chipPlaceholder: {
+  cardPlaceholder: {
     flex: 1,
   },
   tarifaContainer: {
@@ -180,10 +206,66 @@ const styles = StyleSheet.create({
   },
 });
 
+const cardStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing["6"],
+    paddingVertical: spacing["8"],
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: "flex-start",
+    gap: spacing["2"],
+    position: "relative",
+  },
+  cardSelected: {
+    backgroundColor: "#FFFBEB",
+    borderColor: colors.primary,
+  },
+  checkBadge: {
+    position: "absolute",
+    top: spacing["4"],
+    right: spacing["4"],
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emoji: {
+    fontSize: 30,
+    lineHeight: 36,
+  },
+  label: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.ink,
+    lineHeight: 17,
+  },
+  labelSelected: {
+    color: colors.primaryDark,
+  },
+  hoursRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: spacing["1"],
+  },
+  hours: {
+    fontSize: fontSizes.xs,
+    color: colors.muted,
+  },
+  hoursSelected: {
+    color: colors.primary,
+  },
+});
+
 const tarifaStyles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing["8"],
@@ -203,7 +285,7 @@ const tarifaStyles = StyleSheet.create({
     gap: spacing["3"],
   },
   title: {
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.base,
     fontWeight: fontWeights.semibold,
     color: colors.ink,
   },
@@ -211,42 +293,51 @@ const tarifaStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing["3"],
+    marginBottom: spacing["4"],
+  },
+  lastRow: {
+    marginBottom: 0,
   },
   label: {
-    fontSize: fontSizes.md,
-    color: colors.ink,
+    fontSize: fontSizes.base,
+    color: colors.textSecondary,
   },
   value: {
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.base,
     fontWeight: fontWeights.bold,
     color: colors.ink,
+  },
+  badgeContainer: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: radii.full,
+    paddingHorizontal: spacing["5"],
+    paddingVertical: spacing["1"],
+  },
+  badgeText: {
+    fontSize: fontSizes.xs,
+    color: colors.primary,
+    fontWeight: fontWeights.semibold,
   },
   separator: {
     height: 1,
     backgroundColor: colors.borderLight,
-    marginVertical: spacing["6"],
+    marginVertical: spacing["5"],
   },
   labelSmall: {
-    fontSize: fontSizes.base,
+    fontSize: fontSizes.sm,
     color: colors.muted,
   },
   valueSmall: {
-    fontSize: fontSizes.base,
+    fontSize: fontSizes.sm,
     color: colors.muted,
   },
   labelGreen: {
-    fontSize: fontSizes.md,
+    fontSize: fontSizes.base,
     fontWeight: fontWeights.semibold,
     color: "#16A34A",
   },
-  valueGreenContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
   valueGreen: {
-    fontSize: fontSizes.lg - 1,
+    fontSize: fontSizes.md,
     fontWeight: fontWeights.bold,
     color: "#16A34A",
   },

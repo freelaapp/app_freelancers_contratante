@@ -21,6 +21,25 @@ async function fetchProviderProfile(providerId: string): Promise<ProviderPublicP
   }
 }
 
+type RawCandidacySingle = {
+  id?: string;
+  providerGlobalId?: string;
+  status?: string;
+};
+
+async function fetchProviderProfileByCandidacyId(candidacyId: string): Promise<ProviderPublicProfile | null> {
+  try {
+    const { data } = await api.get<RawCandidacySingle>(
+      `/v1/bars-restaurants/candidacies/${candidacyId}`,
+      { _suppressToast: true }
+    );
+    if (!data?.providerGlobalId) return null;
+    return fetchProviderProfile(data.providerGlobalId);
+  } catch {
+    return null;
+  }
+}
+
 type RawCandidacy = CandidatoApi & {
   providerGlobalId?: string;
   freelancerId?: string;
@@ -67,7 +86,6 @@ export const candidaturasService = {
       `/v1/bars-restaurants/candidacies/vacancies/${vacancyId}`
     );
     const rawList: unknown[] = Array.isArray(data) ? data : [];
-    // API wraps each item in { props: {...} } — unwrap if present
     const list: RawCandidacy[] = rawList.map((item) => {
       const raw = item as Record<string, unknown>;
       return (raw.props && typeof raw.props === "object"
@@ -78,27 +96,30 @@ export const candidaturasService = {
     const enriched = await Promise.all(
       list.map(async (c, i) => {
         const safeId = c.id ?? `candidato-${i}`;
-
-        // Use embedded data from the list response if already present
         const embeddedName = extractEmbeddedName(c);
         const embeddedRole = extractEmbeddedRole(c);
 
-        if (embeddedName) {
-          return { ...c, id: safeId, name: embeddedName, role: embeddedRole ?? c.role };
+        const pid = extractProviderId(c);
+
+        let profile: ProviderPublicProfile | null = null;
+
+        if (pid) {
+          profile = await fetchProviderProfile(pid);
         }
 
-        // Fetch provider profile if we have an identifier
-        const pid = extractProviderId(c);
-        if (!pid) return { ...c, id: safeId };
+        if (!profile) {
+          profile = await fetchProviderProfileByCandidacyId(safeId);
+        }
 
-        const profile = await fetchProviderProfile(pid);
-        if (!profile) return { ...c, id: safeId };
+        if (!profile) {
+          return { ...c, id: safeId, name: embeddedName ?? c.name, role: embeddedRole ?? c.role };
+        }
 
         return {
           ...c,
           id: safeId,
-          name: profile.name ?? c.name,
-          role: profile.profile?.jobTitle ?? c.role,
+          name: profile.name ?? embeddedName ?? c.name,
+          role: profile.profile?.jobTitle ?? embeddedRole ?? c.role,
           rating: profile.averageRating ?? c.rating,
           jobCount: profile.completedJobsCount ?? c.jobCount,
           avatarUrl: profile.profile?.avatarUrl ?? c.avatarUrl,

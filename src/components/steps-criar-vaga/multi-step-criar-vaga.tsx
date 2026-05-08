@@ -9,8 +9,7 @@ import { getTarifa, ModuloTarifas } from "@/utils/tarifas";
 import { SERVICES } from "@/utils/services";
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useState } from "react";
 
 import { Step1DataEvento } from "./step1-data-evento";
@@ -26,7 +25,6 @@ const STEP_TITLES = [
 ];
 
 export function MultiStepCriarVaga() {
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const modulo = user?.module as ModuloTarifas | null;
 
@@ -127,7 +125,10 @@ export function MultiStepCriarVaga() {
   };
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       <PageHeader
@@ -138,71 +139,53 @@ export function MultiStepCriarVaga() {
       />
 
       <View style={styles.stepIndicator}>
-        <View style={styles.stepCirclesRow}>
-          {STEP_TITLES.map((_, index) => {
-            const stepNum = index + 1;
-            const isActive = step === stepNum;
-            const isCompleted = step > stepNum;
+        {STEP_TITLES.map((title, index) => {
+          const stepNum = index + 1;
+          const isActive = step === stepNum;
+          const isCompleted = step > stepNum;
 
-            return (
-              <View key={index} style={styles.stepCircleWrapper}>
-                <View
-                  style={[
-                    styles.stepCircle,
-                    isActive && styles.stepCircleActive,
-                    isCompleted && styles.stepCircleCompleted,
-                  ]}
-                >
-                  {isCompleted ? (
-                    <Ionicons name="checkmark" size={14} color={colors.white} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.stepNumber,
-                        (isActive || isCompleted) && styles.stepNumberActive,
-                      ]}
-                    >
-                      {stepNum}
-                    </Text>
-                  )}
-                </View>
-                {index < STEP_TITLES.length - 1 && (
-                  <View
+          return (
+            <View key={index} style={styles.stepItem}>
+              <View
+                style={[
+                  styles.stepCircle,
+                  isActive && styles.stepCircleActive,
+                  isCompleted && styles.stepCircleCompleted,
+                ]}
+              >
+                {isCompleted ? (
+                  <Ionicons name="checkmark" size={16} color={colors.white} />
+                ) : (
+                  <Text
                     style={[
-                      styles.stepTrack,
-                      isCompleted && styles.stepTrackCompleted,
+                      styles.stepNumber,
+                      (isActive || isCompleted) && styles.stepNumberActive,
                     ]}
-                  />
+                  >
+                    {stepNum}
+                  </Text>
                 )}
               </View>
-            );
-          })}
-        </View>
-        <View style={styles.stepLabelsRow}>
-          {STEP_TITLES.map((title, index) => {
-            const stepNum = index + 1;
-            const isActive = step === stepNum;
-            const isCompleted = step > stepNum;
-
-            return (
               <Text
-                key={index}
                 style={[
                   styles.stepLabel,
                   isActive && styles.stepLabelActive,
-                  isCompleted && styles.stepLabelCompleted,
                 ]}
                 numberOfLines={1}
               >
                 {title}
               </Text>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.progressBarTrack}>
-        <View style={[styles.progressBarFill, { width: `${(step / 4) * 100}%` as `${number}%` }]} />
+              {index < STEP_TITLES.length - 1 && (
+                <View
+                  style={[
+                    styles.stepLine,
+                    isCompleted && styles.stepLineCompleted,
+                  ]}
+                />
+              )}
+            </View>
+          );
+        })}
       </View>
 
       <View style={styles.content}>{renderStepContent()}</View>
@@ -216,11 +199,7 @@ export function MultiStepCriarVaga() {
                 onPress={prevStep}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name="arrow-back"
-                  size={20}
-                  color={colors.ink}
-                />
+                <Ionicons name="arrow-back" size={20} color={colors.muted} />
               </TouchableOpacity>
             )}
             <View style={styles.nextButtonContainer}>
@@ -245,7 +224,7 @@ export function MultiStepCriarVaga() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -255,28 +234,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dark,
   },
   stepIndicator: {
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing["10"],
-    paddingTop: spacing["6"],
-    paddingBottom: spacing["4"],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  stepCirclesRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing["6"],
+    paddingVertical: spacing["4"],
+    backgroundColor: colors.background,
   },
-  stepCircleWrapper: {
+  stepItem: {
+    alignItems: "center",
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
   },
   stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
@@ -289,21 +263,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  stepTrack: {
-    flex: 1,
-    height: 2,
-    backgroundColor: colors.borderLight,
-    borderRadius: 1,
-  },
-  stepTrackCompleted: {
-    backgroundColor: colors.primary,
-  },
-  stepLabelsRow: {
-    flexDirection: "row",
-    marginTop: spacing["2"],
-  },
   stepNumber: {
-    fontSize: fontSizes.xs,
+    fontSize: fontSizes.sm,
     fontWeight: fontWeights.bold,
     color: colors.muted,
   },
@@ -311,26 +272,24 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   stepLabel: {
-    flex: 1,
-    fontSize: fontSizes.xs,
+    fontSize: 11,
     color: colors.muted,
+    marginTop: spacing["1"],
     textAlign: "center",
   },
   stepLabelActive: {
     color: colors.primary,
     fontWeight: fontWeights.semibold,
   },
-  stepLabelCompleted: {
-    color: colors.primary,
-  },
-  progressBarTrack: {
+  stepLine: {
     height: 3,
+    flex: 1,
     backgroundColor: colors.borderLight,
-  },
-  progressBarFill: {
-    height: 3,
-    backgroundColor: colors.primary,
+    marginHorizontal: spacing["1"],
     borderRadius: 1.5,
+  },
+  stepLineCompleted: {
+    backgroundColor: colors.primary,
   },
   content: {
     flex: 1,
@@ -342,14 +301,7 @@ const styles = StyleSheet.create({
     gap: spacing["3"],
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: "center",
-    alignItems: "center",
+    padding: spacing["3"],
   },
   nextButtonContainer: {
     flex: 1,

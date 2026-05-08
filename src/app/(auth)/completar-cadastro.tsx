@@ -103,6 +103,11 @@ export default function CompletarCadastroScreen() {
   const { completeProfile, user } = useAuth();
   const { bottom } = useSafeAreaInsets();
 
+  // Controla qual etapa do formulário o usuário está
+  // 0 = primeira tela (escolha entre casa/empresas)
+  // 1+ = etapas seguintes do formulário
+  const [step, setStep] = useState(0);
+
   const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("casa");
   const [tabDocumento, setTabDocumento] = useState<TabDocumento>("cpf");
 
@@ -212,6 +217,16 @@ export default function CompletarCadastroScreen() {
     if (digits.length === 8) fetchCepEmpresa(value);
   }
 
+  function handleGoBack() {
+    if (step === 0) {
+      // Na primeira tela (seleção casa/empresa), vai para login
+      router.replace("/(auth)/login");
+    } else {
+      // Nas outras etapas, volta para a seleção inicial
+      setStep(0);
+    }
+  }
+
   async function handleSubmitForm() {
     setIsSubmitting(true);
     try {
@@ -288,6 +303,7 @@ export default function CompletarCadastroScreen() {
       <CompactHeader
         title="Completar cadastro"
         subtitle="Preencha seus dados para começar a contratar"
+        onBack={handleGoBack}
       />
 
       <ScrollView
@@ -302,10 +318,13 @@ export default function CompletarCadastroScreen() {
         <TabSelector
           options={TAB_PRINCIPAL_OPTIONS}
           value={tabPrincipal}
-          onChange={(v) => setTabPrincipal(v as TabPrincipal)}
+          onChange={(v) => {
+            setTabPrincipal(v as TabPrincipal);
+            if (step === 0) setStep(1);
+          }}
         />
 
-        {tabPrincipal === "casa" && (
+        {step > 0 && tabPrincipal === "casa" && (
           <>
             <Text style={styles.sectionLabel}>DADOS PESSOAIS</Text>
 
@@ -438,7 +457,7 @@ export default function CompletarCadastroScreen() {
           </>
         )}
 
-        {tabPrincipal === "empresas" && (
+        {step > 0 && tabPrincipal === "empresas" && (
           <>
             <Text style={styles.sectionLabel}>DADOS DA EMPRESA</Text>
 

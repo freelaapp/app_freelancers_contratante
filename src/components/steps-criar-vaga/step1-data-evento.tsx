@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import { useCallback, useRef, useState } from "react";
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 
 const minDate = new Date();
@@ -24,10 +24,48 @@ function formatDateDisplay(date: Date): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+function formatDateLong(display: string): string {
+  if (!display) return "";
+  const [day, month, year] = display.split("/").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+type QuickChip = {
+  label: string;
+  date: Date;
+};
+
+function getQuickChips(): QuickChip[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  const dayOfWeek = today.getDay();
+  const daysUntilSat = (6 - dayOfWeek + 7) % 7 || 7;
+  const saturday = new Date(today);
+  saturday.setDate(today.getDate() + daysUntilSat);
+
+  return [
+    { label: "Hoje", date: today },
+    { label: "Amanhã", date: tomorrow },
+    { label: "Próx. sábado", date: saturday },
+  ];
+}
+
 export function Step1DataEvento({ value, onChange }: Step1Props) {
   const [showIOS, setShowIOS] = useState(false);
   const [pickerValue, setPickerValue] = useState<Date>(minDate);
   const pendingDateRef = useRef<Date>(minDate);
+
+  const quickChips = useMemo(() => getQuickChips(), []);
 
   const openPicker = useCallback(() => {
     const initial = value ? parseDisplayDate(value) : minDate;
@@ -53,41 +91,66 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
     setShowIOS(false);
   }, [onChange]);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="calendar" size={32} color={colors.primary} />
-      </View>
+  const handleQuickChip = useCallback((date: Date) => {
+    onChange(formatDateDisplay(date));
+  }, [onChange]);
 
-      <Text style={styles.title}>Qual a data do seu evento?</Text>
-      <Text style={styles.subtitle}>Escolha o dia em que você precisa dos profissionais</Text>
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={styles.quickLabel}>Datas rápidas</Text>
+      <View style={styles.chipsRow}>
+        {quickChips.map((chip) => {
+          const chipFormatted = formatDateDisplay(chip.date);
+          const isSelected = value === chipFormatted;
+          return (
+            <TouchableOpacity
+              key={chip.label}
+              style={[styles.chip, isSelected && styles.chipSelected]}
+              onPress={() => handleQuickChip(chip.date)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                {chip.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={styles.orLabel}>ou escolha outra data</Text>
 
       <TouchableOpacity
         style={[styles.dateButton, value ? styles.dateButtonFilled : styles.dateButtonEmpty]}
         onPress={openPicker}
         activeOpacity={0.7}
       >
-        <Ionicons
-          name="calendar-outline"
-          size={24}
-          color={value ? colors.primary : colors.muted}
-          style={styles.icon}
-        />
+        <View style={styles.dateIconBox}>
+          <Ionicons
+            name="calendar-outline"
+            size={22}
+            color={value ? colors.primary : colors.muted}
+          />
+        </View>
         <View style={styles.dateTextContainer}>
-          <Text style={[styles.dateText, value ? styles.dateTextFilled : styles.dateTextEmpty]}>
-            {value || "Selecione uma data"}
-          </Text>
-          {value && (
-            <Text style={styles.dateHint}>Toque para alterar</Text>
+          {value ? (
+            <>
+              <Text style={styles.dateText}>{formatDateLong(value)}</Text>
+              <Text style={styles.dateHint}>Toque para alterar</Text>
+            </>
+          ) : (
+            <Text style={styles.dateTextEmpty}>Selecione uma data</Text>
           )}
         </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.muted} />
       </TouchableOpacity>
 
       <View style={styles.infoBox}>
-        <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-        <Text style={styles.infoText}>
-          Você pode criar vagas com antecedência de até 3 meses
-        </Text>
+        <Ionicons name="time-outline" size={16} color={colors.primary} />
+        <Text style={styles.infoText}>Até 3 meses de antecedência</Text>
       </View>
 
       <Modal
@@ -126,92 +189,120 @@ export function Step1DataEvento({ value, onChange }: Step1Props) {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scroll: {
     flex: 1,
-    paddingHorizontal: spacing["10"],
-    paddingTop: spacing["12"],
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#FEF3C7",
-    justifyContent: "center",
-    alignItems: "center",
+  container: {
+    paddingHorizontal: spacing["8"],
+    paddingTop: spacing["10"],
+    paddingBottom: spacing["10"],
+  },
+  quickLabel: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: spacing["5"],
+  },
+  chipsRow: {
+    flexDirection: "row",
+    gap: spacing["3"],
     marginBottom: spacing["8"],
   },
-  title: {
-    fontSize: fontSizes["2xl"],
-    fontWeight: fontWeights.bold,
-    color: colors.ink,
-    marginBottom: spacing["3"],
+  chip: {
+    flex: 1,
+    paddingVertical: spacing["6"],
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  subtitle: {
-    fontSize: fontSizes.md,
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: "#FFFBEB",
+  },
+  chipText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.medium,
+    color: colors.ink,
+  },
+  chipTextSelected: {
+    color: colors.primary,
+    fontWeight: fontWeights.semibold,
+  },
+  orLabel: {
+    fontSize: fontSizes.sm,
     color: colors.muted,
-    marginBottom: 28,
-    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: spacing["6"],
   },
   dateButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing["10"],
-    paddingHorizontal: spacing["10"],
-    borderRadius: 16,
-    borderWidth: 2,
-    marginBottom: spacing["6"],
+    paddingVertical: spacing["8"],
+    paddingHorizontal: spacing["8"],
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    marginBottom: spacing["8"],
+    gap: spacing["5"],
   },
   dateButtonEmpty: {
-    borderStyle: "dashed",
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
   },
   dateButtonFilled: {
-    borderStyle: "solid",
     borderColor: colors.primary,
     backgroundColor: "#FFFBEB",
   },
-  icon: {
-    marginRight: spacing["4"],
+  dateIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    alignItems: "center",
   },
   dateTextContainer: {
     flex: 1,
   },
   dateText: {
-    fontSize: fontSizes.lg,
+    fontSize: fontSizes.md,
     fontWeight: fontWeights.semibold,
+    color: colors.primary,
+    textTransform: "capitalize",
   },
   dateTextEmpty: {
+    fontSize: fontSizes.md,
     color: colors.muted,
-  },
-  dateTextFilled: {
-    color: colors.primary,
   },
   dateHint: {
     fontSize: fontSizes.sm,
     color: colors.primary,
-    opacity: 0.7,
-    marginTop: 4,
+    opacity: 0.65,
+    marginTop: 2,
   },
   infoBox: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFBEB",
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    borderRadius: 8,
-    padding: spacing["6"],
-    gap: spacing["3"],
+    borderRadius: radii.md,
+    paddingHorizontal: spacing["6"],
+    paddingVertical: spacing["5"],
+    gap: spacing["4"],
+    alignSelf: "flex-start",
   },
   infoText: {
-    flex: 1,
     fontSize: fontSizes.sm,
-    color: colors.ink,
+    color: colors.primaryDark,
+    fontWeight: fontWeights.medium,
   },
   modalBackdrop: {
     flex: 1,

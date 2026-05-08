@@ -3,9 +3,10 @@ import { useAuth } from "@/context/auth-context";
 import { debug } from "@/utils/debug";
 import { LoginFormValues, loginSchema } from "@/validation/login.schema";
 import { Ionicons } from "@expo/vector-icons";
+import { AxiosError } from "axios";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useRouter } from "expo-router";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -23,10 +24,41 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Logo from '../../../assets/images/icon.png';
 
+type ApiErrorShape = {
+  message?: string | string[];
+  error?: string | { message?: string };
+};
+
+function getLoginErrorMessage(error: unknown): string {
+  if (error instanceof AxiosError) {
+    const status = error.response?.status;
+    const data = error.response?.data as ApiErrorShape | undefined;
+
+    if (status === 401) {
+      return "E-mail ou senha inválidos. Tente novamente.";
+    }
+
+    if (data?.error && typeof data.error === "object" && data.error.message) {
+      return data.error.message;
+    }
+
+    if (typeof data?.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+
+    if (Array.isArray(data?.message) && data.message.length > 0) {
+      return data.message[0];
+    }
+  }
+
+  return "Nao foi possivel entrar agora. Tente novamente em instantes.";
+}
+
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
   const router = useRouter();
   const { top, bottom } = useSafeAreaInsets();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -37,11 +69,13 @@ export default function LoginScreen() {
 
   async function handleSignIn(data: LoginFormValues) {
     debug.log("LOGIN", "handleSignIn chamado", data.email);
+    setAuthError(null);
     try {
       await signIn(data.email, data.password);
       router.replace("/(home)");
     } catch (err) {
       debug.warn("LOGIN", "erro capturado no handleSignIn", err);
+      setAuthError(getLoginErrorMessage(err));
     }
   }
 
@@ -92,7 +126,10 @@ export default function LoginScreen() {
               blurOnSubmit={false}
               editable={!isLoading}
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                if (authError) setAuthError(null);
+                onChange(text);
+              }}
               onBlur={onBlur}
               error={fieldState.error?.message}
               containerStyle={styles.inputSpacing}
@@ -114,12 +151,19 @@ export default function LoginScreen() {
               onSubmitEditing={handleSubmit(handleSignIn)}
               editable={!isLoading}
               value={value}
-              onChangeText={onChange}
+              onChangeText={(text) => {
+                if (authError) setAuthError(null);
+                onChange(text);
+              }}
               onBlur={onBlur}
               error={fieldState.error?.message}
             />
           )}
         />
+
+        {authError ? (
+          <Text style={styles.authErrorText}>{authError}</Text>
+        ) : null}
 
         <TouchableOpacity
           style={styles.forgotPassword}
@@ -274,6 +318,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     marginTop: 10,
     paddingVertical: 4,
+  },
+  authErrorText: {
+    marginTop: 12,
+    color: "#D93025",
+    fontSize: 13,
+    fontWeight: "500",
   },
   forgotPasswordText: {
     fontSize: 14,

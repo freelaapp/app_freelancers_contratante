@@ -1,6 +1,5 @@
 import { BottomActionBar } from "@/components/bottom-action-bar";
 import { Input } from "@/components/input";
-import { PrimaryButton } from "@/components/primary-button";
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { EnderecoCompleto } from "@/hooks/use-via-cep";
@@ -12,7 +11,7 @@ import { getTarifa, ModuloTarifas, Tarifa } from "@/utils/tarifas";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EnderecoForm } from "./endereco-form";
@@ -233,13 +232,6 @@ export function Step4Overview({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.pageHeader}>
-          <Text style={styles.title}>Revise os detalhes</Text>
-          <Text style={styles.subtitle}>
-            Verifique se está tudo certo antes de publicar
-          </Text>
-        </View>
-
         <View style={styles.summaryCard}>
           <View style={styles.serviceHeader}>
             <View style={styles.serviceEmojiContainer}>
@@ -367,12 +359,21 @@ export function Step4Overview({
       </ScrollView>
 
       <BottomActionBar backgroundColor={colors.white} showTopBorder>
-        <PrimaryButton
-          label="Publicar contratação →"
+        <TouchableOpacity
+          style={[styles.publishButton, loading && styles.publishButtonDisabled]}
           onPress={handleSubmit}
-          loading={loading}
           disabled={loading}
-        />
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <Text style={styles.publishButtonText}>Publicando...</Text>
+          ) : (
+            <>
+              <Ionicons name="rocket-outline" size={18} color={colors.white} />
+              <Text style={styles.publishButtonText}>Publicar vaga</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </BottomActionBar>
     </View>
   );
@@ -389,18 +390,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing["8"],
     paddingTop: spacing["6"],
     gap: spacing["6"],
-  },
-  pageHeader: {
-    gap: spacing["2"],
-  },
-  title: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
-    color: colors.ink,
-  },
-  subtitle: {
-    fontSize: fontSizes.base,
-    color: colors.muted,
   },
   card: {
     backgroundColor: colors.white,
@@ -586,6 +575,28 @@ const styles = StyleSheet.create({
   },
   charCountOk: {
     color: colors.muted,
+  },
+  publishButton: {
+    backgroundColor: "#16A34A",
+    borderRadius: radii.lg,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing["4"],
+    shadowColor: "#16A34A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  publishButtonDisabled: {
+    opacity: 0.6,
+  },
+  publishButtonText: {
+    fontSize: fontSizes.md,
+    fontWeight: fontWeights.bold,
+    color: colors.white,
   },
 });
 

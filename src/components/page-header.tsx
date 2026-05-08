@@ -1,4 +1,5 @@
 import { colors, fontSizes, fontWeights, radii, spacing } from "@/constants/theme";
+import { goBackOrReplace } from "@/utils/navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -19,7 +20,7 @@ export function PageHeader({ title, badge, subtitle, onBack, rounded = false, in
 
   function handleBack() {
     if (onBack) onBack();
-    else router.back();
+    else goBackOrReplace(router, "/(home)");
   }
 
   if (inline) {
@@ -54,7 +55,7 @@ export function PageHeader({ title, badge, subtitle, onBack, rounded = false, in
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
-    paddingHorizontal: spacing["16"],
+    paddingHorizontal: spacing["8"],
     paddingBottom: spacing["12"],
     gap: spacing["8"],
   },
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   },
   inlineContainer: {
     backgroundColor: colors.background,
-    paddingHorizontal: spacing["16"],
+    paddingHorizontal: spacing["8"],
     paddingBottom: spacing["12"],
     flexDirection: "row",
     alignItems: "center",
